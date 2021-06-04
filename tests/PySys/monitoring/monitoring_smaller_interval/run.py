@@ -72,7 +72,7 @@ class MonitoringSmallInterval(BaseTest):
             time.sleep(0.1)
 
         # wait for collectd-mapper to batch messages
-        time.sleep(1)
+        time.sleep(3)
 
         # Kill the subscriber process explicitly with sudo as PySys does
         # not have the rights to do it
