@@ -271,7 +271,7 @@ checksum = "b700ce4376041dcd0a327fd0097c41095743c4c8af8887265942faf1100bd040"
 
 [[package]]
 name = "c8y_translator_lib"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "anyhow",
  "assert-json-diff 2.0.1",
@@ -310,7 +310,7 @@ checksum = "e3c69b077ad434294d3ce9f1f6143a2a4b89a8a2d54ef813d85003a4fd1137fd"
 
 [[package]]
 name = "certificate"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "anyhow",
  "assert_matches",
@@ -360,7 +360,7 @@ dependencies = [
 
 [[package]]
 name = "clock"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "chrono",
  "mockall",
@@ -368,7 +368,7 @@ dependencies = [
 
 [[package]]
 name = "collectd_mapper"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "anyhow",
  "assert_matches",
@@ -654,7 +654,7 @@ dependencies = [
 
 [[package]]
 name = "flockfile"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "assert_matches",
  "log",
@@ -1182,7 +1182,7 @@ dependencies = [
 
 [[package]]
 name = "mqtt_client"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "async-log",
  "async-trait",
@@ -2084,7 +2084,7 @@ checksum = "55937e1799185b12863d447f42597ed69d9928686b8d88a1df17376a097d8369"
 
 [[package]]
 name = "tedge"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "anyhow",
  "assert_cmd",
@@ -2112,7 +2112,7 @@ dependencies = [
 
 [[package]]
 name = "tedge_config"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "assert_matches",
  "certificate",
@@ -2125,7 +2125,7 @@ dependencies = [
 
 [[package]]
 name = "tedge_mapper"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "anyhow",
  "assert-json-diff 2.0.1",
@@ -2151,7 +2151,7 @@ dependencies = [
 
 [[package]]
 name = "tedge_users"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "thiserror",
  "users",
@@ -2191,7 +2191,7 @@ dependencies = [
 
 [[package]]
 name = "thin_edge_json"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "anyhow",
  "chrono",
