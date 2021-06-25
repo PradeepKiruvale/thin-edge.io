@@ -31,6 +31,7 @@ pub struct ConnectCommand {
     pub cloud: Cloud,
     pub common_mosquitto_config: CommonMosquittoConfig,
     pub is_test_connection: bool,
+    pub is_bridge_create: bool,
 }
 
 pub enum Cloud {
@@ -51,6 +52,8 @@ impl Command for ConnectCommand {
     fn description(&self) -> String {
         if self.is_test_connection {
             format!("test connection to {} cloud.", self.cloud.as_str())
+        } else if self.is_bridge_create {
+            format!("create the bridge cofnig file for {} cloud.", self.cloud.as_str())
         } else {
             format!("create bridge to connect {} cloud.", self.cloud.as_str())
         }
@@ -72,6 +75,17 @@ impl Command for ConnectCommand {
         }
         let bridge_config = self.bridge_config(&config)?;
         self.config_repository.store(config)?;
+
+        if self.is_bridge_create {
+            if let Err(err) =
+                write_bridge_config_to_file(&self.config_location, &bridge_config, &self.common_mosquitto_config)
+            {
+                // We want to preserve previous errors and therefore discard result of this function.
+                let _ = clean_up(&self.config_location, &bridge_config);
+                return Err(err.into());
+            }
+           return Ok(());
+        }
 
         new_bridge(
             &bridge_config,

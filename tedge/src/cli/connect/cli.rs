@@ -11,6 +11,10 @@ pub enum TEdgeConnectOpt {
         /// Test connection to Cumulocity
         #[structopt(long = "test")]
         is_test_connection: bool,
+
+        /// Create Cumulocity bridge file
+        #[structopt(long = "bridge")]
+        is_bridge_create: bool,
     },
 
     /// Create connection to Azure
@@ -20,25 +24,31 @@ pub enum TEdgeConnectOpt {
         /// Test connection to Azure
         #[structopt(long = "test")]
         is_test_connection: bool,
+
+         /// Create Cumulocity bridge file
+         #[structopt(long = "bridge")]
+         is_bridge_create: bool,
     },
 }
 
 impl BuildCommand for TEdgeConnectOpt {
     fn build_command(self, context: BuildContext) -> Result<Box<dyn Command>, crate::ConfigError> {
         Ok(match self {
-            TEdgeConnectOpt::C8y { is_test_connection } => ConnectCommand {
+            TEdgeConnectOpt::C8y { is_test_connection , is_bridge_create} => ConnectCommand {
                 config_location: context.config_location,
                 config_repository: context.config_repository,
                 cloud: Cloud::C8y,
                 common_mosquitto_config: CommonMosquittoConfig::default(),
                 is_test_connection,
+                is_bridge_create,
             },
-            TEdgeConnectOpt::Az { is_test_connection } => ConnectCommand {
+            TEdgeConnectOpt::Az { is_test_connection , is_bridge_create} => ConnectCommand {
                 config_location: context.config_location,
                 config_repository: context.config_repository,
                 cloud: Cloud::Azure,
                 common_mosquitto_config: CommonMosquittoConfig::default(),
                 is_test_connection,
+                is_bridge_create,
             },
         }
         .into_boxed())
