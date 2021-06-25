@@ -148,6 +148,7 @@ impl ConfigSetting for AzureMapperTimestamp {
 #[derive(Debug, Copy, Clone, Eq, PartialEq)]
 pub struct MqttPortSetting;
 
+
 impl ConfigSetting for MqttPortSetting {
     const KEY: &'static str = "mqtt.port";
 
@@ -157,4 +158,18 @@ impl ConfigSetting for MqttPortSetting {
     );
 
     type Value = Port;
+}
+
+#[derive(Debug, Copy, Clone, Eq, PartialEq)]
+pub struct MqttHostSetting;
+
+impl ConfigSetting for MqttHostSetting {
+    const KEY: &'static str = "mqtt.host";
+
+    const DESCRIPTION: &'static str = concat!(
+        "Mqtt broker host, which is used by the mqtt clients to publish or subscribe. ",
+        "Example: listener 1883 mqtt_bus"
+    );
+
+    type Value = Host;
 }

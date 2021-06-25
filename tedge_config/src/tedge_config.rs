@@ -244,6 +244,29 @@ impl ConfigSettingAccessor<MqttPortSetting> for TEdgeConfig {
     }
 }
 
+
+impl ConfigSettingAccessor<MqttHostSetting> for TEdgeConfig {
+    fn query(&self, _setting: MqttHostSetting) -> ConfigSettingResult<Host> {
+        Ok(self
+            .data
+            .mqtt
+            .host
+            .clone()
+            .map(Host)
+            .unwrap_or_else(|| self.config_defaults.default_mqtt_host.clone()))
+    }
+
+    fn update(&mut self, _setting: MqttHostSetting, value: Host) -> ConfigSettingResult<()> {
+        self.data.mqtt.host = Some(value.0.into());
+        Ok(())
+    }
+
+    fn unset(&mut self, _setting: MqttHostSetting) -> ConfigSettingResult<()> {
+        self.data.mqtt.host = None;
+        Ok(())
+    }
+}
+
 /// Generic extension trait implementation for all `ConfigSetting`s of `TEdgeConfig`
 /// that provide `TryFrom`/`TryInto` implementations for `String`.
 impl<T, E, F> ConfigSettingAccessorStringExt<T> for TEdgeConfig

@@ -72,4 +72,5 @@ pub(crate) struct AzureConfigDto {
 #[serde(deny_unknown_fields)]
 pub(crate) struct MqttConfigDto {
     pub(crate) port: Option<u16>,
+    pub(crate) host: Option<String>,
 }

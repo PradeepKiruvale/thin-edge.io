@@ -1,10 +1,11 @@
 use crate::models::FilePath;
 use crate::TEdgeConfigLocation;
-use crate::{Flag, Port};
+use crate::{Flag, Port, Host};
 use std::path::Path;
 
 const DEFAULT_ETC_PATH: &str = "/etc";
 const DEFAULT_PORT: u16 = 1883;
+const DEFAULT_HOST: &str = "localhost";
 
 /// Stores default values for use by `TEdgeConfig` in case no configuration setting
 /// is available.
@@ -37,6 +38,9 @@ pub struct TEdgeConfigDefaults {
 
     /// Default port for mqtt
     pub default_mqtt_port: Port,
+
+    /// Default host for mqtt
+    pub default_mqtt_host: Host,
 }
 
 impl From<&TEdgeConfigLocation> for TEdgeConfigDefaults {
@@ -57,6 +61,7 @@ impl From<&TEdgeConfigLocation> for TEdgeConfigDefaults {
             default_c8y_root_cert_path: system_cert_path.into(),
             default_mapper_timestamp: Flag(true),
             default_mqtt_port: Port(DEFAULT_PORT),
+            default_mqtt_host: Host(String::from(DEFAULT_HOST)),
         }
     }
 }
@@ -79,6 +84,7 @@ fn test_from_tedge_config_location() {
             default_c8y_root_cert_path: FilePath::from("/etc/ssl/certs"),
             default_mapper_timestamp: Flag(true),
             default_mqtt_port: Port(DEFAULT_PORT),
+            default_mqtt_host: Host(String::from(DEFAULT_HOST)),
         }
     );
 }
