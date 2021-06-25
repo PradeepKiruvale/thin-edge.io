@@ -26,7 +26,7 @@ async fn main() -> anyhow::Result<()> {
         .init();
 
     info!("{} starting!", APP_NAME);
-
+    //let mqtthost: &str = mqtt_host()?.as_str();
     let device_monitor_config = DeviceMonitorConfig::default().with_port(mqtt_port()?);
 
     let device_monitor = DeviceMonitor::new(device_monitor_config);
@@ -42,6 +42,12 @@ fn mqtt_port() -> anyhow::Result<u16> {
     let config_repository = config_repository()?;
     let tedge_config = config_repository.load()?;
     Ok(tedge_config.query(MqttPortSetting)?.into())
+}
+
+fn mqtt_host() -> anyhow::Result<String> {
+    let config_repository = config_repository()?;
+    let tedge_config = config_repository.load()?;
+    Ok(tedge_config.query(MqttHostSetting)?.into())
 }
 
 fn config_repository() -> anyhow::Result<TEdgeConfigRepository> {

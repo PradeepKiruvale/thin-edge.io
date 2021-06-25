@@ -85,7 +85,11 @@ async fn main() -> anyhow::Result<()> {
 }
 
 fn mqtt_config() -> Result<Config, anyhow::Error> {
-    Ok(Config::default().with_port(tedge_config()?.query(MqttPortSetting)?.into()))
+    // Ok(Config::default().with_port(tedge_config()?.query(MqttPortSetting)?.into()))
+    Ok(Config::new(
+        tedge_config()?.query(MqttHostSetting)?,
+        tedge_config()?.query(MqttPortSetting)?.into(),
+    ))
 }
 
 fn tedge_config() -> Result<TEdgeConfig, anyhow::Error> {

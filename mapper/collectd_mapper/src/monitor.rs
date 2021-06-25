@@ -46,6 +46,11 @@ impl DeviceMonitorConfig {
     pub fn with_port(self, port: u16) -> Self {
         Self { port, ..self }
     }
+
+    pub fn with_port_and_host(self, host: &'static str, port: u16) -> Self {
+        // let listener = port.to_string() + &host;
+        Self { host, port, ..self }
+    }
 }
 
 #[derive(Debug)]

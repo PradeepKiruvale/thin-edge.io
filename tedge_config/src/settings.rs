@@ -148,7 +148,6 @@ impl ConfigSetting for AzureMapperTimestamp {
 #[derive(Debug, Copy, Clone, Eq, PartialEq)]
 pub struct MqttPortSetting;
 
-
 impl ConfigSetting for MqttPortSetting {
     const KEY: &'static str = "mqtt.port";
 

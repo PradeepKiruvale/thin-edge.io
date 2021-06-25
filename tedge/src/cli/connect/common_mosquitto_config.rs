@@ -45,6 +45,16 @@ impl CommonMosquittoConfig {
         let listener = port.to_string() + " localhost";
         Self { listener, ..self }
     }
+
+    pub fn with_host(self, host: String) -> Self {
+        let listener = "1883 ".to_string() + &host;
+        Self { listener, ..self }
+    }
+
+    pub fn with_port_and_host(self, port: u16, host: String) -> Self {
+        let listener = port.to_string() + &host;
+        Self { listener, ..self }
+    }
 }
 
 #[test]

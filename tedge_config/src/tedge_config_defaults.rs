@@ -1,6 +1,6 @@
 use crate::models::FilePath;
 use crate::TEdgeConfigLocation;
-use crate::{Flag, Port, Host};
+use crate::{Flag, Host, Port};
 use std::path::Path;
 
 const DEFAULT_ETC_PATH: &str = "/etc";

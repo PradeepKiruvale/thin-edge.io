@@ -244,7 +244,6 @@ impl ConfigSettingAccessor<MqttPortSetting> for TEdgeConfig {
     }
 }
 
-
 impl ConfigSettingAccessor<MqttHostSetting> for TEdgeConfig {
     fn query(&self, _setting: MqttHostSetting) -> ConfigSettingResult<Host> {
         Ok(self
