@@ -2035,6 +2035,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "readonly"
+version = "0.2.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "45abc1c3a18669574c914b075cdc510c34bb3f1fb18f17b1ebf65ca5b3753796"
+dependencies = [
+ "proc-macro2 1.0.29",
+ "quote 1.0.9",
+ "syn 1.0.76",
+]
+
+[[package]]
 name = "redox_syscall"
 version = "0.2.10"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2638,6 +2649,7 @@ dependencies = [
  "json_sm",
  "mockall",
  "mqtt_client",
+ "readonly",
  "reqwest",
  "serde",
  "serde_json",

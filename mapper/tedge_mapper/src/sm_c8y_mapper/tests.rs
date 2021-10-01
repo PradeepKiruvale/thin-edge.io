@@ -1,16 +1,16 @@
-use crate::component::TEdgeComponent;
+use crate::sm_c8y_mapper::mapper::CumulocitySoftwareManagement;
 use mqtt_client::{Client, MqttClient, MqttMessageStream, Topic, TopicFilter};
 use serial_test::serial;
 use std::{io::Write, time::Duration};
 use tedge_config::{ConfigRepository, TEdgeConfig, TEdgeConfigLocation};
 
 const MQTT_TEST_PORT: u16 = 55555;
-const TEST_TIMEOUT_MS: Duration = Duration::from_millis(2000);
+const TEST_TIMEOUT_MS: Duration = Duration::from_millis(4000);
 
 #[tokio::test]
 #[cfg_attr(not(feature = "mosquitto-available"), ignore)]
 #[serial]
-async fn mapper_publishes_a_software_list_request() {
+async fn mapper_publishes_a_software_list_request() -> Result<(), anyhow::Error> {
     // The test assures the mapper publishes request for software list on `tedge/commands/req/software/list`.
 
     // Create a subscriber to receive messages on the bus.
@@ -21,12 +21,7 @@ async fn mapper_publishes_a_software_list_request() {
     .await;
 
     // Start SM Mapper
-    let config = create_tedge_config();
-    let _mapper_task = tokio::spawn(async {
-        crate::sm_c8y_mapper::mapper::CumulocitySoftwareManagementMapper::new()
-            .start(config)
-            .await
-    });
+    let _mapper = start_sm_mapper().await;
 
     // Expect message that arrives on `tedge/commands/req/software/list` is software list request.
     match tokio::time::timeout(TEST_TIMEOUT_MS, subscriber.next()).await {
@@ -36,6 +31,8 @@ async fn mapper_publishes_a_software_list_request() {
         }
         _ => panic!("No message received after a second."),
     }
+
+    Ok(())
 }
 
 #[tokio::test]
@@ -45,25 +42,46 @@ async fn mapper_publishes_a_supported_operation_and_a_pending_operations_onto_c8
     // The test assures the mapper publishes smartrest messages 114 and 500 on `c8y/s/us` which shall be send over to the cloud if bridge connection exists.
 
     // Create a subscriber to receive messages on `c8y/s/us` topic.
-    let mut subscriber = get_subscriber(
-        "c8y/s/us",
-        "mapper_publishes_a_supported_operation_and_a_pending_operations_onto_c8y_topic",
-    )
-    .await;
+    let mut c8y_subscriber = get_subscriber("c8y/s/us", "wait_on_c8y_s_us").await;
+
+    // Create a subscriber to receive messages on `tedge/commands/req/software/list` topic.
+    let mut agent_subscriber =
+        get_subscriber("tedge/commands/req/software/list", "wait_on_req_list").await;
 
     // Start SM Mapper
-    let config = create_tedge_config();
-    let _mapper_task = tokio::spawn(async {
-        crate::sm_c8y_mapper::mapper::CumulocitySoftwareManagementMapper::new()
-            .start(config)
-            .await
-    });
+    let _mapper = start_sm_mapper().await;
+
+    // Expect thin-edge json message on `tedge/commands/req/software/list` with expected payload.
+    match tokio::time::timeout(TEST_TIMEOUT_MS, agent_subscriber.next()).await {
+        Ok(Some(msg)) => {
+            dbg!(&msg.payload_str().unwrap());
+            // Prepare and publish a software update response `successful`.
+            let json_response = r#"{
+                            "id":"123",
+                            "status":"successful",
+                            "currentSoftwareList":[
+                                {"type":"apt","modules":[
+                                    {"name":"m","url":"https://foobar.io/m.epl"}
+                                ]}
+                        ]}"#;
+
+            // Publish the response
+            let _ = publish(
+                &Topic::new("tedge/commands/res/software/list").unwrap(),
+                json_response.to_string(),
+            )
+            .await;
+        }
+        _ => {
+            panic!("Start list request not received");
+        }
+    }
 
     // Expect both 114 and 500 messages has been received on `c8y/s/us`, if no msg received for the timeout the test fails.
     let mut received_supported_operation = false;
     let mut received_pending_operation_request = false;
     loop {
-        match tokio::time::timeout(TEST_TIMEOUT_MS, subscriber.next()).await {
+        match tokio::time::timeout(TEST_TIMEOUT_MS, c8y_subscriber.next()).await {
             Ok(Some(msg)) => {
                 dbg!(&msg.payload_str().unwrap());
                 match msg.payload_str().unwrap() {
@@ -86,56 +104,6 @@ async fn mapper_publishes_a_supported_operation_and_a_pending_operations_onto_c8
 #[tokio::test]
 #[cfg_attr(not(feature = "mosquitto-available"), ignore)]
 #[serial]
-async fn mapper_publishes_software_list_onto_c8y_topic() {
-    // The test assures SM Mapper correctly receives software list message on `tedge/commands/res/software/list`
-    // and converts it to smartrest message published on `c8y/s/us`.
-
-    // Create a subscriber to receive messages on `c8y/s/us` topic.
-    let mut subscriber =
-        get_subscriber("c8y/s/us", "mapper_publishes_software_list_onto_c8y_topic").await;
-
-    // Start SM Mapper
-    let config = create_tedge_config();
-    let _mapper_task = tokio::spawn(async {
-        crate::sm_c8y_mapper::mapper::CumulocitySoftwareManagementMapper::new()
-            .start(config)
-            .await
-    });
-
-    // Prepare and publish a software list response message on `tedge/commands/res/software/list`.
-    let json = r#"{
-            "id":"123",
-            "status":"successful",
-            "currentSoftwareList":[
-                {"type":"apt","modules":[
-                    {"name":"m","url":"https://foobar.io/m.epl"}
-                ]}
-            ]}"#;
-
-    let _ = publish(
-        &Topic::new("tedge/commands/res/software/list").unwrap(),
-        json.to_string(),
-    )
-    .await;
-
-    // Expect `116` message with correct payload has been received on `c8y/s/us`, if no msg received for the timeout the test fails.
-    loop {
-        match tokio::time::timeout(TEST_TIMEOUT_MS, subscriber.next()).await {
-            Ok(Some(msg)) => {
-                dbg!(&msg.payload_str().unwrap());
-                match msg.payload_str().unwrap() {
-                    "116,m,::apt,https://foobar.io/m.epl\n" => break,
-                    _ => continue,
-                }
-            }
-            _ => panic!("No message received after a second."),
-        }
-    }
-}
-
-#[tokio::test]
-#[cfg_attr(not(feature = "mosquitto-available"), ignore)]
-#[serial]
 async fn mapper_publishes_software_update_request() {
     // The test assures SM Mapper correctly receives software update request smartrest message on `c8y/s/ds`
     // and converts it to thin-edge json message published on `tedge/commands/req/software/update`.
@@ -147,13 +115,7 @@ async fn mapper_publishes_software_update_request() {
     )
     .await;
 
-    // Start SM Mapper
-    let config = create_tedge_config();
-    let _mapper_task = tokio::spawn(async {
-        crate::sm_c8y_mapper::mapper::CumulocitySoftwareManagementMapper::new()
-            .start(config)
-            .await
-    });
+    let _sm_mapper = start_sm_mapper().await;
 
     // Prepare and publish a software update smartrest request on `c8y/s/ds`.
     let smartrest = r#"528,external_id,nodered,1.0.0::debian,,install"#;
@@ -204,12 +166,7 @@ async fn mapper_publishes_software_update_status_and_software_list_onto_c8y_topi
     .await;
 
     // Start SM Mapper
-    let config = create_tedge_config();
-    let _mapper_task = tokio::spawn(async {
-        crate::sm_c8y_mapper::mapper::CumulocitySoftwareManagementMapper::new()
-            .start(config)
-            .await
-    });
+    let _sm_mapper = start_sm_mapper().await;
 
     // Prepare and publish a software list response message on `tedge/commands/res/software/list`.
     let json_response = r#"{
@@ -233,7 +190,7 @@ async fn mapper_publishes_software_update_status_and_software_list_onto_c8y_topi
                     _ => continue,
                 }
             }
-            _ => panic!("No message received after a second."),
+            _ => panic!("No update operation status message received after a second."),
         }
     }
 
@@ -255,23 +212,27 @@ async fn mapper_publishes_software_update_status_and_software_list_onto_c8y_topi
 
     // Expect `116` and `503` messages with correct payload have been received on `c8y/s/us`, if no msg received for the timeout the test fails.
     let mut received_status_successful = false;
-    let mut received_software_list = false;
+
     for _ in 0..2 {
         match tokio::time::timeout(TEST_TIMEOUT_MS, subscriber.next()).await {
             Ok(Some(msg)) => {
                 dbg!(&msg.payload_str().unwrap());
                 match msg.payload_str().unwrap() {
-                    "503,c8y_SoftwareUpdate\n" => received_status_successful = true,
-                    "116,m,::apt,https://foobar.io/m.epl\n" => received_software_list = true,
+                    "503,c8y_SoftwareUpdate\n" => {
+                        received_status_successful = true;
+                        // After receiving successful message publish response with a custom 'token' on topic `c8y/s/dat`.
+                            let _ =
+                            publish(&Topic::new("c8y/s/dat").unwrap(), "71,1111".to_string()).await;
+                        break;
+                    }
                     _ => {}
                 }
                 continue;
             }
-            _ => panic!("No message received after a second."),
+            _ => panic!("No update operation result message received after a second."),
         }
     }
     assert!(received_status_successful);
-    assert!(received_software_list);
 
     // Publish a software update response `failed`.
     let json_response = r#"
@@ -292,31 +253,30 @@ async fn mapper_publishes_software_update_status_and_software_list_onto_c8y_topi
             ],
             "failures":[]
         }"#;
+
     let _ = publish(
         &Topic::new("tedge/commands/res/software/update").unwrap(),
         json_response.to_string(),
     )
     .await;
 
-    // Expect `116` and `502` messages with correct payload have been received on `c8y/s/us`, if no msg received for the timeout the test fails.
+    // `502` messages with correct payload have been received on `c8y/s/us`, if no msg received for the timeout the test fails.
     let mut received_status_failed = false;
-    let mut received_software_list = false;
-    for _ in 0..2 {
+
+    for _ in 0..3 {
         match tokio::time::timeout(TEST_TIMEOUT_MS, subscriber.next()).await {
             Ok(Some(msg)) => {
                 dbg!(&msg.payload_str().unwrap());
                 match msg.payload_str().unwrap() {
-                        "502,c8y_SoftwareUpdate,\"Partial failure: Couldn\'t install collectd and nginx\"\n" => received_status_failed = true,
-                        "116,nginx,1.21.0::docker,\n" => received_software_list = true,
+                        "502,c8y_SoftwareUpdate,\"Partial failure: Couldn\'t install collectd and nginx\"\n" => { received_status_failed = true; break;}
                         _ => {}
                     }
                 continue;
             }
-            _ => panic!("No message received after a second."),
+            _ => panic!("No failed status message received after a second."),
         }
     }
     assert!(received_status_failed);
-    assert!(received_software_list);
 }
 
 fn create_tedge_config() -> TEdgeConfig {
@@ -376,4 +336,16 @@ async fn get_subscriber(pattern: &str, client_name: &str) -> Box<dyn MqttMessage
 
     // Obtain subscribe stream
     subscriber.subscribe(topic_filter).await.unwrap()
+}
+
+async fn start_sm_mapper() -> Result<(), anyhow::Error> {
+    let tedge_config = create_tedge_config();
+    let mqtt_config = mqtt_client::Config::default().with_port(MQTT_TEST_PORT);
+    let mqtt_client = Client::connect("SM-C8Y-Mapper", &mqtt_config).await?;
+    let _mapper_task = tokio::spawn(async {
+        let _sm_mapper = CumulocitySoftwareManagement::new(mqtt_client, tedge_config)
+            .run()
+            .await;
+    });
+    Ok(())
 }

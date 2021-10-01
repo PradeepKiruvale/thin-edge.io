@@ -15,6 +15,7 @@ use json_sm::{
     SoftwareUpdateResponse,
 };
 use mqtt_client::{Client, MqttClient, MqttClientError, Topic, TopicFilter};
+use readonly;
 use std::{convert::TryInto, time::Duration};
 use tedge_config::{C8yUrlSetting, ConfigSettingAccessorStringExt, DeviceIdSetting, TEdgeConfig};
 use tokio::time::Instant;
@@ -43,8 +44,9 @@ impl TEdgeComponent for CumulocitySoftwareManagementMapper {
     }
 }
 
+#[readonly::make]
 #[derive(Debug)]
-struct CumulocitySoftwareManagement {
+pub struct CumulocitySoftwareManagement {
     client: Client,
     config: TEdgeConfig,
     c8y_internal_id: String,
@@ -74,7 +76,7 @@ impl CumulocitySoftwareManagement {
         Ok(())
     }
 
-    async fn run(&self) -> Result<(), anyhow::Error> {
+    pub async fn run(&self) -> Result<(), anyhow::Error> {
         info!("Running");
         let () = self.publish_supported_operations().await?;
         let () = self.publish_get_pending_operations().await?;
@@ -291,6 +293,8 @@ async fn try_get_internal_id(
     let internal_id = client.get(url_get_id).bearer_auth(token).send().await?;
 
     let internal_id_response = internal_id.json::<InternalIdResponse>().await?;
+
+    println!("internal id respo {:?}", &internal_id_response);
 
     let internal_id = internal_id_response.id();
     Ok(internal_id)
