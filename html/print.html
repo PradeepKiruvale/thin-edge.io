@@ -1854,58 +1854,7 @@ Then, it publishes an empty string to the topic <code>az/twin/GET/?$rid=1</code>
 <ol>
 <li><a href="howto-guides/./005_pub_sub.html">How to use mqtt pub/sub?</a></li>
 </ol>
-<div style="break-before: page; page-break-before: always;"></div><h1 id="how-to-configure-the-local-port-in-mosquitto"><a class="header" href="#how-to-configure-the-local-port-in-mosquitto">How to configure the local port in mosquitto?</a></h1>
-<p>Configuring a mosquitto port in thin edge is a three step process.</p>
-<h2 id="step-1-disconnect-the-thin-edge-device"><a class="header" href="#step-1-disconnect-the-thin-edge-device">Step 1: Disconnect the thin edge device</a></h2>
-<p>The thin edge device has to be disconnected from the cloud using the <code>tedge</code> command</p>
-<pre><code class="language-shell">tedge disconnect c8y/az
-</code></pre>
-<h2 id="step-2-set-and-verify-the-new-mqtt-port"><a class="header" href="#step-2-set-and-verify-the-new-mqtt-port">Step 2: Set and verify the new mqtt port</a></h2>
-<p>Set the mqtt.port with a desired port using <code>tedge</code> command as below.</p>
-<pre><code class="language-shell">tedge config set mqtt.port 1024
-</code></pre>
-<p>This will make sure that all the mqtt clients use the newer port that has been set.</p>
-<h2 id="verify-the-port-configuredset"><a class="header" href="#verify-the-port-configuredset">Verify the port configured/set</a></h2>
-<p>Use below command to check the port has been set properly or not.</p>
-<pre><code class="language-shell">tedge config get mqtt.port
-</code></pre>
-<p>This prints out the port that has been set.</p>
-<h2 id="step-3-connect-the-thin-edge-device-to-cloud"><a class="header" href="#step-3-connect-the-thin-edge-device-to-cloud">Step 3: Connect the thin edge device to cloud</a></h2>
-<p>Using <code>tedge</code> command connect to the desired cloud as below.</p>
-<p>This will configure all the services (mosquitto, tedge-mapper-c8y.service, tedge-mapper-az.service, sm_agent,
-tedge-agent.service) to use the newly set port.</p>
-<pre><code class="language-shell">tedge connect c8y
-
-#or
-
-tedge connect az
-</code></pre>
-<p>Note: The step 1 and 2 can be followed in any order.</p>
-<h2 id="update-to-use-default-port"><a class="header" href="#update-to-use-default-port">Update to use default port</a></h2>
-<p>To use the default port (1883), the mqtt.port has to be unset using the <code>tedge</code> command as below</p>
-<pre><code class="language-shell">tedge config unset mqtt.port
-</code></pre>
-<p>Once the port is reverted to default, the <a href="howto-guides/008_config_local_mqtt_port.html#Step-3:-Connect-the-thin-edge-device-to-cloud">step 1</a>
-and 3 has to be followed to use the default port.</p>
-<h2 id="error-case"><a class="header" href="#error-case">Error case</a></h2>
-<p>Below example shows that we can not set string value for the port number.</p>
-<pre><code class="language-shell">tedge config set mqtt.port '&quot;1234&quot;'
-
-Error: failed to set the configuration key: mqtt.port with value: &quot;1234&quot;.
-
-Caused by:
-    Conversion from String failed
-</code></pre>
-<h2 id="updating-the-mqtt-port-in-collectd--for-collectd-mapper"><a class="header" href="#updating-the-mqtt-port-in-collectd--for-collectd-mapper">Updating the mqtt port in collectd &amp; for collectd-mapper</a></h2>
-<p>Update the <code>collectd.conf</code> with the new port in <code>&lt;Plugin mqtt&gt;</code></p>
-<p>Restart the collectd service</p>
-<pre><code class="language-shell">sudo systemctl restart collectd.service
-</code></pre>
-<p>After changing the mqtt port and connected to cloud using <code>tedge connect c8y/az</code>,
-(Steps 1-3) the collectd-mapper has to be restarted to use the newly set port.</p>
-<p>Restart the collectd-mapper service</p>
-<pre><code class="language-shell">sudo systemctl restart collectd-mapper.service
-</code></pre>
+<div style="break-before: page; page-break-before: always;"></div><h1 id="how-to-configure-the-local-mqtt-port"><a class="header" href="#how-to-configure-the-local-mqtt-port">How to configure the local mqtt port</a></h1>
 <div style="break-before: page; page-break-before: always;"></div><h1 id="how-to-trouble-shoot-device-monitoring"><a class="header" href="#how-to-trouble-shoot-device-monitoring">How to trouble shoot device monitoring</a></h1>
 <p>To install and configure monitoring on your device,
 see the tutorial <a href="howto-guides/../tutorials/device-monitoring.html">Monitor your device with collectd</a>.</p>
