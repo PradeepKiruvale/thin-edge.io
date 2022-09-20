@@ -1370,6 +1370,18 @@ dependencies = [
 ]
 
 [[package]]
+name = "inotify"
+version = "0.10.0"
+source = "git+https://github.com/hannobraun/inotify-rs?branch=master#9ec50c55bb2b0db444f4602e1bd8c358b6df2615"
+dependencies = [
+ "bitflags",
+ "futures-core",
+ "inotify-sys",
+ "libc",
+ "tokio",
+]
+
+[[package]]
 name = "inotify-sys"
 version = "0.1.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2907,7 +2919,7 @@ dependencies = [
  "download",
  "flockfile",
  "futures",
- "inotify",
+ "inotify 0.10.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "logged_command",
  "mockall",
  "mockito",
@@ -2947,7 +2959,7 @@ dependencies = [
  "assert_matches",
  "async-stream",
  "futures",
- "inotify",
+ "inotify 0.10.0 (git+https://github.com/hannobraun/inotify-rs?branch=master)",
  "maplit",
  "nix",
  "strum_macros",
