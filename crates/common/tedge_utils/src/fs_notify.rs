@@ -252,7 +252,6 @@ impl NotifyStream {
         if self.watchers.description.is_empty() {
             let watch_mask = pipe_masks_into_watch_mask(masks);
             let wd = self.inotify.watches().add(dir_path, watch_mask)?;
-
             let mut wdescriptors = WatchDescriptor::default();
             wdescriptors.insert(dir_path.to_path_buf(), file, masks.to_vec());
             self.watchers = wdescriptors;
@@ -265,7 +264,6 @@ impl NotifyStream {
             let masks = self.watchers.get_mask_set_for_directory(dir_path);
             let watch_mask = pipe_masks_into_watch_mask(&masks);
             let wd = self.inotify.watches().add(dir_path, watch_mask)?;
-
             self.watchers
                 .discriptors
                 .insert(wd.get_watch_descriptor_id(), full_path);
@@ -278,7 +276,6 @@ impl NotifyStream {
         try_stream! {
         let mut notify_service = self.inotify.into_event_stream(self.buffer)?;
         while let Some(event_or_error) = notify_service.next().await {
-
             match event_or_error {
                 Ok(event) => {
                     let event_mask: FileEvent = event.mask.try_into()?;
@@ -286,15 +283,11 @@ impl NotifyStream {
                     // watching a directory, we can ignore the case where &event.name is None
                     if let Some(event_name) = &event.name {
                         let notify_file_name = event_name.to_str().ok_or_else(|| NotifyStreamError::FailedToCreateStream)?;
-
                         // inotify triggered for a file named `notify_file_name`. Next we need
                         // to see if we have a matching entry WITH a matching flag/mask in `self.watchers`
                         for (dir_path, key) in &self.watchers.description {
-
                             for (maybe_file_name, flags) in key {
-
                                 for flag in flags {
-
                                     // There are two cases:
                                     // 1. we added a file watch
                                     // 2. we added a directory watch
@@ -309,7 +302,6 @@ impl NotifyStream {
                                     // here the file we are watching is *given* - so we can yield events with the
                                     // corresponding `event_name` and mask.
                                     if let Some(file_name) = maybe_file_name {
-
                                         if file_name.eq(notify_file_name) && event_mask.eq(flag) {
                                             let full_path = dir_path.join(file_name);
                                             yield (full_path, event_mask)
@@ -515,23 +507,19 @@ mod tests {
         pin_mut!(stream);
         while let Some(Ok((path, flag))) = stream.next().await {
             let file_name = String::from(path.file_name().unwrap().to_str().unwrap());
-
             let mut values = match inputs.get_mut(&file_name) {
                 Some(v) => v.to_vec(),
                 None => continue,
             };
-
             match values.iter().position(|x| *x == flag) {
                 Some(i) => values.remove(i),
                 None => continue,
             };
-
             if values.is_empty() {
                 inputs.remove(&file_name);
             } else {
                 inputs.insert(file_name, values);
             }
-
             if inputs.is_empty() {
                 break;
             }
