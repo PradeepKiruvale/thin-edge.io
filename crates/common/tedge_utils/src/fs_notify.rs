@@ -203,7 +203,7 @@ impl NotifyStream {
     /// use std::path::Path;
     ///
     /// let dir_path_a = Path::new("/tmp");
-    /// let dir_path_b = Path::new("/etc/tedge/c8y");
+    /// let dir_path_b = Path::new("/etc");
     ///
     /// let mut fs_notification_stream = NotifyStream::try_default().unwrap();
     /// fs_notification_stream.add_watcher(dir_path_a, None, &[FileEvent::Created]).unwrap();
