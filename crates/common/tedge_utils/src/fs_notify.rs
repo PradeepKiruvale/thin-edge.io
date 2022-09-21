@@ -69,7 +69,7 @@ pub enum NotifyStreamError {
 #[derive(Debug, Default, Clone)]
 struct WatchDescriptor {
     description: HashMap<PathBuf, HashMap<Option<String>, Vec<FileEvent>>>,
-    discriptors: HashMap<c_int, String>,
+    watch_discriptor_id: HashMap<c_int, String>,
 }
 
 impl WatchDescriptor {
@@ -256,7 +256,7 @@ impl NotifyStream {
             wdescriptors.insert(dir_path.to_path_buf(), file, masks.to_vec());
             self.watchers = wdescriptors;
             self.watchers
-                .discriptors
+                .watch_discriptor_id
                 .insert(wd.get_watch_descriptor_id(), full_path);
         } else {
             self.watchers
@@ -265,7 +265,7 @@ impl NotifyStream {
             let watch_mask = pipe_masks_into_watch_mask(&masks);
             let wd = self.inotify.watches().add(dir_path, watch_mask)?;
             self.watchers
-                .discriptors
+                .watch_discriptor_id
                 .insert(wd.get_watch_descriptor_id(), full_path);
         }
         Ok(())
@@ -316,7 +316,7 @@ impl NotifyStream {
                                         //  )
                                         // here the file we are watching is not known to us, so we match only on event mask
                                         if event_mask.eq(flag) {
-                                            match self.watchers.discriptors.get(&event.wd.get_watch_descriptor_id()) {
+                                            match self.watchers.watch_discriptor_id.get(&event.wd.get_watch_descriptor_id()) {
                                                 Some(path) => {
                                                     let full_path = PathBuf::from(path).join(notify_file_name);
                                                     yield (full_path, event_mask)
