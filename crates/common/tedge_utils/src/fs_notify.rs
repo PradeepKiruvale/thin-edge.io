@@ -118,8 +118,7 @@ impl WatchDescriptor {
             masks,
         };
 
-        let fmap = self.description.get(&wid);
-        let v = match fmap {
+        let fd_vec = match self.description.get(&wid) {
             Some(v) => {
                 let mut fvec = v.to_owned();
                 fvec.push(file_or_dir);
@@ -131,7 +130,7 @@ impl WatchDescriptor {
                 fvec
             }
         };
-        self.description.insert(wid, v.to_owned());
+        self.description.insert(wid, fd_vec.to_owned());
     }
 }
 
@@ -240,15 +239,10 @@ impl NotifyStream {
                 match event_or_error {
                     Ok(event) => {
                         let file_or_dir_vec = self.watchers.description.get(&event.wd.get_watch_descriptor_id());
-                        match file_or_dir_vec {
-                            Some(files) => {
-                                let ev = event.clone();
-                            let (path, mask) = NotifyStream::get_full_path_and_mask(&ev, files.to_vec())?;
+                        if let Some(files) = file_or_dir_vec {
+                            let (path, mask) = NotifyStream::get_full_path_and_mask(&event, files.to_vec())?;
                             yield (Path::new(&path).to_path_buf(), mask)
-                            }
-                            None => {}
                         }
-
                     }
                     Err(error) => {
                         // any error coming out of `notify_service.next()` will be
@@ -264,31 +258,32 @@ impl NotifyStream {
         event: &Event<OsString>,
         files: Vec<FileOrDir>,
     ) -> Result<(String, FileEvent), NotifyStreamError> {
+        // Unwrap is safe here because event will always contain a file name.
         let fname = event.name.as_ref().unwrap();
-        for fod in &files {
-            if let Some(wfname) = fod.file_name.as_ref() {
+        // Check if file under watch. If so, then return the full path to the file and the event mask.
+        for file in &files {
+            if let Some(wfname) = file.file_name.as_ref() {
                 if wfname.eq(&fname.to_string_lossy()) {
-                    for mask in &fod.masks {
+                    for mask in &file.masks {
                         if mask.eq(&event.mask.try_into()?) {
-                            let full_path = format!("{}/{wfname}", fod.dir_path.to_string_lossy());
-
+                            let full_path = format!("{}/{wfname}", file.dir_path.to_string_lossy());
                             return Ok((full_path, mask.to_owned()));
                         }
                     }
                 }
             };
         }
-        for fod in files {
-            // If watching all the files in a dir
-            if fod.file_name.eq(&None) {
-                for e in &fod.masks {
-                    if e.eq(&event.mask.try_into()?) {
+        // All the files under this directory are watched. So, return full path to the file and the mask
+        for dir in files {
+            if dir.file_name.eq(&None) {
+                for mask in &dir.masks {
+                    if mask.eq(&event.mask.try_into()?) {
                         let full_path = format!(
                             "{}/{}",
-                            fod.dir_path.to_string_lossy(),
+                            dir.dir_path.to_string_lossy(),
                             fname.to_string_lossy()
                         );
-                        return Ok((full_path, e.to_owned()));
+                        return Ok((full_path, mask.to_owned()));
                     }
                 }
             }
