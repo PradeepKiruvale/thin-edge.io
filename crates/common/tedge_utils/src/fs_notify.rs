@@ -118,6 +118,22 @@ impl WatchDescriptor {
         };
         self.description.insert(wid, v.to_owned());
     }
+
+    /// get a set of `Masks` for a given `dir_path`
+    fn get_mask_set_for_directory<P: AsRef<Path>>(
+        &mut self,
+        wid: c_int,
+        dir_path: P,
+    ) -> Vec<FileEvent> {
+        let hash_map = self.description.get(&wid).unwrap().to_owned();
+        
+        for fod in fdvec {
+            dbg!(&fod);
+            if fod.dir_path.eq(dir_path){
+                return fod.masks
+            }
+        }    
+    }
 }
 
 pub struct NotifyStream {
@@ -140,41 +156,6 @@ impl TryDefault for NotifyStream {
         })
     }
 }
-
-/// normalisation step joining `candidate_watch_dir` and `candidate_file` and computing the parent of `candidate_file`.
-///
-/// this is useful in situations where:
-/// `candidate_watch_dir` = /path/to/a/directory
-/// `candidate_file` = continued/path/to/a/file
-///
-/// this function will concatenate the two, into:
-/// `/path/to/a/directory/continued/path/to/a/file`
-/// and will return:
-/// `/path/to/a/directory/continued/path/to/a/` and `file`
-// fn normalising_watch_dir_and_file(
-//     candidate_watch_dir: &Path,
-//     candidate_file: Option<String>,
-// ) -> Result<(PathBuf, Option<String>), NotifyStreamError> {
-//     match candidate_file {
-//         Some(file_name) => {
-//             let full_path = candidate_watch_dir.join(file_name);
-//             let parent =
-//                 full_path
-//                     .parent()
-//                     .ok_or_else(|| NotifyStreamError::FailedToNormalisePath {
-//                         path: full_path.to_path_buf(),
-//                     })?;
-//             let file = full_path
-//                 .file_name()
-//                 .and_then(|f| f.to_str())
-//                 .ok_or_else(|| NotifyStreamError::FailedToNormalisePath {
-//                     path: full_path.to_path_buf(),
-//                 })?;
-//             Ok((parent.to_path_buf(), Some(file.to_string())))
-//         }
-//         None => Ok((candidate_watch_dir.to_path_buf(), None)),
-//     }
-// }
 
 /// to allow notify to watch for multiple events (CLOSE_WRITE, CREATE, MODIFY, etc...)
 /// our internal enum `Masks` needs to be converted into a single `WatchMask` via bitwise OR
@@ -280,7 +261,7 @@ impl NotifyStream {
                                                     yield (Path::new(&full_path).to_path_buf(), e.to_owned())
                                                 }
                                             }
-                                        } 
+                                        }
                                     }else { // If watching all the files in a dir
                                         dbg!("........watching whole dir....");
                                         for e in &fod.masks {
@@ -357,7 +338,7 @@ mod tests {
 
     use crate::fs_notify::FileEvent;
 
-    use super::{fs_notify_stream, NotifyStream, NotifyStreamError, WatchDescriptor};
+    use super::{fs_notify_stream, NotifyStream, NotifyStreamError, WatchDescriptor, FileOrDir};
 
     #[test]
     /// this test checks the underlying data structure `WatchDescriptor.description`
@@ -372,9 +353,9 @@ mod tests {
         let file_c_path = new_dir.file("file_c");
 
         let expected_data_structure = hashmap! {
-            1 => (file_a_path.file_path, vec![FileEvent::Created]),
-            2 => (file_b_path.file_path, vec![FileEvent::Created, FileEvent::Modified]),
-            3 => (file_c_path.file_path, vec![FileEvent::Modified]),
+            1 => FileOrDir{dir_path:ttd.to_path_buf(),file_name:Some("file_a".to_string()),masks:vec![FileEvent::Created],},
+            2 => FileOrDir{dir_path:new_dir.to_path_buf(),file_name:Some("file_b".to_string()),masks:vec![FileEvent::Created],},
+           
         };
         let expected_hash_set_for_root_dir =
             vec![FileEvent::Modified, FileEvent::Deleted, FileEvent::Created];
@@ -400,27 +381,27 @@ mod tests {
             vec![FileEvent::Modified],
         );
         // // NOTE: re-adding `file_a` with an extra mask
-        // actual_data_structure.insert(
-        //     1,
-        //     &mut ttd.path().to_path_buf(),
-        //     Some(String::from("file_a")),
-        //     vec![FileEvent::Deleted],
-        // );
+        actual_data_structure.insert(
+            1,
+            ttd.path().to_path_buf(),
+            Some(String::from("file_a")),
+            vec![FileEvent::Deleted],
+        );
         dbg!(&actual_data_structure);
         dbg!(&expected_data_structure);
-        // assert!(actual_data_structure
-        //     .get_watch_descriptor()
-        //     .eq(&expected_data_structure));
+        assert!(actual_data_structure
+            .get_watch_descriptor()
+            .eq(&expected_data_structure));
 
-        // assert_eq!(
-        //     actual_data_structure.get_mask_set_for_directory(ttd.path()),
-        //     expected_hash_set_for_root_dir
-        // );
+        assert_eq!(
+            actual_data_structure.get_mask_set_for_directory(1, ttd.path()),
+            expected_hash_set_for_root_dir
+        );
 
-        // assert_eq!(
-        //     actual_data_structure.get_mask_set_for_directory(new_dir.path()),
-        //     expected_hash_set_for_new_dir
-        // );
+        assert_eq!(
+            actual_data_structure.get_mask_set_for_directory(2, new_dir.path()),
+            expected_hash_set_for_new_dir
+        );
     }
 
     #[test]
