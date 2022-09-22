@@ -1,12 +1,13 @@
 use std::{
     collections::HashMap,
+    ffi::OsString,
     hash::Hash,
-    path::{Path, PathBuf}, ffi::OsString,
+    path::{Path, PathBuf},
 };
 
 use async_stream::try_stream;
 pub use futures::{pin_mut, Stream, StreamExt};
-use inotify::{EventMask, Inotify, WatchMask, Event};
+use inotify::{Event, EventMask, Inotify, WatchMask};
 use nix::libc::c_int;
 use strum_macros::Display;
 use try_traits::default::TryDefault;
@@ -94,7 +95,6 @@ impl WatchDescriptor {
         let fdvec = self.description.get(&wid).unwrap().to_owned();
         let mut masks = Vec::new();
         for mut fod in fdvec {
-            dbg!(&fod);
             masks.append(&mut fod.masks);
         }
         masks
@@ -223,7 +223,6 @@ impl NotifyStream {
     ) -> Result<(), NotifyStreamError> {
         let watch_mask = pipe_masks_into_watch_mask(masks);
         let wd = self.inotify.watches().add(dir_path, watch_mask)?;
-        dbg!(&wd);
         self.watchers.insert(
             wd.get_watch_descriptor_id(),
             dir_path.to_path_buf(),
@@ -244,7 +243,7 @@ impl NotifyStream {
                         match file_or_dir_vec {
                             Some(files) => {
                                 let ev = event.clone();
-                            let (path, mask) = NotifyStream::process_event(&ev, files.to_vec())?;
+                            let (path, mask) = NotifyStream::get_full_path_and_mask(&ev, files.to_vec())?;
                             yield (Path::new(&path).to_path_buf(), mask)
                             }
                             None => {}
@@ -261,28 +260,27 @@ impl NotifyStream {
         }
     }
 
-    fn process_event(event: &Event<OsString>, files: Vec<FileOrDir>) -> Result<(String, FileEvent), NotifyStreamError>  {
-        dbg!(&event);
+    fn get_full_path_and_mask(
+        event: &Event<OsString>,
+        files: Vec<FileOrDir>,
+    ) -> Result<(String, FileEvent), NotifyStreamError> {
         let fname = event.name.as_ref().unwrap();
-        for fod in files {
-            dbg!(&fod);
-            let ff = fod.file_name.as_ref();
-            if let Some(f) = ff {
-                if f.eq(&fname.to_string_lossy()) {
-                    //  dbg!(&f);
-                    //  dbg!(&fod.masks);
-                    dbg!("...File s in hash....");
-                    for e in &fod.masks {
-                        if e.eq(&event.mask.try_into()?) {
-                            let full_path = format!("{}/{f}", fod.dir_path.to_string_lossy());
-                            dbg!(&full_path);
-                            return Ok((full_path, e.to_owned()));
+        for fod in &files {
+            if let Some(wfname) = fod.file_name.as_ref() {
+                if wfname.eq(&fname.to_string_lossy()) {
+                    for mask in &fod.masks {
+                        if mask.eq(&event.mask.try_into()?) {
+                            let full_path = format!("{}/{wfname}", fod.dir_path.to_string_lossy());
+
+                            return Ok((full_path, mask.to_owned()));
                         }
                     }
                 }
-            } else {
-                // If watching all the files in a dir
-                dbg!("........watching whole dir....");
+            };
+        }
+        for fod in files {
+            // If watching all the files in a dir
+            if fod.file_name.eq(&None) {
                 for e in &fod.masks {
                     if e.eq(&event.mask.try_into()?) {
                         let full_path = format!(
@@ -290,7 +288,6 @@ impl NotifyStream {
                             fod.dir_path.to_string_lossy(),
                             fname.to_string_lossy()
                         );
-                        dbg!("no file entry==>", &full_path);
                         return Ok((full_path, e.to_owned()));
                     }
                 }
@@ -381,8 +378,6 @@ mod tests {
             vec![FileEvent::Created, FileEvent::Modified],
         );
 
-        dbg!(&actual_data_structure);
-        dbg!(&expected_data_structure);
         assert!(actual_data_structure
             .get_watch_descriptor()
             .eq(&expected_data_structure));
@@ -447,12 +442,10 @@ mod tests {
         let stream = stream.unwrap();
         pin_mut!(stream);
         while let Some(Ok((path, flag))) = stream.next().await {
-            dbg!(&path, &flag);
             let file_name = String::from(path.file_name().unwrap().to_str().unwrap());
             let mut values = match inputs.get_mut(&file_name) {
                 Some(v) => v.to_vec(),
                 None => {
-                    dbg!("nf cont..");
                     inputs.remove(&file_name);
                     continue;
                 }
@@ -460,7 +453,6 @@ mod tests {
             match values.iter().position(|x| *x == flag) {
                 Some(i) => values.remove(i),
                 None => {
-                    dbg!("nc cont..");
                     continue;
                 }
             };
