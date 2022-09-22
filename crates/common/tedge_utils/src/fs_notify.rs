@@ -1,12 +1,12 @@
 use std::{
     collections::HashMap,
     hash::Hash,
-    path::{Path, PathBuf},
+    path::{Path, PathBuf}, ffi::OsString,
 };
 
 use async_stream::try_stream;
 pub use futures::{pin_mut, Stream, StreamExt};
-use inotify::{EventMask, Inotify, WatchMask};
+use inotify::{EventMask, Inotify, WatchMask, Event};
 use nix::libc::c_int;
 use strum_macros::Display;
 use try_traits::default::TryDefault;
@@ -63,6 +63,9 @@ pub enum NotifyStreamError {
 
     #[error("Watcher: {mask} is duplicated for file: {path:?}")]
     DuplicateWatcher { mask: FileEvent, path: PathBuf },
+
+    #[error("Wrong Event triggered")]
+    WrongEventTriggered,
 }
 
 #[derive(Debug, Default, Clone, PartialEq, Eq)]
@@ -237,44 +240,16 @@ impl NotifyStream {
             while let Some(event_or_error) = notify_service.next().await {
                 match event_or_error {
                     Ok(event) => {
-                        dbg!(&event);
-                        let fname = event.name.unwrap();
                         let file_or_dir_vec = self.watchers.description.get(&event.wd.get_watch_descriptor_id());
-                        match file_or_dir_vec  {
-                            Some(fdvec) => {
-                                for fod in fdvec {
-                                    dbg!(&fod);
-                                    let ff = fod.file_name.as_ref();
-                                    if let Some(f) = ff {
-                                        if f.eq(&fname.to_string_lossy()){
-                                            //  dbg!(&f);
-                                            //  dbg!(&fod.masks);
-                                            dbg!("...File s in hash....");
-                                            for e in &fod.masks {
-                                                if e.eq(&event.mask.try_into()?){
-                                                    let full_path = format!("{}/{f}", fod.dir_path.to_string_lossy());
-                                                    dbg!(&full_path);
-                                                    yield (Path::new(&full_path).to_path_buf(), e.to_owned())
-                                                }
-                                            }
-                                        }
-                                    }else { // If watching all the files in a dir
-                                        dbg!("........watching whole dir....");
-                                        for e in &fod.masks {
-                                            if e.eq(&event.mask.try_into()?){
-                                                let full_path = format!("{}/{}", fod.dir_path.to_string_lossy(), fname.to_string_lossy());
-                                                dbg!("no file entry==>", &full_path);
-                                                yield (Path::new(&full_path).to_path_buf(), e.to_owned())
-                                            }
-                                        }
-
-                                    }
-
-                                }
+                        match file_or_dir_vec {
+                            Some(files) => {
+                                let ev = event.clone();
+                            let (path, mask) = NotifyStream::process_event(&ev, files.to_vec())?;
+                            yield (Path::new(&path).to_path_buf(), mask)
                             }
-                            None => {
-                            }
+                            None => {}
                         }
+
                     }
                     Err(error) => {
                         // any error coming out of `notify_service.next()` will be
@@ -284,6 +259,44 @@ impl NotifyStream {
                 }
             }
         }
+    }
+
+    fn process_event(event: &Event<OsString>, files: Vec<FileOrDir>) -> Result<(String, FileEvent), NotifyStreamError>  {
+        dbg!(&event);
+        let fname = event.name.as_ref().unwrap();
+        for fod in files {
+            dbg!(&fod);
+            let ff = fod.file_name.as_ref();
+            if let Some(f) = ff {
+                if f.eq(&fname.to_string_lossy()) {
+                    //  dbg!(&f);
+                    //  dbg!(&fod.masks);
+                    dbg!("...File s in hash....");
+                    for e in &fod.masks {
+                        if e.eq(&event.mask.try_into()?) {
+                            let full_path = format!("{}/{f}", fod.dir_path.to_string_lossy());
+                            dbg!(&full_path);
+                            return Ok((full_path, e.to_owned()));
+                        }
+                    }
+                }
+            } else {
+                // If watching all the files in a dir
+                dbg!("........watching whole dir....");
+                for e in &fod.masks {
+                    if e.eq(&event.mask.try_into()?) {
+                        let full_path = format!(
+                            "{}/{}",
+                            fod.dir_path.to_string_lossy(),
+                            fname.to_string_lossy()
+                        );
+                        dbg!("no file entry==>", &full_path);
+                        return Ok((full_path, e.to_owned()));
+                    }
+                }
+            }
+        }
+        Err(NotifyStreamError::WrongEventTriggered)
     }
 }
 
