@@ -101,7 +101,7 @@ impl WatchDescriptor {
     }
 
     /// inserts new values in `self.watch_descriptor`. this takes care of inserting
-    /// - new keys (dir_path, file_name)
+    /// - Insert new description with `wid` as key and `FileOrDir instance` as value
     /// - inserting or appending new masks
     /// NOTE: though it is not a major concern, the `masks` entry is unordered
     /// vec![Masks::Deleted, Masks::Modified] does not equal vec![Masks::Modified, Masks::Deleted]
