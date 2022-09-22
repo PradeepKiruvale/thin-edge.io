@@ -125,7 +125,7 @@ impl WatchDescriptor {
                 fvec
             }
             None => {
-                 vec![file_or_dir]            
+                vec![file_or_dir]
             }
         };
         self.description.insert(wid, fd_vec);
