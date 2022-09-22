@@ -1,6 +1,5 @@
 use std::{
     collections::HashMap,
-    fs::File,
     hash::Hash,
     path::{Path, PathBuf},
 };
@@ -66,14 +65,14 @@ pub enum NotifyStreamError {
     DuplicateWatcher { mask: FileEvent, path: PathBuf },
 }
 
-#[derive(Debug, Default, Clone)]
+#[derive(Debug, Default, Clone, PartialEq, Eq)]
 pub struct FileOrDir {
     pub dir_path: PathBuf,
     pub file_name: Option<String>,
     pub masks: Vec<FileEvent>,
 }
 
-#[derive(Debug, Default, Clone)]
+#[derive(Debug, Default, Clone, PartialEq, Eq)]
 struct WatchDescriptor {
     description: HashMap<c_int, Vec<FileOrDir>>,
 }
@@ -83,6 +82,19 @@ impl WatchDescriptor {
     #[cfg(feature = "fs-notify")]
     pub fn get_watch_descriptor(&self) -> &HashMap<c_int, Vec<FileOrDir>> {
         &self.description
+    }
+
+    #[cfg(test)]
+    #[cfg(feature = "fs-notify")]
+    /// get a set of `Masks` for a given `dir_path`
+    pub(super) fn get_mask_set_for_directory(&mut self, wid: c_int) -> Vec<FileEvent> {
+        let fdvec = self.description.get(&wid).unwrap().to_owned();
+        let mut masks = Vec::new();
+        for mut fod in fdvec {
+            dbg!(&fod);
+            masks.append(&mut fod.masks);
+        }
+        masks
     }
 
     /// inserts new values in `self.watch_descriptor`. this takes care of inserting
@@ -117,22 +129,6 @@ impl WatchDescriptor {
             }
         };
         self.description.insert(wid, v.to_owned());
-    }
-
-    /// get a set of `Masks` for a given `dir_path`
-    fn get_mask_set_for_directory<P: AsRef<Path>>(
-        &mut self,
-        wid: c_int,
-        dir_path: P,
-    ) -> Vec<FileEvent> {
-        let hash_map = self.description.get(&wid).unwrap().to_owned();
-        
-        for fod in fdvec {
-            dbg!(&fod);
-            if fod.dir_path.eq(dir_path){
-                return fod.masks
-            }
-        }    
     }
 }
 
@@ -338,55 +334,40 @@ mod tests {
 
     use crate::fs_notify::FileEvent;
 
-    use super::{fs_notify_stream, NotifyStream, NotifyStreamError, WatchDescriptor, FileOrDir};
+    use super::{fs_notify_stream, FileOrDir, NotifyStream, NotifyStreamError, WatchDescriptor};
 
     #[test]
     /// this test checks the underlying data structure `WatchDescriptor.description`
     /// three files are created:
-    /// - file_a, file_b at root level of `TempTedgeDir`
+    /// - file_a, at root level of `TempTedgeDir`
     /// - file_c, at level: `TempTedgeDir`/new_dir
     fn test_watch_descriptor_data_field() {
         let ttd = TempTedgeDir::new();
         let new_dir = ttd.dir("new_dir");
-        let file_a_path = ttd.file("file_a");
-        let file_b_path = ttd.file("file_b");
-        let file_c_path = new_dir.file("file_c");
 
         let expected_data_structure = hashmap! {
-            1 => FileOrDir{dir_path:ttd.to_path_buf(),file_name:Some("file_a".to_string()),masks:vec![FileEvent::Created],},
-            2 => FileOrDir{dir_path:new_dir.to_path_buf(),file_name:Some("file_b".to_string()),masks:vec![FileEvent::Created],},
-           
+            2 => vec![FileOrDir{dir_path:new_dir.to_path_buf(),file_name:Some("file_c".to_string()),masks:vec![FileEvent::Created, FileEvent::Modified],}],
+            1 => vec![FileOrDir{dir_path:ttd.to_path_buf(),file_name:Some("file_a".to_string()),masks:vec![FileEvent::Created,FileEvent::Modified, FileEvent::Deleted],}],
         };
         let expected_hash_set_for_root_dir =
-            vec![FileEvent::Modified, FileEvent::Deleted, FileEvent::Created];
-        let expected_hash_set_for_new_dir = vec![FileEvent::Modified];
+            vec![FileEvent::Created, FileEvent::Modified, FileEvent::Deleted];
+        let expected_hash_set_for_new_dir = vec![FileEvent::Created, FileEvent::Modified];
 
         let mut actual_data_structure = WatchDescriptor::default();
         actual_data_structure.insert(
             1,
             ttd.path().to_path_buf(),
             Some(String::from("file_a")),
-            vec![FileEvent::Created],
+            vec![FileEvent::Created, FileEvent::Modified, FileEvent::Deleted],
         );
+
         actual_data_structure.insert(
             2,
-            ttd.path().to_path_buf(),
-            Some(String::from("file_b")),
-            vec![FileEvent::Created, FileEvent::Modified],
-        );
-        actual_data_structure.insert(
-            3,
             new_dir.path().to_path_buf(),
             Some(String::from("file_c")),
-            vec![FileEvent::Modified],
+            vec![FileEvent::Created, FileEvent::Modified],
         );
-        // // NOTE: re-adding `file_a` with an extra mask
-        actual_data_structure.insert(
-            1,
-            ttd.path().to_path_buf(),
-            Some(String::from("file_a")),
-            vec![FileEvent::Deleted],
-        );
+
         dbg!(&actual_data_structure);
         dbg!(&expected_data_structure);
         assert!(actual_data_structure
@@ -394,12 +375,12 @@ mod tests {
             .eq(&expected_data_structure));
 
         assert_eq!(
-            actual_data_structure.get_mask_set_for_directory(1, ttd.path()),
+            actual_data_structure.get_mask_set_for_directory(1),
             expected_hash_set_for_root_dir
         );
 
         assert_eq!(
-            actual_data_structure.get_mask_set_for_directory(2, new_dir.path()),
+            actual_data_structure.get_mask_set_for_directory(2),
             expected_hash_set_for_new_dir
         );
     }
