@@ -125,12 +125,10 @@ impl WatchDescriptor {
                 fvec
             }
             None => {
-                let mut fvec: Vec<FileOrDir> = Vec::new();
-                fvec.push(file_or_dir);
-                fvec
+                 vec![file_or_dir]            
             }
         };
-        self.description.insert(wid, fd_vec.to_owned());
+        self.description.insert(wid, fd_vec);
     }
 }
 
