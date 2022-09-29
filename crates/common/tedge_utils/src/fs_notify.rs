@@ -1,5 +1,5 @@
 use std::{
-    collections::HashMap,
+    collections::{HashMap, HashSet},
     ffi::OsString,
     hash::Hash,
     path::{Path, PathBuf},
@@ -73,7 +73,7 @@ pub enum NotifyStreamError {
 pub struct EventDescription {
     pub dir_path: PathBuf,
     pub file_name: Option<String>,
-    pub masks: Vec<FileEvent>,
+    pub masks: HashSet<FileEvent>,
 }
 
 #[derive(Debug, Default, Clone, PartialEq, Eq)]
@@ -91,11 +91,11 @@ impl WatchDescriptor {
     #[cfg(test)]
     #[cfg(feature = "fs-notify")]
     /// get a set of `Masks` for a given `dir_path`
-    pub(super) fn get_mask_set_for_directory(&mut self, wid: c_int) -> Vec<FileEvent> {
+    pub(super) fn get_mask_set_for_directory(&mut self, wid: c_int) -> HashSet<FileEvent> {
         let fdvec = self.description.get(&wid).unwrap().to_owned();
-        let mut masks = Vec::new();
+        let mut masks = HashSet::new();
         for mut fod in fdvec {
-            masks.append(&mut fod.masks);
+            masks.extend(fod.masks);
         }
         masks
     }
@@ -110,7 +110,7 @@ impl WatchDescriptor {
         wid: c_int,
         dir_path: PathBuf,
         file_name: Option<String>,
-        masks: Vec<FileEvent>,
+        masks: HashSet<FileEvent>,
     ) {
         let file_or_dir = EventDescription {
             dir_path,
@@ -216,15 +216,16 @@ impl NotifyStream {
         &mut self,
         dir_path: &Path,
         file: Option<String>,
-        masks: &[FileEvent],
+        events: &[FileEvent],
     ) -> Result<(), NotifyStreamError> {
-        let watch_mask = pipe_masks_into_watch_mask(masks);
+        let watch_mask = pipe_masks_into_watch_mask(events);
         let wd = self.inotify.watches().add(dir_path, watch_mask)?;
+        let masks = HashSet::from_iter(events.to_owned().into_iter());
         self.watchers.insert(
             wd.get_watch_descriptor_id(),
             dir_path.to_path_buf(),
             file,
-            masks.to_vec(),
+            masks,
         );
         Ok(())
     }
@@ -327,7 +328,11 @@ pub fn fs_notify_stream(
 #[cfg(test)]
 #[cfg(feature = "fs-notify")]
 mod tests {
-    use std::{collections::HashMap, path::PathBuf, sync::Arc};
+    use std::{
+        collections::{HashMap, HashSet},
+        path::PathBuf,
+        sync::Arc,
+    };
 
     use futures::{pin_mut, Stream, StreamExt};
 
@@ -337,7 +342,9 @@ mod tests {
 
     use crate::fs_notify::FileEvent;
 
-    use super::{fs_notify_stream, EventDescription, NotifyStream, NotifyStreamError, WatchDescriptor};
+    use super::{
+        fs_notify_stream, EventDescription, NotifyStream, NotifyStreamError, WatchDescriptor,
+    };
 
     #[test]
     /// this test checks the underlying data structure `WatchDescriptor.description`
@@ -349,26 +356,27 @@ mod tests {
         let new_dir = ttd.dir("new_dir");
 
         let expected_data_structure = hashmap! {
-            2 => vec![EventDescription{dir_path:new_dir.to_path_buf(),file_name:Some("file_c".to_string()),masks:vec![FileEvent::Created, FileEvent::Modified],}],
-            1 => vec![EventDescription{dir_path:ttd.to_path_buf(),file_name:Some("file_a".to_string()),masks:vec![FileEvent::Created,FileEvent::Modified, FileEvent::Deleted],}],
+            2 => vec![EventDescription{dir_path:new_dir.to_path_buf(),file_name:Some("file_c".to_string()),masks:HashSet::from([FileEvent::Created, FileEvent::Modified]),}],
+            1 => vec![EventDescription{dir_path:ttd.to_path_buf(),file_name:Some("file_a".to_string()),masks:HashSet::from([FileEvent::Created,FileEvent::Modified, FileEvent::Deleted]),}],
         };
         let expected_hash_set_for_root_dir =
-            vec![FileEvent::Created, FileEvent::Modified, FileEvent::Deleted];
-        let expected_hash_set_for_new_dir = vec![FileEvent::Created, FileEvent::Modified];
+            HashSet::from([FileEvent::Created, FileEvent::Modified, FileEvent::Deleted]);
+        let expected_hash_set_for_new_dir =
+            HashSet::from([FileEvent::Created, FileEvent::Modified]);
 
         let mut actual_data_structure = WatchDescriptor::default();
         actual_data_structure.insert(
             1,
             ttd.path().to_path_buf(),
             Some(String::from("file_a")),
-            vec![FileEvent::Created, FileEvent::Modified, FileEvent::Deleted],
+            HashSet::from([FileEvent::Created, FileEvent::Modified, FileEvent::Deleted]),
         );
 
         actual_data_structure.insert(
             2,
             new_dir.path().to_path_buf(),
             Some(String::from("file_c")),
-            vec![FileEvent::Created, FileEvent::Modified],
+            HashSet::from([FileEvent::Created, FileEvent::Modified]),
         );
 
         assert!(actual_data_structure
