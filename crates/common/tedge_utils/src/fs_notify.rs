@@ -64,9 +64,6 @@ pub enum NotifyStreamError {
 
     #[error("Watcher: {mask} is duplicated for file: {path:?}")]
     DuplicateWatcher { mask: FileEvent, path: PathBuf },
-
-    #[error("Wrong Event triggered")]
-    WrongEventTriggered,
 }
 
 #[derive(Debug, Default, Clone, Eq)]
@@ -244,8 +241,11 @@ impl NotifyStream {
                     Ok(event) => {
                         let file_or_dir_vec = self.watchers.description.get(&event.wd.get_watch_descriptor_id());
                         if let Some(files) = file_or_dir_vec {
-                            let (path, mask) = NotifyStream::get_full_path_and_mask(&event, files.to_vec())?;
-                            yield (Path::new(&path).to_path_buf(), mask)
+                            let path = NotifyStream::get_full_path_and_mask(&event, files.to_vec())?;
+                            if !path.is_empty() {
+                                let mask: FileEvent = event.mask.try_into()?;
+                                yield (Path::new(&path).to_path_buf(), mask)
+                            }
                         }
                     }
                     Err(error) => {
@@ -261,7 +261,7 @@ impl NotifyStream {
     fn get_full_path_and_mask(
         event: &Event<OsString>,
         files: Vec<EventDescription>,
-    ) -> Result<(String, FileEvent), NotifyStreamError> {
+    ) -> Result<String, NotifyStreamError> {
         // Unwrap is safe here because event will always contain a file name.
         let fname = event.name.as_ref().unwrap();
         // Check if file under watch. If so, then return the full path to the file and the event mask.
@@ -271,7 +271,7 @@ impl NotifyStream {
                     for mask in &file.masks {
                         if mask.eq(&event.mask.try_into()?) {
                             let full_path = format!("{}/{wfname}", file.dir_path.to_string_lossy());
-                            return Ok((full_path, mask.to_owned()));
+                            return Ok(full_path);
                         }
                     }
                 }
@@ -287,12 +287,12 @@ impl NotifyStream {
                             dir.dir_path.to_string_lossy(),
                             fname.to_string_lossy()
                         );
-                        return Ok((full_path, mask.to_owned()));
+                        return Ok(full_path);
                     }
                 }
             }
         }
-        Err(NotifyStreamError::WrongEventTriggered)
+        Ok("".into())
     }
 }
 
