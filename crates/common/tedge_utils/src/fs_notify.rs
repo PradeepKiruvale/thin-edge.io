@@ -90,8 +90,8 @@ impl WatchDescriptor {
 
     #[cfg(test)]
     #[cfg(feature = "fs-notify")]
-    /// get a set of `Masks` for a given `dir_path`
-    pub(super) fn get_mask_set_for_directory(&mut self, wid: c_int) -> HashSet<FileEvent> {
+    /// get a set of `Masks` for a given `watch descriptor id`
+    pub(super) fn get_mask_set_for_a_watch_discriptor(&mut self, wid: c_int) -> HashSet<FileEvent> {
         let fdvec = self.description.get(&wid).unwrap().to_owned();
         let mut masks = HashSet::new();
         for fod in fdvec {
@@ -220,7 +220,7 @@ impl NotifyStream {
     ) -> Result<(), NotifyStreamError> {
         let watch_mask = pipe_masks_into_watch_mask(events);
         let wd = self.inotify.watches().add(dir_path, watch_mask)?;
-        let masks = HashSet::from_iter(events.to_owned().into_iter());
+        let masks = HashSet::from_iter(events.iter().copied());
         self.watchers.insert(
             wd.get_watch_descriptor_id(),
             dir_path.to_path_buf(),
@@ -384,12 +384,12 @@ mod tests {
             .eq(&expected_data_structure));
 
         assert_eq!(
-            actual_data_structure.get_mask_set_for_directory(1),
+            actual_data_structure.get_mask_set_for_a_watch_discriptor(1),
             expected_hash_set_for_root_dir
         );
 
         assert_eq!(
-            actual_data_structure.get_mask_set_for_directory(2),
+            actual_data_structure.get_mask_set_for_a_watch_discriptor(2),
             expected_hash_set_for_new_dir
         );
     }
