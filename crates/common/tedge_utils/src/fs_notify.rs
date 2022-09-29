@@ -70,7 +70,7 @@ pub enum NotifyStreamError {
 }
 
 #[derive(Debug, Default, Clone, PartialEq, Eq)]
-pub struct FileOrDir {
+pub struct EventDescription {
     pub dir_path: PathBuf,
     pub file_name: Option<String>,
     pub masks: Vec<FileEvent>,
@@ -78,13 +78,13 @@ pub struct FileOrDir {
 
 #[derive(Debug, Default, Clone, PartialEq, Eq)]
 struct WatchDescriptor {
-    description: HashMap<c_int, Vec<FileOrDir>>,
+    description: HashMap<c_int, Vec<EventDescription>>,
 }
 
 impl WatchDescriptor {
     #[cfg(test)]
     #[cfg(feature = "fs-notify")]
-    pub fn get_watch_descriptor(&self) -> &HashMap<c_int, Vec<FileOrDir>> {
+    pub fn get_watch_descriptor(&self) -> &HashMap<c_int, Vec<EventDescription>> {
         &self.description
     }
 
@@ -101,7 +101,7 @@ impl WatchDescriptor {
     }
 
     /// inserts new values in `self.watch_descriptor`. this takes care of inserting
-    /// - Insert new description with `wid` as key and `FileOrDir instance` as value
+    /// - Insert new description with `wid` as key and `EventDescription instance` as value
     /// - inserting or appending new masks
     /// NOTE: though it is not a major concern, the `masks` entry is unordered
     /// vec![Masks::Deleted, Masks::Modified] does not equal vec![Masks::Modified, Masks::Deleted]
@@ -112,7 +112,7 @@ impl WatchDescriptor {
         file_name: Option<String>,
         masks: Vec<FileEvent>,
     ) {
-        let file_or_dir = FileOrDir {
+        let file_or_dir = EventDescription {
             dir_path,
             file_name,
             masks,
@@ -254,7 +254,7 @@ impl NotifyStream {
 
     fn get_full_path_and_mask(
         event: &Event<OsString>,
-        files: Vec<FileOrDir>,
+        files: Vec<EventDescription>,
     ) -> Result<(String, FileEvent), NotifyStreamError> {
         // Unwrap is safe here because event will always contain a file name.
         let fname = event.name.as_ref().unwrap();
@@ -337,7 +337,7 @@ mod tests {
 
     use crate::fs_notify::FileEvent;
 
-    use super::{fs_notify_stream, FileOrDir, NotifyStream, NotifyStreamError, WatchDescriptor};
+    use super::{fs_notify_stream, EventDescription, NotifyStream, NotifyStreamError, WatchDescriptor};
 
     #[test]
     /// this test checks the underlying data structure `WatchDescriptor.description`
@@ -349,8 +349,8 @@ mod tests {
         let new_dir = ttd.dir("new_dir");
 
         let expected_data_structure = hashmap! {
-            2 => vec![FileOrDir{dir_path:new_dir.to_path_buf(),file_name:Some("file_c".to_string()),masks:vec![FileEvent::Created, FileEvent::Modified],}],
-            1 => vec![FileOrDir{dir_path:ttd.to_path_buf(),file_name:Some("file_a".to_string()),masks:vec![FileEvent::Created,FileEvent::Modified, FileEvent::Deleted],}],
+            2 => vec![EventDescription{dir_path:new_dir.to_path_buf(),file_name:Some("file_c".to_string()),masks:vec![FileEvent::Created, FileEvent::Modified],}],
+            1 => vec![EventDescription{dir_path:ttd.to_path_buf(),file_name:Some("file_a".to_string()),masks:vec![FileEvent::Created,FileEvent::Modified, FileEvent::Deleted],}],
         };
         let expected_hash_set_for_root_dir =
             vec![FileEvent::Created, FileEvent::Modified, FileEvent::Deleted];
