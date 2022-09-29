@@ -95,7 +95,7 @@ impl WatchDescriptor {
         let fdvec = self.description.get(&wid).unwrap().to_owned();
         let mut masks = HashSet::new();
         for fod in fdvec {
-           masks.extend(fod.masks);
+            masks.extend(fod.masks);
         }
         masks
     }
@@ -328,7 +328,11 @@ pub fn fs_notify_stream(
 #[cfg(test)]
 #[cfg(feature = "fs-notify")]
 mod tests {
-    use std::{collections::{HashMap, HashSet}, path::PathBuf, sync::Arc};
+    use std::{
+        collections::{HashMap, HashSet},
+        path::PathBuf,
+        sync::Arc,
+    };
 
     use futures::{pin_mut, Stream, StreamExt};
 
@@ -356,8 +360,9 @@ mod tests {
             1 => vec![EventDescription{dir_path:ttd.to_path_buf(),file_name:Some("file_a".to_string()),masks:HashSet::from([FileEvent::Created,FileEvent::Modified, FileEvent::Deleted]),}],
         };
         let expected_hash_set_for_root_dir =
-           HashSet::from([FileEvent::Created, FileEvent::Modified, FileEvent::Deleted]);
-        let expected_hash_set_for_new_dir = HashSet::from([FileEvent::Created, FileEvent::Modified]);
+            HashSet::from([FileEvent::Created, FileEvent::Modified, FileEvent::Deleted]);
+        let expected_hash_set_for_new_dir =
+            HashSet::from([FileEvent::Created, FileEvent::Modified]);
 
         let mut actual_data_structure = WatchDescriptor::default();
         actual_data_structure.insert(
