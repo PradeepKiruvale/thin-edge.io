@@ -87,14 +87,14 @@ struct WatchDescriptor {
 impl WatchDescriptor {
     #[cfg(test)]
     #[cfg(feature = "fs-notify")]
-    pub fn get_watch_descriptor(&self) -> &HashMap<c_int, Vec<EventDescription>> {
+    pub fn get_event_description(&self) -> &HashMap<c_int, Vec<EventDescription>> {
         &self.description
     }
 
     #[cfg(test)]
     #[cfg(feature = "fs-notify")]
     /// get a set of `Masks` for a given `watch descriptor id`
-    pub(super) fn get_mask_set_for_a_watch_discriptor(&mut self, wid: c_int) -> HashSet<FileEvent> {
+    pub(super) fn get_mask_set_for_a_watch_descriptor(&mut self, wid: c_int) -> HashSet<FileEvent> {
         let fdvec = self.description.get(&wid).unwrap().to_owned();
         let mut masks = HashSet::new();
         for fod in fdvec {
@@ -119,8 +119,8 @@ impl WatchDescriptor {
             masks,
         };
 
-        let fd_vec = self.description.entry(wid).or_insert(vec![]);
-        for event_description in fd_vec.into_iter() {
+        let fd_vec = self.description.entry(wid).or_insert_with(Vec::new);
+        for event_description in fd_vec.iter_mut() {
             if (*event_description).eq(&new_event_description) {
                 // they are the same wrt dir_path and file_name, BUT the keys need to be updated
                 new_event_description.masks.into_iter().for_each(|mask| {
@@ -380,7 +380,7 @@ mod tests {
     #[test]
     /// this test checks the underlying data structure `WatchDescriptor.description`
     /// three files are created:
-    /// - file_a, at root level of `TempTedgeDir`
+    /// - file_a, and file_b at root level of `TempTedgeDir`
     /// - file_c, at level: `TempTedgeDir`/new_dir
     fn test_watch_descriptor_data_field() {
         let ttd = TempTedgeDir::new();
@@ -388,7 +388,8 @@ mod tests {
 
         let expected_data_structure = hashmap! {
             2 => vec![EventDescription{dir_path:new_dir.to_path_buf(),file_name:Some("file_c".to_string()),masks:HashSet::from([FileEvent::Created, FileEvent::Modified]),}],
-            1 => vec![EventDescription{dir_path:ttd.to_path_buf(),file_name:Some("file_a".to_string()),masks:HashSet::from([FileEvent::Created,FileEvent::Modified, FileEvent::Deleted]),}],
+            1 => vec![EventDescription{dir_path:ttd.to_path_buf(),file_name:Some("file_a".to_string()),masks:HashSet::from([FileEvent::Modified, FileEvent::Created]),},
+                      EventDescription{dir_path:ttd.to_path_buf(),file_name:Some("file_b".to_string()),masks:HashSet::from([FileEvent::Deleted, FileEvent::Modified]),}],
         };
         let expected_hash_set_for_root_dir =
             HashSet::from([FileEvent::Created, FileEvent::Modified, FileEvent::Deleted]);
@@ -396,12 +397,6 @@ mod tests {
             HashSet::from([FileEvent::Created, FileEvent::Modified]);
 
         let mut actual_data_structure = WatchDescriptor::default();
-        actual_data_structure.insert(
-            1,
-            ttd.path().to_path_buf(),
-            Some(String::from("file_a")),
-            HashSet::from([FileEvent::Created, FileEvent::Modified, FileEvent::Deleted]),
-        );
 
         actual_data_structure.insert(
             2,
@@ -410,17 +405,31 @@ mod tests {
             HashSet::from([FileEvent::Created, FileEvent::Modified]),
         );
 
+        actual_data_structure.insert(
+            1,
+            ttd.path().to_path_buf(),
+            Some(String::from("file_a")),
+            HashSet::from([FileEvent::Created, FileEvent::Modified]),
+        );
+
+        actual_data_structure.insert(
+            1,
+            ttd.path().to_path_buf(),
+            Some(String::from("file_b")),
+            HashSet::from([FileEvent::Modified, FileEvent::Deleted]),
+        );
+
         assert!(actual_data_structure
-            .get_watch_descriptor()
+            .get_event_description()
             .eq(&expected_data_structure));
 
         assert_eq!(
-            actual_data_structure.get_mask_set_for_a_watch_discriptor(1),
+            actual_data_structure.get_mask_set_for_a_watch_descriptor(1),
             expected_hash_set_for_root_dir
         );
 
         assert_eq!(
-            actual_data_structure.get_mask_set_for_a_watch_discriptor(2),
+            actual_data_structure.get_mask_set_for_a_watch_descriptor(2),
             expected_hash_set_for_new_dir
         );
     }
