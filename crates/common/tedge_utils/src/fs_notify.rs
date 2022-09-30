@@ -68,9 +68,9 @@ pub enum NotifyStreamError {
 
 #[derive(Debug, Default, Clone, Eq)]
 pub struct EventDescription {
-    pub dir_path: PathBuf,
-    pub file_name: Option<String>,
-    pub masks: HashSet<FileEvent>,
+    dir_path: PathBuf,
+    file_name: Option<String>,
+    masks: HashSet<FileEvent>,
 }
 
 impl PartialEq for EventDescription {
