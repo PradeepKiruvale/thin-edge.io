@@ -241,8 +241,8 @@ impl NotifyStream {
                     Ok(event) => {
                         let file_or_dir_vec = self.watchers.description.get(&event.wd.get_watch_descriptor_id());
                         if let Some(files) = file_or_dir_vec {
-                            let path = NotifyStream::get_full_path_and_mask(&event, files.to_vec())?;
-                            if !path.is_empty() {
+                           // let path = NotifyStream::get_full_path_and_mask(&event, files.to_vec())?;
+                            if let Some(path) = NotifyStream::get_full_path_and_mask(&event, files.to_vec())? {
                                 let mask: FileEvent = event.mask.try_into()?;
                                 yield (Path::new(&path).to_path_buf(), mask)
                             }
@@ -261,7 +261,7 @@ impl NotifyStream {
     fn get_full_path_and_mask(
         event: &Event<OsString>,
         files: Vec<EventDescription>,
-    ) -> Result<String, NotifyStreamError> {
+    ) -> Result<Option<PathBuf>, NotifyStreamError> {
         // Unwrap is safe here because event will always contain a file name.
         let fname = event.name.as_ref().unwrap();
         // Check if file under watch. If so, then return the full path to the file and the event mask.
@@ -270,8 +270,9 @@ impl NotifyStream {
                 if wfname.eq(&fname.to_string_lossy()) {
                     for mask in &file.masks {
                         if mask.eq(&event.mask.try_into()?) {
-                            let full_path = format!("{}/{wfname}", file.dir_path.to_string_lossy());
-                            return Ok(full_path);
+                            let mut full_path = file.dir_path.clone();
+                            let () = full_path.push(wfname);
+                            return Ok(Some(full_path));
                         }
                     }
                 }
@@ -282,17 +283,14 @@ impl NotifyStream {
             if dir.file_name.eq(&None) {
                 for mask in &dir.masks {
                     if mask.eq(&event.mask.try_into()?) {
-                        let full_path = format!(
-                            "{}/{}",
-                            dir.dir_path.to_string_lossy(),
-                            fname.to_string_lossy()
-                        );
-                        return Ok(full_path);
+                        let mut full_path = dir.dir_path.clone();
+                        let () = full_path.push(fname);
+                        return Ok(Some(full_path));
                     }
                 }
             }
         }
-        Ok("".into())
+        Ok(None)
     }
 }
 
