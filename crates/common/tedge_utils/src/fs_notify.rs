@@ -81,6 +81,11 @@ impl PartialEq for EventDescription {
 
 #[derive(Debug, Default, Clone, PartialEq, Eq)]
 struct WatchDescriptor {
+    // When a file/directory is added to an inotify watcher, then it will return a watch descriptor (Wid).
+    // The watcher can be added only for the existing files/directories. This is unique to a path given path.
+    // When multiple files that do not exist in a directory are watched, then the watcher will be added to the parent directory.
+    // So, the wid remains the same for all.   So, here vector of Event Description is maintained to cross-verify if the event
+    // raised is for the registered file/directory and for the registered event masks.
     description: HashMap<c_int, Vec<EventDescription>>,
 }
 
@@ -262,7 +267,8 @@ impl NotifyStream {
         event: &Event<OsString>,
         files: Vec<EventDescription>,
     ) -> Result<Option<PathBuf>, NotifyStreamError> {
-        // Unwrap is safe here because event will always contain a file name.
+        // Unwrap is safe here because event will always contain a file/directory name.
+        // The event is raised only on change in the directory. i.e either on create, modify or delete of a file/directory.
         let fname = event.name.as_ref().unwrap();
         // Check if file under watch. If so, then return the full path to the file and the event mask.
         for file in &files {
