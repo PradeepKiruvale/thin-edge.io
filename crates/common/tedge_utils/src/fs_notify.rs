@@ -69,11 +69,17 @@ pub enum NotifyStreamError {
     WrongEventTriggered,
 }
 
-#[derive(Debug, Default, Clone, PartialEq, Eq)]
+#[derive(Debug, Default, Clone, Eq)]
 pub struct EventDescription {
     pub dir_path: PathBuf,
     pub file_name: Option<String>,
     pub masks: HashSet<FileEvent>,
+}
+
+impl PartialEq for EventDescription {
+    fn eq(&self, other: &Self) -> bool {
+        self.dir_path == other.dir_path && self.file_name == other.file_name
+    }
 }
 
 #[derive(Debug, Default, Clone, PartialEq, Eq)]
@@ -103,8 +109,6 @@ impl WatchDescriptor {
     /// inserts new values in `self.watch_descriptor`. this takes care of inserting
     /// - Insert new description with `wid` as key and `EventDescription instance` as value
     /// - inserting or appending new masks
-    /// NOTE: though it is not a major concern, the `masks` entry is unordered
-    /// vec![Masks::Deleted, Masks::Modified] does not equal vec![Masks::Modified, Masks::Deleted]
     fn insert(
         &mut self,
         wid: c_int,
@@ -112,23 +116,24 @@ impl WatchDescriptor {
         file_name: Option<String>,
         masks: HashSet<FileEvent>,
     ) {
-        let file_or_dir = EventDescription {
+        let new_event_description = EventDescription {
             dir_path,
             file_name,
             masks,
         };
 
-        let fd_vec = match self.description.get(&wid) {
-            Some(v) => {
-                let mut fvec = v.to_owned();
-                fvec.push(file_or_dir);
-                fvec
+        let fd_vec = self.description.entry(wid).or_insert(vec![]);
+        for event_description in fd_vec.into_iter() {
+            if (*event_description).eq(&new_event_description) {
+                // they are the same wrt dir_path and file_name, BUT the keys need to be updated
+                new_event_description.masks.into_iter().for_each(|mask| {
+                    event_description.masks.insert(mask);
+                });
+                return;
             }
-            None => {
-                vec![file_or_dir]
-            }
-        };
-        self.description.insert(wid, fd_vec);
+        }
+        // otherwise it was a new entry
+        fd_vec.push(new_event_description);
     }
 }
 
@@ -345,6 +350,32 @@ mod tests {
     use super::{
         fs_notify_stream, EventDescription, NotifyStream, NotifyStreamError, WatchDescriptor,
     };
+
+    #[test]
+    fn it_inserts_new_file_events() {
+        let mut wd = WatchDescriptor::default();
+        wd.insert(
+            0,
+            PathBuf::from("/tmp"),
+            Some("fila_a".into()),
+            HashSet::from([FileEvent::Deleted]),
+        );
+        wd.insert(
+            0,
+            PathBuf::from("/tmp"),
+            Some("fila_a".into()),
+            HashSet::from([FileEvent::Created]),
+        );
+
+        let event_description_vec = wd.description.get(&0).unwrap();
+        // assert no new entry was created for the second insert
+        assert_eq!(event_description_vec.len(), 1);
+
+        // assert the mask was updated to contain both Created and Deleted events.
+        let event_description = event_description_vec.get(0).unwrap();
+        assert!(event_description.masks.contains(&FileEvent::Created));
+        assert!(event_description.masks.contains(&FileEvent::Deleted));
+    }
 
     #[test]
     /// this test checks the underlying data structure `WatchDescriptor.description`
