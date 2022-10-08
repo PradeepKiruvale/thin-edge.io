@@ -438,45 +438,6 @@ mod tests {
         );
     }
 
-    #[test]
-    fn test_add_watcher() {
-        let ttd = TempTedgeDir::new();
-        let new_dir = ttd.dir("new_dir");
-        ttd.file("file_a");
-        ttd.file("file_b");
-        new_dir.file("file_c");
-
-        let mut notify_service = NotifyStream::try_default().unwrap();
-        notify_service
-            .add_watcher(
-                ttd.path(),
-                Some(String::from("file_a")),
-                &[FileEvent::Created],
-            )
-            .unwrap();
-        notify_service
-            .add_watcher(
-                ttd.path(),
-                Some(String::from("file_a")),
-                &[FileEvent::Created, FileEvent::Deleted],
-            )
-            .unwrap();
-        notify_service
-            .add_watcher(
-                ttd.path(),
-                Some(String::from("file_b")),
-                &[FileEvent::Modified],
-            )
-            .unwrap();
-        notify_service
-            .add_watcher(
-                new_dir.path(),
-                Some(String::from("file_c")),
-                &[FileEvent::Deleted],
-            )
-            .unwrap();
-    }
-
     async fn assert_stream(
         mut inputs: HashMap<String, Vec<FileEvent>>,
         stream: Result<
