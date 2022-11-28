@@ -76,13 +76,18 @@ impl fmt::Display for MapperName {
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
     let mapper_opt = MapperOpt::parse();
-    tedge_utils::logging::initialise_tracing_subscriber(mapper_opt.debug);
 
     let component = lookup_component(&mapper_opt.name);
 
     let tedge_config_location =
         tedge_config::TEdgeConfigLocation::from_custom_root(&mapper_opt.config_dir);
     let config = tedge_config::TEdgeConfigRepository::new(tedge_config_location.clone()).load()?;
+
+    tedge_utils::logging::initialise_tracing_subscriber(
+        mapper_opt.debug,
+        tedge_config_location.tedge_config_root_path().to_path_buf(),
+    )?;
+
     // Run only one instance of a mapper
 
     let run_dir: PathBuf = config.query(RunPathSetting)?.into();

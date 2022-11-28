@@ -44,14 +44,17 @@ pub struct AgentOpt {
 #[tokio::main]
 async fn main() -> Result<(), anyhow::Error> {
     let agent_opt = AgentOpt::parse();
-    tedge_utils::logging::initialise_tracing_subscriber(agent_opt.debug);
-
     let tedge_config_location =
         tedge_config::TEdgeConfigLocation::from_custom_root(agent_opt.config_dir.clone());
+    tedge_utils::logging::initialise_tracing_subscriber(
+        agent_opt.debug,
+        tedge_config_location.tedge_config_root_path.to_path_buf(),
+    )?;
     let mut agent = agent::SmAgent::try_new(
         "tedge_agent",
         SmAgentConfig::try_new(tedge_config_location)?,
     )?;
+
     if agent_opt.init {
         agent.init(agent_opt.config_dir).await?;
     } else if agent_opt.clear {

@@ -40,7 +40,12 @@ pub struct WatchdogOpt {
 #[tokio::main]
 async fn main() -> Result<(), anyhow::Error> {
     let watchdog_opt = WatchdogOpt::parse();
-    tedge_utils::logging::initialise_tracing_subscriber(watchdog_opt.debug);
+    let tedge_config_location =
+        tedge_config::TEdgeConfigLocation::from_custom_root(watchdog_opt.config_dir.clone());
+    tedge_utils::logging::initialise_tracing_subscriber(
+        watchdog_opt.debug,
+        tedge_config_location.tedge_config_root_path().to_path_buf(),
+    )?;
 
     watchdog::start_watchdog(watchdog_opt.config_dir).await
 }

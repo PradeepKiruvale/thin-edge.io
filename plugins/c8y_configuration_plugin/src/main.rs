@@ -70,7 +70,6 @@ pub async fn create_http_client(
 #[tokio::main]
 async fn main() -> Result<(), anyhow::Error> {
     let config_plugin_opt = ConfigPluginOpt::parse();
-    tedge_utils::logging::initialise_tracing_subscriber(config_plugin_opt.debug);
 
     if config_plugin_opt.init {
         init(config_plugin_opt.config_dir)?;
@@ -81,6 +80,10 @@ async fn main() -> Result<(), anyhow::Error> {
     let tedge_config_location =
         tedge_config::TEdgeConfigLocation::from_custom_root(&config_plugin_opt.config_dir);
     let config_repository = tedge_config::TEdgeConfigRepository::new(tedge_config_location.clone());
+    tedge_utils::logging::initialise_tracing_subscriber(
+        config_plugin_opt.debug,
+        tedge_config_location.tedge_config_root_path().to_path_buf(),
+    )?;
     let tedge_config = config_repository.load()?;
 
     let tedge_device_id = tedge_config.query(DeviceIdSetting)?;

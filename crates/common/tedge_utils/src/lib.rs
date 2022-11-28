@@ -1,3 +1,4 @@
+pub mod logconfig;
 pub mod file;
 pub mod fs;
 pub mod paths;

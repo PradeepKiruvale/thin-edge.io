@@ -203,11 +203,13 @@ async fn main() -> Result<(), anyhow::Error> {
             .unwrap_or(DEFAULT_TEDGE_CONFIG_PATH),
     );
 
-    tedge_utils::logging::initialise_tracing_subscriber(config_plugin_opt.debug);
-
     // Load tedge config from the provided location
     let tedge_config_location =
         tedge_config::TEdgeConfigLocation::from_custom_root(&config_plugin_opt.config_dir);
+    tedge_utils::logging::initialise_tracing_subscriber(
+        config_plugin_opt.debug,
+        tedge_config_location.tedge_config_root_path().to_path_buf(),
+    )?;
     let config_repository = tedge_config::TEdgeConfigRepository::new(tedge_config_location.clone());
     let tedge_config = config_repository.load()?;
 
