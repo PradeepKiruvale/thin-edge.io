@@ -125,6 +125,10 @@ impl ConfigManager {
 
     pub async fn run(&mut self) -> Result<(), anyhow::Error> {
         self.get_pending_operations_from_cloud().await?;
+
+        // Now the configuration plugin is done with the initialization and ready for processing the messages
+        send_health_status(&mut self.mqtt_client.published, "c8y-configuration-plugin").await;
+
         loop {
             tokio::select! {
                 message = self.mqtt_client.received.next() => {

@@ -12,6 +12,7 @@ use std::{
     path::PathBuf,
     process::{self, Command, ExitStatus, Stdio},
 };
+use tedge_api::health::{health_check_topics, send_health_status};
 use tedge_config::{
     ConfigRepository, ConfigSettingAccessor, MqttBindAddressSetting, MqttPortSetting,
     TEdgeConfigLocation,
@@ -115,7 +116,7 @@ async fn monitor_tedge_service(
     let mqtt_config = get_mqtt_config(tedge_config_location, client_id)?
         .with_subscriptions(res_topic.try_into()?)
         .with_last_will_message(
-            format!("tedge/health/{name}"),
+            "tedge/health/tedge-watchdog",
             json!({
             "status": "down",
             "pid": process::id()})
@@ -126,6 +127,9 @@ async fn monitor_tedge_service(
     let mut publisher = client.published;
 
     info!("Starting watchdog for {} service", name);
+
+    // Now the systemd watchdog is done with the initialization and ready for processing the messages
+    send_health_status(&mut publisher, "tedge-watchdog").await;
 
     loop {
         let message = Message::new(&Topic::new(req_topic)?, "");
