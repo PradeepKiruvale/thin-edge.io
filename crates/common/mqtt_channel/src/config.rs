@@ -1,8 +1,6 @@
-use bytes::Bytes;
-
-use rumqttc::LastWill;
-
 use crate::TopicFilter;
+use bytes::Bytes;
+use rumqttc::LastWill;
 
 /// Configuration of an MQTT connection
 #[derive(Debug, Clone)]
@@ -46,6 +44,9 @@ pub struct Config {
     /// Default: `1024 * 1024`.
     pub max_packet_size: usize,
 
+    /// LastWill message for a mqtt client
+    ///
+    /// Default: None
     pub last_will_message: Option<LastWill>,
 }
 
@@ -127,6 +128,7 @@ impl Config {
         }
     }
 
+    /// Set the last will message, this will be published when the mqtt connection gets closed.
     pub fn with_last_will_message(
         self,
         topic: impl Into<String>,

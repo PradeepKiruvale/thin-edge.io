@@ -6,7 +6,7 @@ mod tests {
     use std::convert::TryInto;
     use std::time::Duration;
 
-    const TIMEOUT: Duration = Duration::from_millis(5000);
+    const TIMEOUT: Duration = Duration::from_millis(1000);
 
     #[tokio::test]
     #[serial]
@@ -528,15 +528,6 @@ mod tests {
                         .send(Message::new(&topic, "datum 1"))
                         .await
                         .expect("message sent");
-                    // con.published
-                    //     .send(Message::new(&topic, "datum 2"))
-                    //     .await
-                    //     .expect("message sent");
-                    // con.published
-                    //     .send(Message::new(&topic, "datum 3"))
-                    //     .await
-                    //     .expect("message sent");
-
                     // Wait for all the messages to be actually sent
                     // before the runtime is shutdown dropping the mqtt sender loop.
                     con.close().await;

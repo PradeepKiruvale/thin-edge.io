@@ -12,7 +12,7 @@ use std::{
     path::PathBuf,
     process::{self, Command, ExitStatus, Stdio},
 };
-use tedge_api::health::{health_check_topics, send_health_status};
+use tedge_api::health::send_health_status;
 use tedge_config::{
     ConfigRepository, ConfigSettingAccessor, MqttBindAddressSetting, MqttPortSetting,
     TEdgeConfigLocation,
