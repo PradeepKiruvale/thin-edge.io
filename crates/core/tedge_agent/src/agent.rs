@@ -316,6 +316,8 @@ impl SmAgent {
 
         self.process_pending_operation(&mut mqtt.published).await?;
 
+        send_health_status(&mut mqtt.published, "tedge-agent").await;
+
         let http_config = self.config.http_config.clone();
 
         // spawning file transfer server
