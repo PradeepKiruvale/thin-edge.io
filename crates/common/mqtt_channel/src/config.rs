@@ -1,3 +1,7 @@
+use bytes::Bytes;
+
+use rumqttc::LastWill;
+
 use crate::TopicFilter;
 
 /// Configuration of an MQTT connection
@@ -41,6 +45,8 @@ pub struct Config {
     ///
     /// Default: `1024 * 1024`.
     pub max_packet_size: usize,
+
+    pub last_will_message: Option<LastWill>,
 }
 
 /// By default a client connects the local MQTT broker.
@@ -54,6 +60,7 @@ impl Default for Config {
             clean_session: false,
             queue_capacity: 1024,
             max_packet_size: 1024 * 1024,
+            last_will_message: None,
         }
     }
 }
@@ -120,6 +127,23 @@ impl Config {
         }
     }
 
+    pub fn with_last_will_message(
+        self,
+        topic: impl Into<String>,
+        payload: impl Into<Vec<u8>>,
+    ) -> Self {
+        let last_will_message = LastWill {
+            topic: topic.into(),
+            message: Bytes::from(payload.into()),
+            qos: rumqttc::QoS::AtLeastOnce,
+            retain: false,
+        };
+        Self {
+            last_will_message: Some(last_will_message),
+            ..self
+        }
+    }
+
     /// Wrap this config into an internal set of options for `rumqttc`.
     pub(crate) fn mqtt_options(&self) -> rumqttc::MqttOptions {
         let id = match &self.session_name {
@@ -139,6 +163,10 @@ impl Config {
         }
 
         mqtt_options.set_max_packet_size(self.max_packet_size, self.max_packet_size);
+
+        if let Some(lwp) = self.last_will_message.clone() {
+            mqtt_options.set_last_will(lwp);
+        }
 
         mqtt_options
     }

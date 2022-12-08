@@ -11,7 +11,9 @@ use clap::Parser;
 
 use c8y_api::smartrest::message::get_smartrest_device_id;
 use mqtt_channel::{Connection, Message, StreamExt, TopicFilter};
+use serde_json::json;
 use std::path::{Path, PathBuf};
+use std::process;
 use tedge_api::health::{health_check_topics, send_health_status};
 use tedge_config::system_services::{get_log_level, set_log_level};
 use tedge_config::{
@@ -74,7 +76,14 @@ async fn create_mqtt_client(
     let mqtt_config = mqtt_channel::Config::default()
         .with_session_name("c8y-log-plugin")
         .with_port(mqtt_port)
-        .with_subscriptions(topics);
+        .with_subscriptions(topics)
+        .with_last_will_message(
+            "tedge/health/c8y-log-plugin",
+            json!({
+            "status": "down",
+            "pid": process::id()})
+            .to_string(),
+        );
 
     let mqtt_client = mqtt_channel::Connection::new(&mqtt_config).await?;
     Ok(mqtt_client)

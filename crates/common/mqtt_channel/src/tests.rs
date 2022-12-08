@@ -6,7 +6,7 @@ mod tests {
     use std::convert::TryInto;
     use std::time::Duration;
 
-    const TIMEOUT: Duration = Duration::from_millis(1000);
+    const TIMEOUT: Duration = Duration::from_millis(5000);
 
     #[tokio::test]
     #[serial]
@@ -497,6 +497,54 @@ mod tests {
             vec!["datum 1", "datum 2", "datum 3"],
         )
         .await;
+
+        Ok(())
+    }
+
+    #[tokio::test]
+    #[serial]
+    async fn ensure_that_last_will_message_is_delivered() -> Result<(), anyhow::Error> {
+        let broker = mqtt_tests::test_mqtt_broker();
+        let topic = "lastwilltopic";
+        let mut messages = broker.messages_published_on(topic).await;
+
+        // An mqtt process publishing messages
+        // must ensure the messages have been sent before process exit.
+        std::thread::spawn(move || {
+            tokio::runtime::Builder::new_current_thread()
+                .enable_all()
+                .build()
+                .unwrap()
+                .block_on(async {
+                    let mqtt_config = Config::default()
+                        .with_port(broker.port)
+                        .with_last_will_message(topic, "last will message");
+                    let topic = Topic::new_unchecked(topic);
+                    let mut con = Connection::new(&mqtt_config).await.expect("a connection");
+
+                    println!("{:?}", mqtt_config);
+
+                    con.published
+                        .send(Message::new(&topic, "datum 1"))
+                        .await
+                        .expect("message sent");
+                    // con.published
+                    //     .send(Message::new(&topic, "datum 2"))
+                    //     .await
+                    //     .expect("message sent");
+                    // con.published
+                    //     .send(Message::new(&topic, "datum 3"))
+                    //     .await
+                    //     .expect("message sent");
+
+                    // Wait for all the messages to be actually sent
+                    // before the runtime is shutdown dropping the mqtt sender loop.
+                    con.close().await;
+                });
+        });
+
+        mqtt_tests::assert_received(&mut messages, TIMEOUT, vec!["datum 1", "last will message"])
+            .await;
 
         Ok(())
     }

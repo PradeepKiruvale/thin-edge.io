@@ -5,8 +5,10 @@ use mqtt_channel::{
     Connection, Message, MqttError, SinkExt, StreamExt, Topic, TopicFilter, UnboundedReceiver,
     UnboundedSender,
 };
+use serde_json::json;
 
 use std::path::Path;
+use std::process;
 use std::time::Duration;
 use tedge_api::health::{health_check_topics, send_health_status};
 use tedge_utils::notify::{fs_notify_stream, FsEvent};
@@ -50,7 +52,14 @@ pub fn mqtt_config(
         .with_port(port)
         .with_session_name(name)
         .with_subscriptions(topic_filter)
-        .with_max_packet_size(10 * 1024 * 1024))
+        .with_max_packet_size(10 * 1024 * 1024)
+        .with_last_will_message(
+            format!("tedge/health/{name}"),
+            json!({
+            "status": "down",
+            "pid": process::id()})
+            .to_string(),
+        ))
 }
 
 pub struct Mapper {

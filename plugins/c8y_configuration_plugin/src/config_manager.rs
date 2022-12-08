@@ -17,9 +17,11 @@ use c8y_api::smartrest::smartrest_deserializer::{
 use c8y_api::smartrest::smartrest_serializer::TryIntoOperationStatusMessage;
 use c8y_api::smartrest::topic::C8yTopic;
 use mqtt_channel::{Connection, Message, MqttError, SinkExt, StreamExt, Topic, TopicFilter};
+use serde_json::json;
 use tokio::sync::Mutex;
 
 use std::path::PathBuf;
+use std::process;
 use std::sync::Arc;
 use std::time::Duration;
 use tedge_api::health::{health_check_topics, send_health_status};
@@ -202,7 +204,14 @@ impl ConfigManager {
         let mqtt_config = mqtt_channel::Config::default()
             .with_session_name("c8y-configuration-plugin")
             .with_port(mqtt_port)
-            .with_subscriptions(topic_filter);
+            .with_subscriptions(topic_filter)
+            .with_last_will_message(
+                "tedge/health/c8y-configuration-plugin",
+                json!({
+                "status": "down",
+                "pid": process::id()})
+                .to_string(),
+            );
 
         let mqtt_client = mqtt_channel::Connection::new(&mqtt_config).await?;
         Ok(mqtt_client)

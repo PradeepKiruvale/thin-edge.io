@@ -21,7 +21,8 @@ use plugin_sm::{
 };
 
 use crate::http_rest::HttpConfig;
-use std::process::Command;
+use serde_json::json;
+use std::process::{self, Command};
 use std::{convert::TryInto, fmt::Debug, path::PathBuf, sync::Arc};
 use tedge_api::health::{health_check_topics, send_health_status};
 use tedge_config::{
@@ -146,7 +147,14 @@ impl SmAgentConfig {
         let mqtt_config = mqtt_channel::Config::default()
             .with_host(tedge_config.query(MqttBindAddressSetting)?.to_string())
             .with_port(tedge_config.query(MqttPortSetting)?.into())
-            .with_max_packet_size(10 * 1024 * 1024);
+            .with_max_packet_size(10 * 1024 * 1024)
+            .with_last_will_message(
+                "tedge/health/tedge-agent",
+                json!({
+                "status": "down",
+                "pid": process::id()})
+                .to_string(),
+            );
 
         let tedge_config_path = config_repository
             .get_config_location()

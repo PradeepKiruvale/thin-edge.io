@@ -6,6 +6,7 @@ use futures::StreamExt;
 use mqtt_channel::{Config, Message, PubChannel, Topic};
 use nanoid::nanoid;
 use serde::{Deserialize, Serialize};
+use serde_json::json;
 use std::time::Instant;
 use std::{
     path::PathBuf,
@@ -112,7 +113,14 @@ async fn monitor_tedge_service(
 ) -> Result<(), WatchdogError> {
     let client_id: &str = &format!("{}_{}", name, nanoid!());
     let mqtt_config = get_mqtt_config(tedge_config_location, client_id)?
-        .with_subscriptions(res_topic.try_into()?);
+        .with_subscriptions(res_topic.try_into()?)
+        .with_last_will_message(
+            format!("tedge/health/{name}"),
+            json!({
+            "status": "down",
+            "pid": process::id()})
+            .to_string(),
+        );
     let client = mqtt_channel::Connection::new(&mqtt_config).await?;
     let mut received = client.received;
     let mut publisher = client.published;
