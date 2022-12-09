@@ -1571,7 +1571,6 @@ version = "0.8.1"
 dependencies = [
  "anyhow",
  "async-trait",
- "bytes",
  "fastrand",
  "futures",
  "mqtt_tests",

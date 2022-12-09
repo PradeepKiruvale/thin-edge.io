@@ -148,13 +148,16 @@ impl SmAgentConfig {
             .with_host(tedge_config.query(MqttBindAddressSetting)?.to_string())
             .with_port(tedge_config.query(MqttPortSetting)?.into())
             .with_max_packet_size(10 * 1024 * 1024)
-            .with_last_will_message(
-                "tedge/health/tedge-agent",
-                json!({
-                "status": "down",
-                "pid": process::id()})
-                .to_string(),
-            );
+            .with_last_will_message(Message {
+                topic: Topic::new_unchecked("tedge/health/tedge-agent"),
+                payload: json!({
+                    "status": "down",
+                    "pid": process::id()})
+                .to_string()
+                .into(),
+                qos: mqtt_channel::QoS::AtLeastOnce,
+                retain: true,
+            });
 
         let tedge_config_path = config_repository
             .get_config_location()

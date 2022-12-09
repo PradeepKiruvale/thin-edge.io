@@ -1,5 +1,4 @@
-use crate::TopicFilter;
-use bytes::Bytes;
+use crate::{Message, TopicFilter};
 use rumqttc::LastWill;
 
 /// Configuration of an MQTT connection
@@ -47,7 +46,7 @@ pub struct Config {
     /// LastWill message for a mqtt client
     ///
     /// Default: None
-    pub last_will_message: Option<LastWill>,
+    pub last_will_message: Option<Message>,
 }
 
 /// By default a client connects the local MQTT broker.
@@ -129,19 +128,9 @@ impl Config {
     }
 
     /// Set the last will message, this will be published when the mqtt connection gets closed.
-    pub fn with_last_will_message(
-        self,
-        topic: impl Into<String>,
-        payload: impl Into<Vec<u8>>,
-    ) -> Self {
-        let last_will_message = LastWill {
-            topic: topic.into(),
-            message: Bytes::from(payload.into()),
-            qos: rumqttc::QoS::AtLeastOnce,
-            retain: false,
-        };
+    pub fn with_last_will_message(self, lwm: Message) -> Self {
         Self {
-            last_will_message: Some(last_will_message),
+            last_will_message: Some(lwm),
             ..self
         }
     }
@@ -167,7 +156,13 @@ impl Config {
         mqtt_options.set_max_packet_size(self.max_packet_size, self.max_packet_size);
 
         if let Some(lwp) = self.last_will_message.clone() {
-            mqtt_options.set_last_will(lwp);
+            let last_will_message = LastWill {
+                topic: lwp.topic.into(),
+                message: lwp.payload.into(),
+                qos: lwp.qos,
+                retain: lwp.retain,
+            };
+            mqtt_options.set_last_will(last_will_message);
         }
 
         mqtt_options

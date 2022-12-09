@@ -518,11 +518,14 @@ mod tests {
                 .block_on(async {
                     let mqtt_config = Config::default()
                         .with_port(broker.port)
-                        .with_last_will_message(topic, "last will message");
+                        .with_last_will_message(Message {
+                            topic: Topic::new_unchecked(topic),
+                            payload: "lastwillmessage".into(),
+                            qos: QoS::AtLeastOnce,
+                            retain: false,
+                        });
                     let topic = Topic::new_unchecked(topic);
                     let mut con = Connection::new(&mqtt_config).await.expect("a connection");
-
-                    println!("{:?}", mqtt_config);
 
                     con.published
                         .send(Message::new(&topic, "datum 1"))

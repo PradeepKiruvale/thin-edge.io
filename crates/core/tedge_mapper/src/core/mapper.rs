@@ -53,13 +53,16 @@ pub fn mqtt_config(
         .with_session_name(name)
         .with_subscriptions(topic_filter)
         .with_max_packet_size(10 * 1024 * 1024)
-        .with_last_will_message(
-            format!("tedge/health/{name}"),
-            json!({
-            "status": "down",
-            "pid": process::id()})
-            .to_string(),
-        ))
+        .with_last_will_message(Message {
+            topic: Topic::new_unchecked(&format!("tedge/health/{name}")),
+            payload: json!({
+                "status": "down",
+                "pid": process::id()})
+            .to_string()
+            .into(),
+            qos: mqtt_channel::QoS::AtLeastOnce,
+            retain: true,
+        }))
 }
 
 pub struct Mapper {

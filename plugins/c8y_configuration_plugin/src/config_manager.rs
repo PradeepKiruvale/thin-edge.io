@@ -209,13 +209,16 @@ impl ConfigManager {
             .with_session_name("c8y-configuration-plugin")
             .with_port(mqtt_port)
             .with_subscriptions(topic_filter)
-            .with_last_will_message(
-                "tedge/health/c8y-configuration-plugin",
-                json!({
-                "status": "down",
-                "pid": process::id()})
-                .to_string(),
-            );
+            .with_last_will_message(Message {
+                topic: Topic::new_unchecked("tedge/health/c8y-configuration-plugin"),
+                payload: json!({
+                    "status": "down",
+                    "pid": process::id()})
+                .to_string()
+                .into(),
+                qos: mqtt_channel::QoS::AtLeastOnce,
+                retain: true,
+            });
 
         let mqtt_client = mqtt_channel::Connection::new(&mqtt_config).await?;
         Ok(mqtt_client)

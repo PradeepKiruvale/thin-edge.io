@@ -10,7 +10,7 @@ use c8y_api::utils::bridge::{is_c8y_bridge_up, C8Y_BRIDGE_HEALTH_TOPIC};
 use clap::Parser;
 
 use c8y_api::smartrest::message::get_smartrest_device_id;
-use mqtt_channel::{Connection, Message, StreamExt, TopicFilter};
+use mqtt_channel::{Connection, Message, StreamExt, Topic, TopicFilter};
 use serde_json::json;
 use std::path::{Path, PathBuf};
 use std::process;
@@ -77,13 +77,16 @@ async fn create_mqtt_client(
         .with_session_name("c8y-log-plugin")
         .with_port(mqtt_port)
         .with_subscriptions(topics)
-        .with_last_will_message(
-            "tedge/health/c8y-log-plugin",
-            json!({
-            "status": "down",
-            "pid": process::id()})
-            .to_string(),
-        );
+        .with_last_will_message(Message {
+            topic: Topic::new_unchecked("tedge/health/c8y-log-plugin"),
+            payload: json!({
+                "status": "down",
+                "pid": process::id()})
+            .to_string()
+            .into(),
+            qos: mqtt_channel::QoS::AtLeastOnce,
+            retain: true,
+        });
 
     let mqtt_client = mqtt_channel::Connection::new(&mqtt_config).await?;
     Ok(mqtt_client)
