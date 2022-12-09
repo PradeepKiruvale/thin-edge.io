@@ -10,11 +10,9 @@ use c8y_api::utils::bridge::{is_c8y_bridge_up, C8Y_BRIDGE_HEALTH_TOPIC};
 use clap::Parser;
 
 use c8y_api::smartrest::message::get_smartrest_device_id;
-use mqtt_channel::{Connection, Message, StreamExt, Topic, TopicFilter};
-use serde_json::json;
+use mqtt_channel::{Connection, Message, StreamExt, TopicFilter};
 use std::path::{Path, PathBuf};
-use std::process;
-use tedge_api::health::{health_check_topics, send_health_status};
+use tedge_api::health::{get_last_will_message, health_check_topics, send_health_status};
 use tedge_config::system_services::{get_log_level, set_log_level};
 use tedge_config::{
     ConfigRepository, ConfigSettingAccessor, DeviceIdSetting, LogPathSetting, MqttPortSetting,
@@ -77,16 +75,7 @@ async fn create_mqtt_client(
         .with_session_name("c8y-log-plugin")
         .with_port(mqtt_port)
         .with_subscriptions(topics)
-        .with_last_will_message(Message {
-            topic: Topic::new_unchecked("tedge/health/c8y-log-plugin"),
-            payload: json!({
-                "status": "down",
-                "pid": process::id()})
-            .to_string()
-            .into(),
-            qos: mqtt_channel::QoS::AtLeastOnce,
-            retain: true,
-        });
+        .with_last_will_message(get_last_will_message("c8y-log-plugin".into()));
 
     let mqtt_client = mqtt_channel::Connection::new(&mqtt_config).await?;
     Ok(mqtt_client)

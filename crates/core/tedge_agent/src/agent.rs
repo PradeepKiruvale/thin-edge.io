@@ -9,9 +9,10 @@ use crate::{
 };
 use flockfile::{check_another_instance_is_not_running, Flockfile};
 use tedge_api::{
-    control_filter_topic, software_filter_topic, Jsonify, OperationStatus, RestartOperationRequest,
-    RestartOperationResponse, SoftwareError, SoftwareListRequest, SoftwareListResponse,
-    SoftwareRequestResponse, SoftwareType, SoftwareUpdateRequest, SoftwareUpdateResponse,
+    control_filter_topic, health::get_last_will_message, software_filter_topic, Jsonify,
+    OperationStatus, RestartOperationRequest, RestartOperationResponse, SoftwareError,
+    SoftwareListRequest, SoftwareListResponse, SoftwareRequestResponse, SoftwareType,
+    SoftwareUpdateRequest, SoftwareUpdateResponse,
 };
 
 use mqtt_channel::{Connection, Message, PubChannel, StreamExt, SubChannel, Topic, TopicFilter};
@@ -21,8 +22,7 @@ use plugin_sm::{
 };
 
 use crate::http_rest::HttpConfig;
-use serde_json::json;
-use std::process::{self, Command};
+use std::process::Command;
 use std::{convert::TryInto, fmt::Debug, path::PathBuf, sync::Arc};
 use tedge_api::health::{health_check_topics, send_health_status};
 use tedge_config::{
@@ -148,16 +148,7 @@ impl SmAgentConfig {
             .with_host(tedge_config.query(MqttBindAddressSetting)?.to_string())
             .with_port(tedge_config.query(MqttPortSetting)?.into())
             .with_max_packet_size(10 * 1024 * 1024)
-            .with_last_will_message(Message {
-                topic: Topic::new_unchecked("tedge/health/tedge-agent"),
-                payload: json!({
-                    "status": "down",
-                    "pid": process::id()})
-                .to_string()
-                .into(),
-                qos: mqtt_channel::QoS::AtLeastOnce,
-                retain: true,
-            });
+            .with_last_will_message(get_last_will_message("tedge-agent".into()));
 
         let tedge_config_path = config_repository
             .get_config_location()

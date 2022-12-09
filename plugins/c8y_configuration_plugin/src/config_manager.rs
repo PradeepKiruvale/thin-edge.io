@@ -17,14 +17,12 @@ use c8y_api::smartrest::smartrest_deserializer::{
 use c8y_api::smartrest::smartrest_serializer::TryIntoOperationStatusMessage;
 use c8y_api::smartrest::topic::C8yTopic;
 use mqtt_channel::{Connection, Message, MqttError, SinkExt, StreamExt, Topic, TopicFilter};
-use serde_json::json;
 use tokio::sync::Mutex;
 
 use std::path::PathBuf;
-use std::process;
 use std::sync::Arc;
 use std::time::Duration;
-use tedge_api::health::{health_check_topics, send_health_status};
+use tedge_api::health::{get_last_will_message, health_check_topics, send_health_status};
 use tedge_utils::{notify::fs_notify_stream, paths::PathsError};
 
 use tedge_utils::notify::{FsEvent, NotifyStream};
@@ -209,16 +207,7 @@ impl ConfigManager {
             .with_session_name("c8y-configuration-plugin")
             .with_port(mqtt_port)
             .with_subscriptions(topic_filter)
-            .with_last_will_message(Message {
-                topic: Topic::new_unchecked("tedge/health/c8y-configuration-plugin"),
-                payload: json!({
-                    "status": "down",
-                    "pid": process::id()})
-                .to_string()
-                .into(),
-                qos: mqtt_channel::QoS::AtLeastOnce,
-                retain: true,
-            });
+            .with_last_will_message(get_last_will_message("c8y-configuration-plugin".into()));
 
         let mqtt_client = mqtt_channel::Connection::new(&mqtt_config).await?;
         Ok(mqtt_client)
