@@ -8,7 +8,7 @@ use mqtt_channel::{
 
 use std::path::Path;
 use std::time::Duration;
-use tedge_api::health::{get_last_will_message, health_check_topics, send_health_status};
+use tedge_api::health::{get_health_status_down_message, health_check_topics, send_health_status};
 use tedge_utils::notify::{fs_notify_stream, FsEvent};
 
 use tracing::{error, info, instrument, warn};
@@ -51,7 +51,7 @@ pub fn mqtt_config(
         .with_session_name(name)
         .with_subscriptions(topic_filter)
         .with_max_packet_size(10 * 1024 * 1024)
-        .with_last_will_message(get_last_will_message(name.into())))
+        .with_last_will_message(get_health_status_down_message(name.into())))
 }
 
 pub struct Mapper {

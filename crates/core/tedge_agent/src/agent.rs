@@ -9,7 +9,7 @@ use crate::{
 };
 use flockfile::{check_another_instance_is_not_running, Flockfile};
 use tedge_api::{
-    control_filter_topic, health::get_last_will_message, software_filter_topic, Jsonify,
+    control_filter_topic, health::get_health_status_down_message, software_filter_topic, Jsonify,
     OperationStatus, RestartOperationRequest, RestartOperationResponse, SoftwareError,
     SoftwareListRequest, SoftwareListResponse, SoftwareRequestResponse, SoftwareType,
     SoftwareUpdateRequest, SoftwareUpdateResponse,
@@ -148,7 +148,7 @@ impl SmAgentConfig {
             .with_host(tedge_config.query(MqttBindAddressSetting)?.to_string())
             .with_port(tedge_config.query(MqttPortSetting)?.into())
             .with_max_packet_size(10 * 1024 * 1024)
-            .with_last_will_message(get_last_will_message("tedge-agent".into()));
+            .with_last_will_message(get_health_status_down_message("tedge-agent".into()));
 
         let tedge_config_path = config_repository
             .get_config_location()

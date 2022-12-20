@@ -22,7 +22,7 @@ use tokio::sync::Mutex;
 use std::path::PathBuf;
 use std::sync::Arc;
 use std::time::Duration;
-use tedge_api::health::{get_last_will_message, health_check_topics, send_health_status};
+use tedge_api::health::{get_health_status_down_message, health_check_topics, send_health_status};
 use tedge_utils::{notify::fs_notify_stream, paths::PathsError};
 
 use tedge_utils::notify::{FsEvent, NotifyStream};
@@ -207,7 +207,9 @@ impl ConfigManager {
             .with_session_name("c8y-configuration-plugin")
             .with_port(mqtt_port)
             .with_subscriptions(topic_filter)
-            .with_last_will_message(get_last_will_message("c8y-configuration-plugin".into()));
+            .with_last_will_message(get_health_status_down_message(
+                "c8y-configuration-plugin".into(),
+            ));
 
         let mqtt_client = mqtt_channel::Connection::new(&mqtt_config).await?;
         Ok(mqtt_client)
