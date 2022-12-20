@@ -75,7 +75,7 @@ async fn create_mqtt_client(
         .with_session_name("c8y-log-plugin")
         .with_port(mqtt_port)
         .with_subscriptions(topics)
-        .with_last_will_message(get_health_status_down_message("c8y-log-plugin".into()));
+        .with_last_will_message(get_health_status_down_message("c8y-log-plugin"));
 
     let mqtt_client = mqtt_channel::Connection::new(&mqtt_config).await?;
     Ok(mqtt_client)

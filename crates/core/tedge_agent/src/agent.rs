@@ -148,7 +148,7 @@ impl SmAgentConfig {
             .with_host(tedge_config.query(MqttBindAddressSetting)?.to_string())
             .with_port(tedge_config.query(MqttPortSetting)?.into())
             .with_max_packet_size(10 * 1024 * 1024)
-            .with_last_will_message(get_health_status_down_message("tedge-agent".into()));
+            .with_last_will_message(get_health_status_down_message("tedge-agent"));
 
         let tedge_config_path = config_repository
             .get_config_location()

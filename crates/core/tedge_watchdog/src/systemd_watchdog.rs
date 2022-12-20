@@ -114,7 +114,7 @@ async fn monitor_tedge_service(
     let client_id: &str = &format!("{}_{}", name, nanoid!());
     let mqtt_config = get_mqtt_config(tedge_config_location, client_id)?
         .with_subscriptions(res_topic.try_into()?)
-        .with_last_will_message(get_health_status_down_message("tedge-watchdog".into()));
+        .with_last_will_message(get_health_status_down_message("tedge-watchdog"));
     let client = mqtt_channel::Connection::new(&mqtt_config).await?;
     let mut received = client.received;
     let mut publisher = client.published;

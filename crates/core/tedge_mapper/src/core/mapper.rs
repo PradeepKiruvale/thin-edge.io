@@ -51,7 +51,7 @@ pub fn mqtt_config(
         .with_session_name(name)
         .with_subscriptions(topic_filter)
         .with_max_packet_size(10 * 1024 * 1024)
-        .with_last_will_message(get_health_status_down_message(name.into())))
+        .with_last_will_message(get_health_status_down_message(name)))
 }
 
 pub struct Mapper {
