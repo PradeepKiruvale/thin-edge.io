@@ -150,7 +150,7 @@ fn get_rumqttd_config(port: u16) -> Config {
         tls: None,
     };
 
-    let broker_config = rumqttd::Config {
+    rumqttd::Config {
         id: 4,
         router: rf,
         v4: hashmap! {"testconfig".to_string() => server_config},
@@ -160,7 +160,5 @@ fn get_rumqttd_config(port: u16) -> Config {
         console: console_settings,
         bridge: None,
         prometheus: None,
-    };
-
-    broker_config
+    }
 }

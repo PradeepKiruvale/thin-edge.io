@@ -2068,12 +2068,20 @@ dependencies = [
 
 [[package]]
 name = "oid-registry"
-version = "0.6.1"
 version = "0.1.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "f6aae73e474f83beacd8ae2179e328e03d63d9223949d97e1b7c108059a34715"
 dependencies = [
  "der-parser 5.1.2",
+]
+
+[[package]]
+name = "oid-registry"
+version = "0.6.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "9bedf36ffb6ba96c2eb7144ef6270557b52e54b20c0a8e1eb2ff99a6c6959bff"
+dependencies = [
+ "asn1-rs",
 ]
 
 [[package]]
@@ -4288,17 +4296,11 @@ dependencies = [
  "der-parser 8.1.0",
  "lazy_static",
  "nom 7.1.1",
- "oid-registry 0.6.0",
+ "oid-registry 0.6.1",
  "rusticata-macros 4.1.0",
  "thiserror",
  "time",
 ]
-
-[[package]]
-name = "xmlparser"
-version = "0.13.5"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "4d25c75bf9ea12c4040a97f829154768bbbce366287e2dc044af160cd79a13fd"
 
 [[package]]
 name = "yaml-rust"
