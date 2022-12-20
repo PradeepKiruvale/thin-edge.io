@@ -2,9 +2,10 @@
 mod tests {
     use crate::*;
     use futures::{SinkExt, StreamExt};
+   
     use serial_test::serial;
-    use std::convert::TryInto;
     use std::time::Duration;
+    use std::{convert::TryInto};
 
     const TIMEOUT: Duration = Duration::from_millis(1000);
 
@@ -439,22 +440,6 @@ mod tests {
 
     #[tokio::test]
     #[serial]
-    async fn subscription_failures() {
-        let broker = mqtt_tests::test_mqtt_broker();
-        let mqtt_config = Config::default().with_port(broker.port);
-
-        let topic = TopicFilter::new_unchecked("test/topic");
-        let mqtt_config = mqtt_config.with_subscriptions(topic);
-
-        // For some unknown reason, the test MQTT server rejects any subscription on `test/#` topics
-        assert!(matches!(
-            Connection::new(&mqtt_config).await,
-            Err(MqttError::SubscriptionFailure)
-        ));
-    }
-
-    #[tokio::test]
-    #[serial]
     async fn ensure_that_all_messages_are_sent_before_disconnect() -> Result<(), anyhow::Error> {
         let broker = mqtt_tests::test_mqtt_broker();
         let topic = "data/topic";
@@ -469,6 +454,7 @@ mod tests {
                 .unwrap()
                 .block_on(async {
                     let mqtt_config = Config::default().with_port(broker.port);
+
                     let topic = Topic::new_unchecked(topic);
                     let mut con = Connection::new(&mqtt_config).await.expect("a connection");
 
@@ -504,42 +490,49 @@ mod tests {
     #[tokio::test]
     #[serial]
     async fn ensure_that_last_will_message_is_delivered() -> Result<(), anyhow::Error> {
+        let topic = "test/lwp";
         let broker = mqtt_tests::test_mqtt_broker();
-        let topic = "lastwilltopic";
+        // start a subscriber to capture all the messages
         let mut messages = broker.messages_published_on(topic).await;
 
-        // An mqtt process publishing messages
+        // An mqtt client with last will message, publishing messages
         // must ensure the messages have been sent before process exit.
-        std::thread::spawn(move || {
-            tokio::runtime::Builder::new_current_thread()
-                .enable_all()
-                .build()
-                .unwrap()
-                .block_on(async {
-                    let mqtt_config = Config::default()
-                        .with_port(broker.port)
-                        .with_last_will_message(Message {
-                            topic: Topic::new_unchecked(topic),
-                            payload: "lastwillmessage".into(),
-                            qos: QoS::AtLeastOnce,
-                            retain: false,
-                        });
-                    let topic = Topic::new_unchecked(topic);
-                    let mut con = Connection::new(&mqtt_config).await.expect("a connection");
-
-                    con.published
-                        .send(Message::new(&topic, "datum 1"))
-                        .await
-                        .expect("message sent");
-                    // Wait for all the messages to be actually sent
-                    // before the runtime is shutdown dropping the mqtt sender loop.
-                    con.close().await;
+        tokio::spawn(async move {
+            let topic = Topic::new_unchecked(topic);
+            let mqtt_config = Config::default()
+                .with_port(broker.port)
+                .with_last_will_message(Message {
+                    topic: topic.clone(),
+                    payload: "good bye".into(),
+                    qos: QoS::AtLeastOnce,
+                    retain: false,
                 });
+            let mut con = Connection::new(&mqtt_config).await.expect("a connection");
+
+            con.published
+                .send(Message::new(&topic, "hello 1"))
+                .await
+                .expect("message sent");
+
+            con.published
+                .send(Message::new(&topic, "hello 2"))
+                .await
+                .expect("message sent");
+
+            con.published
+                .send(Message::new(&topic, "hello 3"))
+                .await
+                .expect("message sent");
+
+            con.close().await;
         });
 
-        mqtt_tests::assert_received(&mut messages, TIMEOUT, vec!["datum 1", "last will message"])
-            .await;
-
+        mqtt_tests::assert_received(
+            &mut messages,
+            Duration::from_secs(3),
+            vec!["hello 1", "hello 2", "hello 3", "good bye"],
+        )
+        .await;
         Ok(())
     }
 }

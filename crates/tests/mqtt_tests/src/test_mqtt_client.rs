@@ -47,7 +47,7 @@ pub async fn assert_received<T>(
     T::Item: ToString,
 {
     for expected_msg in expected.into_iter() {
-        let actual_msg = messages.next().with_timeout(timeout).await;
+        let actual_msg = messages.next().with_timeout(timeout).await;        
         assert_eq!(actual_msg, Ok(Some(expected_msg.to_string())));
     }
 }
