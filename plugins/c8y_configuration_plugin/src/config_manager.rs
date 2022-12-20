@@ -207,9 +207,7 @@ impl ConfigManager {
             .with_session_name("c8y-configuration-plugin")
             .with_port(mqtt_port)
             .with_subscriptions(topic_filter)
-            .with_last_will_message(get_health_status_down_message(
-                "c8y-configuration-plugin",
-            ));
+            .with_last_will_message(get_health_status_down_message("c8y-configuration-plugin"));
 
         let mqtt_client = mqtt_channel::Connection::new(&mqtt_config).await?;
         Ok(mqtt_client)
