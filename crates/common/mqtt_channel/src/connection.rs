@@ -3,7 +3,7 @@ use futures::channel::mpsc;
 use futures::channel::oneshot;
 use futures::{SinkExt, StreamExt};
 use rumqttc::{
-    AsyncClient, ConnectionError, Event, EventLoop, Incoming, Outgoing, Packet, StateError,
+    AsyncClient, ConnectionError, Event, EventLoop, Incoming, Packet, StateError,
 };
 use std::time::Duration;
 use tokio::time::sleep;
@@ -189,8 +189,7 @@ impl Connection {
                     }
                 }
 
-                Ok(Event::Incoming(Incoming::Disconnect))
-                | Ok(Event::Outgoing(Outgoing::Disconnect)) => {
+                Ok(Event::Incoming(Incoming::Disconnect)) => {
                     // The connection has been closed
                     break;
                 }

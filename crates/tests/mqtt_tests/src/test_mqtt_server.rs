@@ -90,12 +90,7 @@ fn spawn_broker(port: u16) {
 
     std::thread::spawn(move || {
         tx.subscribe("#").unwrap();
-
-        loop {
-            let notification = match rx.recv().unwrap() {
-                Some(v) => v,
-                None => continue,
-            };
+        while let Some(notification) = rx.recv().unwrap() {
             match notification {
                 Notification::Forward(forward) => {
                     let payload = match std::str::from_utf8(&forward.publish.payload) {
@@ -107,8 +102,8 @@ fn spawn_broker(port: u16) {
                         forward.publish.topic, payload
                     );
                 }
-                // Print other notifications like acks, etc.
-                v => {eprintln!("{:?}", v);}
+                // Do nothing on the other notifications.
+                _ => {}
             }
         }
     });
