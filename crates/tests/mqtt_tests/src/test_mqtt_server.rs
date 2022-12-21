@@ -107,10 +107,8 @@ fn spawn_broker(port: u16) {
                         forward.publish.topic, payload
                     );
                 }
-
-                v => {
-                    println!("{:?}", v);
-                }
+                // Print other notifications like acks, etc.
+                v => {eprintln!("{:?}", v);}
             }
         }
     });
@@ -138,13 +136,13 @@ fn get_rumqttd_config(port: u16) -> Config {
         throttle_delay_ms: 0,
         max_payload_size: 268435455,
         max_inflight_count: 200,
-        max_inflight_size: 10204,
+        max_inflight_size: 1024,
         dynamic_filters: false,
     };
 
     let server_config = ServerSettings {
         listen: SocketAddr::V4(SocketAddrV4::new(Ipv4Addr::new(0, 0, 0, 0), port)),
-        next_connection_delay_ms: 0,
+        next_connection_delay_ms: 1,
         connections: connections_settings,
         name: "mqtt_test_server".to_string(),
         tls: None,
