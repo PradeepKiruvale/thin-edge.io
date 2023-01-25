@@ -68,16 +68,17 @@ impl AlarmConverter {
                             payload: mqtt_payload.chars().take(50).collect(),
                         }
                     })?;
-                let c8y_alarm = C8yCreateAlarm::try_from(&tedge_alarm)?;
+                let mut c8y_alarm = C8yCreateAlarm::try_from(&tedge_alarm)?;
 
                 // If the message doesn't contain any fields other than `text` and `time`, convert to SmartREST
-                if c8y_alarm.no_custom_fragments() {
+                if c8y_alarm.no_custom_fragments(&tedge_alarm.source) {
                     let smartrest_alarm = alarm::serialize_alarm(tedge_alarm)?;
                     let c8y_alarm_topic = Topic::new_unchecked(
                         &self.get_c8y_alarm_topic(input_message.topic.name.as_str())?,
                     );
                     output_messages.push(Message::new(&c8y_alarm_topic, smartrest_alarm));
                 } else {
+                    dbg!(&c8y_alarm);
                     let cumulocity_alarm_json = serde_json::to_string(&c8y_alarm)?;
                     let c8y_alarm_topic = Topic::new_unchecked(C8Y_JSON_MQTT_ALARMS_TOPIC);
                     output_messages.push(Message::new(&c8y_alarm_topic, cumulocity_alarm_json));

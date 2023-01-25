@@ -153,7 +153,7 @@ impl TryFrom<ThinEdgeEvent> for C8yCreateEvent {
             }
         }
         if let Some(source) = event.source {
-            update_the_external_source_event(&mut extras, &source)?;
+            update_the_external_source(&mut extras, &source)?;
         }
 
         Ok(Self {
@@ -198,7 +198,7 @@ fn combine_version_and_type(
         },
     }
 }
-fn update_the_external_source_event(
+fn update_the_external_source(
     extras: &mut HashMap<String, Value>,
     source: &str,
 ) -> Result<(), SMCumulocityMapperError> {
@@ -249,8 +249,8 @@ impl C8yCreateAlarm {
         }
     }
 
-    pub fn no_custom_fragments(&self) -> bool {
-        match self.source.to_owned() {
+    pub fn no_custom_fragments(&mut self, src: &Option<String>) -> bool {
+        match src {
             // if child device then then there must be more than one entry in the extras to contain a custom fragment
             Some(_src) => self.extras.keys().len() == 1,
             // if its thin-edge device then the extras has zero entries
@@ -268,7 +268,6 @@ impl TryFrom<&ThinEdgeAlarm> for C8yCreateAlarm {
         let text;
         let time;
         let mut extras;
-        let mut alarm_source = None;
 
         match &alarm.to_owned().data {
             None => {
@@ -287,14 +286,11 @@ impl TryFrom<&ThinEdgeAlarm> for C8yCreateAlarm {
         }
 
         if let Some(source) = &alarm.source {
-            alarm_source = Some(C8yManagedObject {
-                id: source.to_owned(),
-            });
-            update_the_external_source_event(&mut extras, source)?;
+            update_the_external_source(&mut extras, source)?;
         }
 
         Ok(Self {
-            source: alarm_source,
+            source: None,
             severity,
             alarm_type,
             time,
@@ -344,7 +340,7 @@ mod tests {
         let input_json = r#"{
             "id":"1",
             "status":"successful",
-            "currentSoftwareList":[
+            "currentSoftwareList":[ 
                 {"type":"debian", "modules":[
                     {"name":"a"},
                     {"name":"b","version":"1.0"},
