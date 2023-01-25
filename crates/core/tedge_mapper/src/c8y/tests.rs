@@ -441,7 +441,7 @@ async fn c8y_mapper_child_alarm_mapping_to_smartrest() {
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 #[serial]
-async fn c8y_mapper_alarm_with_custom_fragment_mapping_to_smartrest() {
+async fn c8y_mapper_alarm_with_custom_fragment_mapping_to_c8y_json() {
     let broker = mqtt_tests::test_mqtt_broker();
 
     let mut messages = broker
@@ -485,7 +485,7 @@ async fn c8y_mapper_alarm_with_custom_fragment_mapping_to_smartrest() {
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 #[serial]
-async fn c8y_mapper_child_alarm_with_custom_fragment_mapping_to_smartrest() {
+async fn c8y_mapper_child_alarm_with_custom_fragment_mapping_to_c8y_json() {
     let broker = mqtt_tests::test_mqtt_broker();
 
     let mut messages = broker
