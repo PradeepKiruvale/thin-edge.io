@@ -250,7 +250,12 @@ impl C8yCreateAlarm {
     }
 
     pub fn no_custom_fragments(&self) -> bool {
-        self.extras.keys().len() <= 1
+        match self.source.to_owned() {
+            // if child device then then there must be more than one entry in the extras to contain a custom fragment
+            Some(_src) => self.extras.keys().len() == 1,
+            // if its thin-edge device then the extras has zero entries
+            None => self.extras.is_empty(),
+        }
     }
 }
 
@@ -263,6 +268,7 @@ impl TryFrom<&ThinEdgeAlarm> for C8yCreateAlarm {
         let text;
         let time;
         let mut extras;
+        let mut alarm_source = None;
 
         match &alarm.to_owned().data {
             None => {
@@ -281,11 +287,14 @@ impl TryFrom<&ThinEdgeAlarm> for C8yCreateAlarm {
         }
 
         if let Some(source) = &alarm.source {
+            alarm_source = Some(C8yManagedObject {
+                id: source.to_owned(),
+            });
             update_the_external_source_event(&mut extras, source)?;
         }
 
         Ok(Self {
-            source: None,
+            source: alarm_source,
             severity,
             alarm_type,
             time,
