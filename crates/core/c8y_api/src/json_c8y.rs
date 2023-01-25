@@ -248,6 +248,10 @@ impl C8yCreateAlarm {
             extras,
         }
     }
+
+    pub fn no_custom_fragments(&self) -> bool {
+        self.extras.keys().len() <= 1
+    }
 }
 
 impl TryFrom<&ThinEdgeAlarm> for C8yCreateAlarm {

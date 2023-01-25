@@ -69,19 +69,18 @@ impl AlarmConverter {
                         }
                     })?;
                 let c8y_alarm = C8yCreateAlarm::try_from(&tedge_alarm)?;
-                match tedge_alarm.data {
-                    None => {
-                        let smartrest_alarm = alarm::serialize_alarm(tedge_alarm)?;
-                        let c8y_alarm_topic = Topic::new_unchecked(
-                            &self.get_c8y_alarm_topic(input_message.topic.name.as_str())?,
-                        );
-                        output_messages.push(Message::new(&c8y_alarm_topic, smartrest_alarm));
-                    }
-                    Some(_data) => {
-                        let cumulocity_alarm_json = serde_json::to_string(&c8y_alarm)?;
-                        let c8y_alarm_topic = Topic::new_unchecked(C8Y_JSON_MQTT_ALARMS_TOPIC);
-                        output_messages.push(Message::new(&c8y_alarm_topic, cumulocity_alarm_json));
-                    }
+
+                // If the message doesn't contain any fields other than `text` and `time`, convert to SmartREST
+                if c8y_alarm.no_custom_fragments() {
+                    let smartrest_alarm = alarm::serialize_alarm(tedge_alarm)?;
+                    let c8y_alarm_topic = Topic::new_unchecked(
+                        &self.get_c8y_alarm_topic(input_message.topic.name.as_str())?,
+                    );
+                    output_messages.push(Message::new(&c8y_alarm_topic, smartrest_alarm));
+                } else {
+                    let cumulocity_alarm_json = serde_json::to_string(&c8y_alarm)?;
+                    let c8y_alarm_topic = Topic::new_unchecked(C8Y_JSON_MQTT_ALARMS_TOPIC);
+                    output_messages.push(Message::new(&c8y_alarm_topic, cumulocity_alarm_json));
                 }
 
                 // Persist a copy of the alarm to an internal topic for reconciliation on next restart
