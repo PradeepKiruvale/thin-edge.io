@@ -126,7 +126,7 @@ impl ThinEdgeAlarm {
                 Some(serde_json::from_str(mqtt_payload)?)
             };
 
-            // The 4th part of the topic name is the event source - if any
+            // The 4th part of the topic name is the alarm source - if any
             let external_source = if topic_split.len() == 5 {
                 Some(topic_split[4].to_string())
             } else {

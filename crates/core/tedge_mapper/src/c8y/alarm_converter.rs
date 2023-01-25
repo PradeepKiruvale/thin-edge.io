@@ -78,7 +78,6 @@ impl AlarmConverter {
                     );
                     output_messages.push(Message::new(&c8y_alarm_topic, smartrest_alarm));
                 } else {
-                    dbg!(&c8y_alarm);
                     let cumulocity_alarm_json = serde_json::to_string(&c8y_alarm)?;
                     let c8y_alarm_topic = Topic::new_unchecked(C8Y_JSON_MQTT_ALARMS_TOPIC);
                     output_messages.push(Message::new(&c8y_alarm_topic, cumulocity_alarm_json));
