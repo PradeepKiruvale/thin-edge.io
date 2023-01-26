@@ -68,10 +68,10 @@ impl AlarmConverter {
                             payload: mqtt_payload.chars().take(50).collect(),
                         }
                     })?;
-                let mut c8y_alarm = C8yCreateAlarm::try_from(&tedge_alarm)?;
+                let c8y_alarm = C8yCreateAlarm::try_from(&tedge_alarm)?;
 
                 // If the message doesn't contain any fields other than `text` and `time`, convert to SmartREST
-                if c8y_alarm.no_custom_fragments(&tedge_alarm.source) {
+                if c8y_alarm.fragments.is_empty() {
                     let smartrest_alarm = alarm::serialize_alarm(tedge_alarm)?;
                     let c8y_alarm_topic = Topic::new_unchecked(
                         &self.get_c8y_alarm_topic(input_message.topic.name.as_str())?,

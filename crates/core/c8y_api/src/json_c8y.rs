@@ -61,6 +61,22 @@ impl InternalIdResponse {
     }
 }
 
+#[derive(Debug, Serialize, Deserialize, Clone, PartialEq, Eq)]
+#[serde(rename_all = "camelCase")]
+
+pub struct ExternalSourceC8yManagedObject {
+    #[serde(flatten)]
+    pub external_source: HashMap<String, Value>,
+}
+
+impl ExternalSourceC8yManagedObject {
+    pub fn new() -> Self {
+        Self {
+            external_source: HashMap::new(),
+        }
+    }
+}
+
 #[derive(Debug, Deserialize, Serialize, Eq, PartialEq)]
 pub struct C8ySoftwareModuleItem {
     pub name: String,
@@ -210,11 +226,22 @@ fn update_the_external_source(
     Ok(())
 }
 
+fn update_the_source(
+    source_name: &str,
+) -> Result<Option<HashMap<String, String>>, SMCumulocityMapperError> {
+    let mut value = HashMap::new();
+    value.insert("externalId".to_string(), source_name.into());
+    value.insert("type".to_string(), "c8y_Serial".into());
+
+    Ok(Some(value))
+}
+
 #[derive(Debug, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(rename_all = "camelCase")]
 pub struct C8yCreateAlarm {
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub source: Option<C8yManagedObject>,
+    #[serde(rename = "externalSource")]
+    pub source: Option<HashMap<String, String>>,
 
     pub severity: String,
 
@@ -227,17 +254,17 @@ pub struct C8yCreateAlarm {
     pub text: String,
 
     #[serde(flatten)]
-    pub extras: HashMap<String, Value>,
+    pub fragments: HashMap<String, Value>,
 }
 
 impl C8yCreateAlarm {
     pub fn new(
-        source: Option<C8yManagedObject>,
+        source: Option<HashMap<String, String>>,
         severity: String,
         alarm_type: String,
         time: OffsetDateTime,
         text: String,
-        extras: HashMap<String, Value>,
+        fragments: HashMap<String, Value>,
     ) -> Self {
         Self {
             source,
@@ -245,16 +272,7 @@ impl C8yCreateAlarm {
             alarm_type,
             time,
             text,
-            extras,
-        }
-    }
-
-    pub fn no_custom_fragments(&mut self, src: &Option<String>) -> bool {
-        match src {
-            // if child device then then there must be more than one entry in the extras to contain a custom fragment
-            Some(_src) => self.extras.keys().len() == 1,
-            // if its thin-edge device then the extras has zero entries
-            None => self.extras.is_empty(),
+            fragments,
         }
     }
 }
@@ -267,13 +285,13 @@ impl TryFrom<&ThinEdgeAlarm> for C8yCreateAlarm {
         let alarm_type = alarm.name.to_owned();
         let text;
         let time;
-        let mut extras;
+        let fragments;
 
         match &alarm.to_owned().data {
             None => {
                 text = alarm_type.clone();
                 time = OffsetDateTime::now_utc();
-                extras = HashMap::new();
+                fragments = HashMap::new();
             }
             Some(alarm_data) => {
                 text = alarm_data
@@ -281,21 +299,23 @@ impl TryFrom<&ThinEdgeAlarm> for C8yCreateAlarm {
                     .clone()
                     .unwrap_or_else(|| alarm_type.clone());
                 time = alarm_data.time.unwrap_or_else(OffsetDateTime::now_utc);
-                extras = alarm_data.extras.clone();
+                fragments = alarm_data.source.clone();
             }
         }
 
-        if let Some(source) = &alarm.source {
-            update_the_external_source(&mut extras, source)?;
-        }
+        let source = if let Some(external_source) = &alarm.source {
+            update_the_source(external_source)?
+        } else {
+            None
+        };
 
         Ok(Self {
-            source: None,
+            source,
             severity,
             alarm_type,
             time,
             text,
-            extras,
+            fragments,
         })
     }
 }
@@ -574,7 +594,7 @@ mod tests {
             data: Some(ThinEdgeAlarmData {
                 text: Some("Temperature went high".into()),
                 time: Some(datetime!(2021-04-23 19:00:00 +05:00)),
-                extras: HashMap::new(),
+                source: HashMap::new(),
             }),
             source: None,
         },
@@ -584,7 +604,7 @@ mod tests {
             alarm_type: "temperature alarm".into(),
             time: datetime!(2021-04-23 19:00:00 +05:00),
             text: "Temperature went high".into(),
-            extras: HashMap::new(),
+            fragments: HashMap::new(),
         }
         ;"critical alarm translation"
     )]
@@ -595,7 +615,7 @@ mod tests {
             data: Some(ThinEdgeAlarmData {
                 text: Some("Temperature went high".into()),
                 time: Some(datetime!(2021-04-23 19:00:00 +05:00)),
-                extras: maplit::hashmap!{"SomeCustomFragment".to_string() => json!({"nested": {"value":"extra info"}})},
+                source: maplit::hashmap!{"SomeCustomFragment".to_string() => json!({"nested": {"value":"extra info"}})},
             }),
             source: None,
         },
@@ -605,7 +625,7 @@ mod tests {
             alarm_type: "temperature alarm".into(),
             time: datetime!(2021-04-23 19:00:00 +05:00),
             text: "Temperature went high".into(),
-            extras: maplit::hashmap!{"SomeCustomFragment".to_string() => json!({"nested": {"value":"extra info"}})},
+            fragments: maplit::hashmap!{"SomeCustomFragment".to_string() => json!({"nested": {"value":"extra info"}})},
         }
         ;"critical alarm translation with custom fragment"
     )]
@@ -616,18 +636,17 @@ mod tests {
             data: Some(ThinEdgeAlarmData {
                 text: Some("Temperature went high".into()),
                 time: Some(datetime!(2021-04-23 19:00:00 +05:00)),
-                extras: maplit::hashmap!{"SomeCustomFragment".to_string() => json!({"nested": {"value":"extra info"}})},
+                source: maplit::hashmap!{"SomeCustomFragment".to_string() => json!({"nested": {"value":"extra info"}})},
             }),
             source: Some("external_source".into()),
         },
         C8yCreateAlarm {
             severity: "critical".to_string(),
-            source: None,
+            source: Some(maplit::hashmap!{"externalId".to_string()=>"external_source".to_string(),"type".to_string()=>"c8y_Serial".to_string()}),
             alarm_type: "temperature alarm".into(),
             time: datetime!(2021-04-23 19:00:00 +05:00),
             text: "Temperature went high".into(),
-            extras: maplit::hashmap!{"externalSource".to_string() => json!({"externalId": "external_source", "type": "c8y_Serial"}),
-                                    "SomeCustomFragment".to_string() => json!({"nested": {"value":"extra info"}})},
+            fragments: maplit::hashmap!{"SomeCustomFragment".to_string() => json!({"nested": {"value":"extra info"}})},
         }
         ;"critical alarm translation of child device with custom fragment"
     )]

@@ -36,7 +36,7 @@ pub struct ThinEdgeAlarmData {
     pub time: Option<Timestamp>,
 
     #[serde(flatten)]
-    pub extras: HashMap<String, Value>,
+    pub source: HashMap<String, Value>,
 }
 
 #[derive(thiserror::Error, Debug)]
@@ -169,7 +169,7 @@ mod tests {
             data: Some(ThinEdgeAlarmData {
                 text: Some("I raised it".into()),
                 time: Some(datetime!(2021-04-23 19:00:00 +05:00)),
-                extras: hashmap!{},
+                source: hashmap!{},
             }),
             source: None,
         };
@@ -186,7 +186,7 @@ mod tests {
             data: Some(ThinEdgeAlarmData {
                 text: Some("I raised it".into()),
                 time: None,
-                extras: hashmap!{},
+                source: hashmap!{},
             }),
             source: None,
         };
@@ -203,7 +203,7 @@ mod tests {
             data: Some(ThinEdgeAlarmData {
                 text: None,
                 time: Some(datetime!(2021-04-23 19:00:00 +05:00)),
-                extras: hashmap!{},
+                source: hashmap!{},
             }),
             source: None,
         };
@@ -218,7 +218,7 @@ mod tests {
             data: Some(ThinEdgeAlarmData {
                 text: None,
                 time: None,
-                extras: hashmap!{},
+                source: hashmap!{},
             }),
             source: None,
         };
@@ -236,7 +236,7 @@ mod tests {
             data: Some(ThinEdgeAlarmData {
                 text: Some("I raised it".into()),
                 time: Some(datetime!(2021-04-23 19:00:00 +05:00)),
-                extras: hashmap!{},
+                source: hashmap!{},
             }),
             source: Some("extern_sensor".to_string()),
         };
