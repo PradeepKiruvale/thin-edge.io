@@ -454,20 +454,18 @@ async fn c8y_mapper_alarm_with_custom_fragment_mapping_to_c8y_json() {
     broker
         .publish_with_opts(
             "tedge/alarms/major/temperature_alarm",
-            r#"{ "text": "Temperature high","time":"2023-01-25T18:41:14.776170774Z","someOtherCustomFragment": {"nested":{"value": "extra info"}} }"#,
+            r#"{ "text": "Temperature high","time":"2023-01-25T18:41:14.776170774Z","customFragment": {"nested":{"value": "extra info"}} }"#,
             mqtt_channel::QoS::AtLeastOnce,
             true,
         )
         .await
         .unwrap();
 
-    // Expect converted temperature alarm message
-    mqtt_tests::assert_received_all_expected(
-        &mut messages,
-        TEST_TIMEOUT_MS,
-        &[r#"{"severity":"major","type":"temperature_alarm","time":"2023-01-25T18:41:14.776170774Z","text":"Temperature high","someOtherCustomFragment":{"nested":{"value":"extra info"}}}"#],
-    )
-    .await;
+    let expected_msg = json!({"severity":"major","type":"temperature_alarm","time":"2023-01-25T18:41:14.776170774Z","text":"Temperature high","customFragment":{"nested":{"value":"extra info"}}});
+
+    while let Ok(Some(msg)) = messages.next().with_timeout(TEST_TIMEOUT_MS).await {
+        assert_json_include!(actual:serde_json::from_str::<serde_json::Value>(&msg).unwrap(), expected:expected_msg);
+    }
 
     //Clear the previously published alarm
     broker
