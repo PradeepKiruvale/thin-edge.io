@@ -31,6 +31,8 @@ pub enum AlarmSeverity {
 pub struct ThinEdgeAlarmData {
     pub text: Option<String>,
 
+    pub message: Option<String>,
+
     #[serde(default)]
     #[serde(with = "time::serde::rfc3339::option")]
     pub time: Option<Timestamp>,
@@ -169,6 +171,7 @@ mod tests {
             data: Some(ThinEdgeAlarmData {
                 text: Some("I raised it".into()),
                 time: Some(datetime!(2021-04-23 19:00:00 +05:00)),
+                message: None,
                 alarm_data: hashmap!{},
             }),
             source: None,
@@ -186,6 +189,7 @@ mod tests {
             data: Some(ThinEdgeAlarmData {
                 text: Some("I raised it".into()),
                 time: None,
+                message: None,
                 alarm_data: hashmap!{},
             }),
             source: None,
@@ -203,6 +207,7 @@ mod tests {
             data: Some(ThinEdgeAlarmData {
                 text: None,
                 time: Some(datetime!(2021-04-23 19:00:00 +05:00)),
+                message: None,
                 alarm_data: hashmap!{},
             }),
             source: None,
@@ -218,6 +223,7 @@ mod tests {
             data: Some(ThinEdgeAlarmData {
                 text: None,
                 time: None,
+                message: None,
                 alarm_data: hashmap!{},
             }),
             source: None,
@@ -236,11 +242,71 @@ mod tests {
             data: Some(ThinEdgeAlarmData {
                 text: Some("I raised it".into()),
                 time: Some(datetime!(2021-04-23 19:00:00 +05:00)),
+                message: None,
                 alarm_data: hashmap!{},
             }),
             source: Some("extern_sensor".to_string()),
         };
         "critical alarm parsing with childId"
+    )]
+    #[test_case(
+        "tedge/alarms/critical/temperature_alarm",
+        json!({
+            "text": "I raised it",
+            "message": "Raised alarm with a message",
+            "time": "2021-04-23T19:00:00+05:00",
+        }),
+        ThinEdgeAlarm {
+            name: "temperature_alarm".into(),
+            severity: AlarmSeverity::Critical,
+            data: Some(ThinEdgeAlarmData {
+                text: Some("I raised it".into()),
+                time: Some(datetime!(2021-04-23 19:00:00 +05:00)),
+                message: Some("Raised alarm with a message".into()),
+                alarm_data: hashmap!{},
+            }),
+            source: None,
+        };
+        "critical alarm parsing with text and message"
+    )]
+    #[test_case(
+        "tedge/alarms/critical/temperature_alarm/extern_sensor",
+        json!({
+            "text": "I raised it",
+            "message": "Raised alarm with a message",
+            "time": "2021-04-23T19:00:00+05:00",
+        }),
+        ThinEdgeAlarm {
+            name: "temperature_alarm".into(),
+            severity: AlarmSeverity::Critical,
+            data: Some(ThinEdgeAlarmData {
+                text: Some("I raised it".into()),
+                time: Some(datetime!(2021-04-23 19:00:00 +05:00)),
+                message: Some("Raised alarm with a message".into()),
+                alarm_data: hashmap!{},
+            }),
+            source: Some("extern_sensor".to_string()),
+        };
+        "critical alarm parsing with text and message with childid"
+    )]
+    #[test_case(
+        "tedge/alarms/critical/temperature_alarm/extern_sensor",
+        json!({
+            "message": "Raised alarm with a message",
+            "time": "2021-04-23T19:00:00+05:00",
+        }),
+        ThinEdgeAlarm {
+            name: "temperature_alarm".into(),
+            severity: AlarmSeverity::Critical,
+            data: Some(ThinEdgeAlarmData {
+                text: None,
+                time: Some(datetime!(2021-04-23 19:00:00 +05:00)),
+                message: Some("Raised alarm with a message".into()),
+                alarm_data: hashmap!{},
+            }),
+            source: Some("extern_sensor".to_string()),
+        };
+        "critical alarm parsing for child no text and with message"
     )]
     fn parse_thin_edge_alarm_json(
         alarm_topic: &str,

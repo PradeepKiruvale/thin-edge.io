@@ -16,11 +16,23 @@ pub fn serialize_alarm(alarm: ThinEdgeAlarm) -> Result<String, SmartRestSerializ
                 AlarmSeverity::Warning => 304,
             };
             let current_timestamp = OffsetDateTime::now_utc();
+
+            let text = if alarm_data.text.is_none() && alarm_data.message.is_none() {
+                alarm_data.text.clone().unwrap_or_default()
+            } else if alarm_data.text.is_none() && alarm_data.message.is_some() {
+                alarm_data
+                    .message
+                    .clone()
+                    .unwrap_or_else(|| alarm.name.clone())
+            } else {
+                alarm_data.text.unwrap_or_default()
+            };
+
             let smartrest_message = format!(
                 "{},{},\"{}\",{}",
                 smartrest_code,
                 alarm.name,
-                alarm_data.text.unwrap_or_default(),
+                text,
                 alarm_data.time.map_or_else(
                     || current_timestamp.format(&Rfc3339),
                     |timestamp| timestamp.format(&Rfc3339)
@@ -48,6 +60,7 @@ mod tests {
             data: Some(ThinEdgeAlarmData {
                 text: Some("I raised it".into()),
                 time: Some(datetime!(2021-04-23 19:00:00 +05:00)),
+                message: None,
                 alarm_data: hashmap!{},
             }),
             source: None,
@@ -62,6 +75,7 @@ mod tests {
             data: Some(ThinEdgeAlarmData {
                 text: Some("I raised it".into()),
                 time: Some(datetime!(2021-04-23 19:00:00 +05:00)),
+                message: None,
                 alarm_data: hashmap!{},
             }),
             source: None,
@@ -76,6 +90,7 @@ mod tests {
             data: Some(ThinEdgeAlarmData {
                 text: None,
                 time: Some(datetime!(2021-04-23 19:00:00 +05:00)),
+                message: None,
                 alarm_data: hashmap!{},
             }),
             source: None,
@@ -90,6 +105,7 @@ mod tests {
             data: Some(ThinEdgeAlarmData {
                 text: Some("I, raised, it".into()),
                 time: Some(datetime!(2021-04-23 19:00:00 +05:00)),
+                message: None,
                 alarm_data: hashmap!{},
             }),
             source: None,
@@ -104,6 +120,7 @@ mod tests {
             data: Some(ThinEdgeAlarmData {
                 text: Some("External sensor raised alarm".into()),
                 time: Some(datetime!(2021-04-23 19:00:00 +05:00)),
+                message: None,
                 alarm_data: hashmap!{},
             }),
             source: Some("External_source".to_string()),
@@ -153,6 +170,7 @@ mod tests {
             data: Some(ThinEdgeAlarmData {
                 text: Some("I raised it".into()),
                 time: None,
+                message: None,
                 alarm_data: hashmap! {},
             }),
             source: None,
