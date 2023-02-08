@@ -277,8 +277,7 @@ impl TryFrom<&ThinEdgeAlarm> for C8yCreateAlarm {
         let alarm_type = alarm.name.to_owned();
         let text;
         let time;
-        let mut fragments;
-        let message;
+        let fragments;
 
         match &alarm.to_owned().data {
             None => {
@@ -287,24 +286,9 @@ impl TryFrom<&ThinEdgeAlarm> for C8yCreateAlarm {
                 fragments = HashMap::new();
             }
             Some(data) => {
-                // map message to text if text is empty, do not send the message to c8y cloud
-                // if text and message both are present in payload then send the message as part of custom fragment
-                if data.text.is_none() && data.message.is_none() {
-                    text = data.text.clone().unwrap_or_else(|| alarm_type.clone());
-                    message = None;
-                } else if data.text.is_none() && data.message.is_some() {
-                    text = data.message.clone().unwrap_or_else(|| alarm_type.clone());
-                    message = None;
-                } else {
-                    text = data.text.clone().unwrap_or_default();
-                    message = data.message.clone();
-                }
-
+                text = data.text.clone().unwrap_or_else(|| alarm_type.clone());
                 time = data.time.unwrap_or_else(OffsetDateTime::now_utc);
                 fragments = data.alarm_data.clone();
-                if let Some(msg) = message {
-                    fragments.insert("message".to_owned(), serde_json::Value::String(msg));
-                }
             }
         }
 
@@ -599,7 +583,6 @@ mod tests {
             data: Some(ThinEdgeAlarmData {
                 text: Some("Temperature went high".into()),
                 time: Some(datetime!(2021-04-23 19:00:00 +05:00)),
-                message: None,
                 alarm_data: HashMap::new(),
             }),
             source: None,
@@ -621,7 +604,6 @@ mod tests {
             data: Some(ThinEdgeAlarmData {
                 text: Some("Temperature went high".into()),
                 time: Some(datetime!(2021-04-23 19:00:00 +05:00)),
-                message: None,
                 alarm_data: maplit::hashmap!{"SomeCustomFragment".to_string() => json!({"nested": {"value":"extra info"}})},
             }),
             source: None,
@@ -643,7 +625,6 @@ mod tests {
             data: Some(ThinEdgeAlarmData {
                 text: Some("Temperature went high".into()),
                 time: Some(datetime!(2021-04-23 19:00:00 +05:00)),
-                message: None,
                 alarm_data: maplit::hashmap!{"SomeCustomFragment".to_string() => json!({"nested": {"value":"extra info"}})},
             }),
             source: Some("external_source".into()),

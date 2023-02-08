@@ -368,7 +368,7 @@ async fn c8y_mapper_alarm_mapping_to_smartrest() {
     mqtt_tests::assert_received_all_expected(
         &mut messages,
         TEST_TIMEOUT_MS,
-        &["302,temperature_alarm"],
+        &["302,temperature_alarm,\"Temperature high\""],
     )
     .await;
 
@@ -568,7 +568,7 @@ async fn c8y_mapper_alarm_with_message_as_custom_fragment_mapping_to_c8y_json() 
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 #[serial]
-async fn c8y_mapper_child_alarm_with_message_as_custom_fragment_mapping_to_c8y_json() {
+async fn c8y_mapper_child_alarm_with_message_custom_fragment_mapping_to_c8y_json() {
     let broker = mqtt_tests::test_mqtt_broker();
 
     let mut messages = broker
@@ -610,7 +610,7 @@ async fn c8y_mapper_child_alarm_with_message_as_custom_fragment_mapping_to_c8y_j
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 #[serial]
-async fn c8y_mapper_child_alarm_map_message_to_text() {
+async fn c8y_mapper_child_alarm_with_custom_message() {
     let broker = mqtt_tests::test_mqtt_broker();
 
     let mut messages = broker
@@ -630,7 +630,7 @@ async fn c8y_mapper_child_alarm_map_message_to_text() {
         .await
         .unwrap();
 
-    let expected_msg = json!({"severity":"MAJOR","type":"child_msg_to_text_pressure_alarm","time":"2023-01-25T18:41:14.776170774Z","text":"Pressure high","externalSource":{"externalId":"external_sensor","type":"c8y_Serial"}});
+    let expected_msg = json!({"severity":"MAJOR","type":"child_msg_to_text_pressure_alarm","time":"2023-01-25T18:41:14.776170774Z","text":"child_msg_to_text_pressure_alarm","message":"Pressure high", "externalSource":{"externalId":"external_sensor","type":"c8y_Serial"}});
 
     while let Ok(Some(msg)) = messages.next().with_timeout(TEST_TIMEOUT_MS).await {
         assert_json_include!(actual:serde_json::from_str::<serde_json::Value>(&msg).unwrap(), expected:expected_msg);
@@ -652,10 +652,12 @@ async fn c8y_mapper_child_alarm_map_message_to_text() {
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 #[serial]
-async fn c8y_mapper_alarm_map_message_to_text() {
+async fn c8y_mapper_alarm_with_custom_message() {
     let broker = mqtt_tests::test_mqtt_broker();
 
-    let mut messages = broker.messages_published_on("c8y/s/us").await;
+    let mut messages = broker
+        .messages_published_on("c8y/alarm/alarms/create")
+        .await;
     let cfg_dir = TempTedgeDir::new();
     // Start the C8Y Mapper
     let (_tmp_dir, sm_mapper) = start_c8y_mapper(broker.port, &cfg_dir).await.unwrap();
@@ -674,7 +676,7 @@ async fn c8y_mapper_alarm_map_message_to_text() {
     mqtt_tests::assert_received_all_expected(
         &mut messages,
         TEST_TIMEOUT_MS,
-        &["302,msg_to_text_pressure_alarm,\"Pressure high\""],
+        &["{\"severity\":\"MAJOR\",\"type\":\"msg_to_text_pressure_alarm\",\"time\":\"2023-01-25T18:41:14.776170774Z\",\"text\":\"msg_to_text_pressure_alarm\",\"message\":\"Pressure high\"}"],
     )
     .await;
 
