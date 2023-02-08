@@ -273,7 +273,7 @@ mod tests {
             data: Some(ThinEdgeAlarmData {
                 text: Some("I raised it".into()),
                 time: Some(datetime!(2021-04-23 19:00:00 +05:00)),
-                alarm_data: hashmap!{},
+                alarm_data:hashmap!{"message".to_string() => json!("Raised alarm with a message".to_string())},
             }),
             source: Some("extern_sensor".to_string()),
         };
@@ -291,7 +291,7 @@ mod tests {
             data: Some(ThinEdgeAlarmData {
                 text: None,
                 time: Some(datetime!(2021-04-23 19:00:00 +05:00)),
-                alarm_data: hashmap!{},
+                alarm_data: hashmap!{"message".to_string() => json!("Raised alarm with a message".to_string())},
             }),
             source: Some("extern_sensor".to_string()),
         };
