@@ -33,7 +33,7 @@ use tokio::task::JoinHandle;
 use super::converter::get_child_id_from_measurement_topic;
 use super::converter::CumulocityConverter;
 
-const TEST_TIMEOUT_MS: Duration = Duration::from_millis(6000);
+const TEST_TIMEOUT_MS: Duration = Duration::from_millis(5000);
 const MQTT_HOST: &str = "127.0.0.1";
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
@@ -538,7 +538,7 @@ async fn c8y_mapper_alarm_with_message_as_custom_fragment_mapping_to_c8y_json() 
 
     broker
         .publish_with_opts(
-            "tedge/alarms/major/pressure_alarm",
+            "tedge/alarms/major/custom_msg_pressure_alarm",
             r#"{ "text":"Pressure high","time":"2023-01-25T18:41:14.776170774Z","message":"custom message"}"#,
             mqtt_channel::QoS::AtLeastOnce,
             true,
@@ -546,7 +546,7 @@ async fn c8y_mapper_alarm_with_message_as_custom_fragment_mapping_to_c8y_json() 
         .await
         .unwrap();
 
-    let expected_msg = json!({"severity":"MAJOR","type":"pressure_alarm","time":"2023-01-25T18:41:14.776170774Z","text":"Pressure high","message":"custom message"});
+    let expected_msg = json!({"severity":"MAJOR","type":"custom_msg_pressure_alarm","time":"2023-01-25T18:41:14.776170774Z","text":"Pressure high","message":"custom message"});
 
     while let Ok(Some(msg)) = messages.next().with_timeout(TEST_TIMEOUT_MS).await {
         assert_json_include!(actual:serde_json::from_str::<serde_json::Value>(&msg).unwrap(), expected:expected_msg);
@@ -555,7 +555,7 @@ async fn c8y_mapper_alarm_with_message_as_custom_fragment_mapping_to_c8y_json() 
     //Clear the previously published alarm
     broker
         .publish_with_opts(
-            "tedge/alarms/major/pressure_alarm",
+            "tedge/alarms/major/custom_msg_pressure_alarm",
             "",
             mqtt_channel::QoS::AtLeastOnce,
             true,
@@ -580,7 +580,7 @@ async fn c8y_mapper_child_alarm_with_message_as_custom_fragment_mapping_to_c8y_j
 
     broker
         .publish_with_opts(
-            "tedge/alarms/major/pressure_alarm/external_sensor",
+            "tedge/alarms/major/child_custom_msg_pressure_alarm/external_sensor",
             r#"{ "text":"Pressure high","time":"2023-01-25T18:41:14.776170774Z","message":"custom message"}"#,
             mqtt_channel::QoS::AtLeastOnce,
             true,
@@ -588,7 +588,7 @@ async fn c8y_mapper_child_alarm_with_message_as_custom_fragment_mapping_to_c8y_j
         .await
         .unwrap();
 
-    let expected_msg = json!({"severity":"MAJOR","type":"pressure_alarm","time":"2023-01-25T18:41:14.776170774Z","text":"Pressure high","externalSource":{"externalId":"external_sensor","type":"c8y_Serial"},"message":"custom message"});
+    let expected_msg = json!({"severity":"MAJOR","type":"child_custom_msg_pressure_alarm","time":"2023-01-25T18:41:14.776170774Z","text":"Pressure high","externalSource":{"externalId":"external_sensor","type":"c8y_Serial"},"message":"custom message"});
 
     while let Ok(Some(msg)) = messages.next().with_timeout(TEST_TIMEOUT_MS).await {
         assert_json_include!(actual:serde_json::from_str::<serde_json::Value>(&msg).unwrap(), expected:expected_msg);
@@ -597,7 +597,7 @@ async fn c8y_mapper_child_alarm_with_message_as_custom_fragment_mapping_to_c8y_j
     //Clear the previously published alarm
     broker
         .publish_with_opts(
-            "tedge/alarms/major/pressure_alarm/external_sensor",
+            "tedge/alarms/major/child_custom_msg_pressure_alarm/external_sensor",
             "",
             mqtt_channel::QoS::AtLeastOnce,
             true,
@@ -622,7 +622,7 @@ async fn c8y_mapper_child_alarm_map_message_to_text() {
 
     broker
         .publish_with_opts(
-            "tedge/alarms/major/pressure_alarm/external_sensor",
+            "tedge/alarms/major/child_msg_to_text_pressure_alarm/external_sensor",
             r#"{"time":"2023-01-25T18:41:14.776170774Z","message":"Pressure high"}"#,
             mqtt_channel::QoS::AtLeastOnce,
             true,
@@ -630,7 +630,7 @@ async fn c8y_mapper_child_alarm_map_message_to_text() {
         .await
         .unwrap();
 
-    let expected_msg = json!({"severity":"MAJOR","type":"pressure_alarm","time":"2023-01-25T18:41:14.776170774Z","text":"Pressure high","externalSource":{"externalId":"external_sensor","type":"c8y_Serial"}});
+    let expected_msg = json!({"severity":"MAJOR","type":"child_msg_to_text_pressure_alarm","time":"2023-01-25T18:41:14.776170774Z","text":"Pressure high","externalSource":{"externalId":"external_sensor","type":"c8y_Serial"}});
 
     while let Ok(Some(msg)) = messages.next().with_timeout(TEST_TIMEOUT_MS).await {
         assert_json_include!(actual:serde_json::from_str::<serde_json::Value>(&msg).unwrap(), expected:expected_msg);
@@ -639,7 +639,7 @@ async fn c8y_mapper_child_alarm_map_message_to_text() {
     //Clear the previously published alarm
     broker
         .publish_with_opts(
-            "tedge/alarms/major/pressure_alarm/external_sensor",
+            "tedge/alarms/major/child_msg_to_text_pressure_alarm/external_sensor",
             "",
             mqtt_channel::QoS::AtLeastOnce,
             true,
@@ -662,7 +662,7 @@ async fn c8y_mapper_alarm_map_message_to_text() {
 
     broker
         .publish_with_opts(
-            "tedge/alarms/major/pressure_alarm",
+            "tedge/alarms/major/msg_to_text_pressure_alarm",
             r#"{"time":"2023-01-25T18:41:14.776170774Z","message":"Pressure high"}"#,
             mqtt_channel::QoS::AtLeastOnce,
             true,
@@ -674,14 +674,14 @@ async fn c8y_mapper_alarm_map_message_to_text() {
     mqtt_tests::assert_received_all_expected(
         &mut messages,
         TEST_TIMEOUT_MS,
-        &["302,pressure_alarm,\"Pressure high\""],
+        &["302,msg_to_text_pressure_alarm,\"Pressure high\""],
     )
     .await;
 
     //Clear the previously published alarm
     broker
         .publish_with_opts(
-            "tedge/alarms/major/pressure_alarm",
+            "tedge/alarms/major/msg_to_text_pressure_alarm",
             "",
             mqtt_channel::QoS::AtLeastOnce,
             true,
@@ -706,7 +706,7 @@ async fn c8y_mapper_child_alarm_empty_payload() {
 
     broker
         .publish_with_opts(
-            "tedge/alarms/major/temperature_alarm/external_sensor",
+            "tedge/alarms/major/empty_temperature_alarm/external_sensor",
             r#"{}"#,
             mqtt_channel::QoS::AtLeastOnce,
             true,
@@ -714,7 +714,7 @@ async fn c8y_mapper_child_alarm_empty_payload() {
         .await
         .unwrap();
 
-    let expected_msg = r#"302,temperature_alarm"#;
+    let expected_msg = r#"302,empty_temperature_alarm"#;
 
     while let Ok(Some(msg)) = messages.next().with_timeout(TEST_TIMEOUT_MS).await {
         assert!(msg.contains(expected_msg));
@@ -723,7 +723,7 @@ async fn c8y_mapper_child_alarm_empty_payload() {
     //Clear the previously published alarm
     broker
         .publish_with_opts(
-            "tedge/alarms/major/temperature_alarm/external_sensor",
+            "tedge/alarms/major/empty_temperature_alarm/external_sensor",
             "",
             mqtt_channel::QoS::AtLeastOnce,
             true,
@@ -746,7 +746,7 @@ async fn c8y_mapper_alarm_empty_payload() {
 
     broker
         .publish_with_opts(
-            "tedge/alarms/major/pres_alarm",
+            "tedge/alarms/major/empty_pres_alarm",
             r#"{}"#,
             mqtt_channel::QoS::AtLeastOnce,
             true,
@@ -755,13 +755,17 @@ async fn c8y_mapper_alarm_empty_payload() {
         .unwrap();
 
     // Expect converted temperature alarm message
-    mqtt_tests::assert_received_all_expected(&mut messages, TEST_TIMEOUT_MS, &["302,pres_alarm"])
-        .await;
+    mqtt_tests::assert_received_all_expected(
+        &mut messages,
+        TEST_TIMEOUT_MS,
+        &["302,empty_pres_alarm"],
+    )
+    .await;
 
     //Clear the previously published alarm
     broker
         .publish_with_opts(
-            "tedge/alarms/major/pres_alarm",
+            "tedge/alarms/major/empty_pres_alarm",
             "",
             mqtt_channel::QoS::AtLeastOnce,
             true,
