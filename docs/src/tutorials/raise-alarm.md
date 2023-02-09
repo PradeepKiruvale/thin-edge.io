@@ -78,7 +78,7 @@ Alarms for child devices can be raised by publishing the alarm payload to `tedge
 where the `child-device-id` is the unique device id of the child device.
 The alarm payload structure is the same, as described in the previous section.
 
-### Raising alarm with custom fragment
+### Raising an alarm with custom fragment
 
 Alarm can be raised with custom fragments, this is supported for both `thin-edge` as well as for the `child device`.
 The custom fragment can be a simple json value or a complex json value.
@@ -139,7 +139,7 @@ For example the `temperature_high` alarm with `critical` severity described in t
 
 If the alarm is raised from a child device, the payload is published to `c8y/s/us/<child-device-id>` topic instead.
 
-If an alarm contains a custom fragment then the alarm message will be converted to `cumulocity json`
+If an alarm contains a `custom fragment` then, the alarm message will be converted to `cumulocity json`
 format and then will be published on to `c8y/alarm/alarms/create` topic.
 
 An example, translated custom message for `thin-edge` device looks as below
