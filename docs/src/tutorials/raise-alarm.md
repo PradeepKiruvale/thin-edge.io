@@ -107,7 +107,7 @@ Payload:
 
 > Note: Other than `text` and `time` fields, all the other fields are considered as custom fragments.
 
-### Raising an empty payload alarm
+### Raising an alarm with empty payload
 
 Alarms can also be raised without any payload for `thin-edge` as well for the `child` devices.
 The payload will be an `empty json` message as below
