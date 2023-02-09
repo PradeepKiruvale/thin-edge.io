@@ -78,6 +78,45 @@ Alarms for child devices can be raised by publishing the alarm payload to `tedge
 where the `child-device-id` is the unique device id of the child device.
 The alarm payload structure is the same, as described in the previous section.
 
+### Raising alarm with custom fragment
+
+Alarm can be raised with custom fragments, this is supported for both `thin-edge` as well as for the `child device`.
+The custom fragment can be a simple json value or a complex json value.
+
+For example, an alarm with simple custom fragment
+
+Payload:
+```json
+{
+    "text": "Temperature is very high",
+    "time": "2021-01-01T05:30:45+00:00",
+    "message": "A custom alarm info"
+}
+```
+
+For example, an alarm with complex custom fragment
+
+Payload:
+```json
+{
+    "text": "Temperature is very high",
+    "time": "2021-01-01T05:30:45+00:00",
+    "someOtherCustomFragment": {"nested":{"value": "extra info"}}
+}
+```
+
+> Note: Other than `text` and `time` fields, all the other fields are considered as custom fragments.
+
+### Raising an empty payload alarm
+
+Alarms can also be raised without any payload for `thin-edge` as well for the `child` devices.
+The payload will be an `empty json` message as below
+
+Payload:
+```json
+{}
+```
+
 ## Cloud data mapping
 
 If the device is connected to some supported IoT cloud platform, any alarms raised locally on thin-edge.io will be forwarded to the connected cloud platform as well.
@@ -100,6 +139,50 @@ For example the `temperature_high` alarm with `critical` severity described in t
 
 If the alarm is raised from a child device, the payload is published to `c8y/s/us/<child-device-id>` topic instead.
 
+If an alarm contains a custom fragment then the alarm message will be converted to `cumulocity json`
+format and then will be published on to `c8y/alarm/alarms/create` topic.
+
+An example, translated custom message for `thin-edge` device looks as below
+
+```json
+{
+    "severity":"MAJOR",
+    "type":"pressure_alarm",
+    "time":"2023-01-25T18:41:14.776170774Z",
+    "text":"pressure alarm",
+    "someOtherCustomFragment":
+        {
+            "nested":
+            {
+                "value": "extra info"
+            }
+        }
+}
+```
+
+An example, translated custom message for a `child` device will be as below
+
+```json
+{
+    "severity":"MAJOR",
+    "type":"pressure_alarm",
+    "time":"2023-01-25T18:41:14.776170774Z",
+    "text":"Pressure alarm",
+    "someOtherCustomFragment":
+        {
+            "nested":
+            {
+                "value": "extra info"
+            }
+        }
+    "externalSource":
+        {
+            "externalId":"child_device_id",
+            "type":"c8y_Serial"
+        }
+}
+
+```
 Find more information about SmartREST representations for alarms in Cumulocity [here](https://cumulocity.com/guides/10.11.0/reference/smartrest-two/#alarm-templates)
 
 Find more information about alarms data model in Cumulocity [here](https://cumulocity.com/guides/concepts/domain-model/#events)
