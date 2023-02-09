@@ -80,8 +80,9 @@ The alarm payload structure is the same, as described in the previous section.
 
 ### Raising an alarm with custom fragment
 
-Alarm can be raised with custom fragments, this is supported for both `thin-edge` as well as for the `child device`.
-The custom fragment can be a simple json value or a complex json value.
+Thin-edge supports the creation of alarms using custom (user-defined) fragments.
+Custom fragments are supported for both the main and child devices.
+The custom fragments can be a simple json value or a complex json value.
 
 For example, an alarm with simple custom fragment
 
@@ -90,11 +91,11 @@ Payload:
 {
     "text": "Temperature is very high",
     "time": "2021-01-01T05:30:45+00:00",
-    "message": "A custom alarm info"
+    "details": "A custom alarm info"
 }
 ```
 
-For example, an alarm with complex custom fragment
+For example, an alarm with complex custom fragments
 
 Payload:
 ```json
@@ -109,8 +110,8 @@ Payload:
 
 ### Raising an alarm with empty payload
 
-Alarms can also be raised without any payload for `thin-edge` as well for the `child` devices.
-The payload will be an `empty json` message as below
+Alarms can also be raised with a fixed message payload for `thin-edge` as well for the `child` devices.
+The payload will be an `empty json object` message as below
 
 Payload:
 ```json
@@ -142,7 +143,7 @@ If the alarm is raised from a child device, the payload is published to `c8y/s/u
 If an alarm contains a `custom fragment` then, the alarm message will be converted to `cumulocity json`
 format and then will be published on to `c8y/alarm/alarms/create` topic.
 
-An example, translated custom message for `thin-edge` device looks as below
+An example of the translated custom message for `thin-edge` device will be as below
 
 ```json
 {
@@ -160,7 +161,7 @@ An example, translated custom message for `thin-edge` device looks as below
 }
 ```
 
-An example, translated custom message for a `child` device will be as below
+An example of the translated `cumulocity` alarm message for a `child` device with a `custom` fragment will be as below
 
 ```json
 {
