@@ -136,6 +136,8 @@ pub fn create_mapper_config(operations: &Operations) -> MapperConfig {
         "c8y-internal/alarms/+/+/+",
         "tedge/events/+",
         "tedge/events/+/+",
+        "tedge/health/+",
+        "tedge/health/+/+",
     ]
     .try_into()
     .expect("topics that mapper should subscribe to");

@@ -28,6 +28,7 @@ use mqtt_channel::Message;
 use mqtt_channel::Topic;
 use plugin_sm::operation_logs::OperationLogs;
 use std::collections::HashMap;
+use std::f32::consts::E;
 use std::fs;
 use std::fs::File;
 use std::io::Read;
@@ -308,6 +309,52 @@ where
         }
     }
 
+    pub async fn process_health_status_message(
+        &mut self,
+        message: &Message,
+    ) -> Result<Vec<Message>, ConversionError> {
+        let mut mqtt_messages: Vec<Message> = Vec::new();
+        self.size_threshold.validate(message)?;
+        let topic = message.topic.name.to_owned();
+        dbg!(&topic);
+        let topic_split: Vec<&str> = topic.split('/').collect();
+        let service_name = topic_split[2];
+        dbg!(&service_name);
+        //form a smartrest message
+        let topic = Topic::new_unchecked(format!("c8y/s/us").as_str());
+        let payload = message.payload_str()?;
+        let payload_split: Vec<&str> = payload.split([',', ':']).collect();
+        if payload_split.len() >= 2 {
+            //get device id
+            // get status
+            // get service type
+            // get service name
+            // form a new payload
+            let status = payload_split[3];
+            dbg!(&status.len());
+            let s = if status.len() == 7 {
+                &status[1..status.len() - 2]
+            } else {
+                &status[1..status.len() - 1]
+            };
+
+            dbg!(&s);
+            let pid = payload_split[1];
+            dbg!(&pid);
+
+            let monitor_message =
+                format!("102,chilops_test_{service_name},debian,{service_name},{s}");
+
+            //f'102,{device_id}_{name},{service},{name},{status}'
+
+            let alarm_copy =
+                Message::new(&topic, monitor_message.as_bytes().to_owned()).with_retain();
+            mqtt_messages.push(alarm_copy);
+        }
+
+        Ok(mqtt_messages)
+    }
+
     fn serialize_to_smartrest(c8y_event: &C8yCreateEvent) -> Result<String, ConversionError> {
         Ok(format!(
             "{},{},\"{}\",{}",
@@ -347,6 +394,9 @@ where
             }
             topic if topic.name.starts_with(TEDGE_EVENTS_TOPIC) => {
                 self.try_convert_event(message).await
+            }
+            topic if topic.name.starts_with("tedge/health") => {
+                self.process_health_status_message(message).await
             }
             topic => match topic.clone().try_into() {
                 Ok(MapperSubscribeTopic::ResponseTopic(ResponseTopic::SoftwareListResponse)) => {
