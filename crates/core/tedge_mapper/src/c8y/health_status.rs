@@ -1,8 +1,7 @@
+use crate::core::error::ConversionError;
 use c8y_api::smartrest::topic::SMARTREST_PUBLISH_TOPIC;
 use mqtt_channel::Message;
 use mqtt_channel::Topic;
-
-use crate::core::error::ConversionError;
 
 pub fn convert_health_status_message(message: &Message) -> Result<Vec<Message>, ConversionError> {
     let mut mqtt_messages: Vec<Message> = Vec::new();
@@ -24,11 +23,8 @@ pub fn convert_health_status_message(message: &Message) -> Result<Vec<Message>, 
         let monitor_message =
             format!("102,{dev_name}_{service_name},{service_type},{service_name},{status}");
 
-        //f'102,{device_id}_{name},{service},{name},{status}'
-
         let topic = Topic::new_unchecked(&get_c8y_health_topic(&topic)?);
 
-        // let pid = payload_split[1];
         dbg!(&topic);
 
         let alarm_copy = Message::new(&topic, monitor_message.as_bytes().to_owned()).with_retain();
