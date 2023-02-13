@@ -28,7 +28,7 @@ use mqtt_channel::Message;
 use mqtt_channel::Topic;
 use plugin_sm::operation_logs::OperationLogs;
 use std::collections::HashMap;
-use std::f32::consts::E;
+
 use std::fs;
 use std::fs::File;
 use std::io::Read;
@@ -342,8 +342,11 @@ where
             let pid = payload_split[1];
             dbg!(&pid);
 
+            let service_type = "debian";
+            let dev_name = "childops_test";
+
             let monitor_message =
-                format!("102,chilops_test_{service_name},debian,{service_name},{s}");
+                format!("102,{dev_name}_{service_name},{service_type},{service_name},{s}");
 
             //f'102,{device_id}_{name},{service},{name},{status}'
 
