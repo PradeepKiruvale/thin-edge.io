@@ -23,6 +23,7 @@ use c8y_api::smartrest::smartrest_serializer::SmartRestSetOperationToSuccessful;
 use c8y_api::utils::child_device::new_child_device_message;
 use futures::channel::mpsc;
 use futures::SinkExt;
+use health_status::convert_health_status_message;
 use logged_command::LoggedCommand;
 use mqtt_channel::Message;
 use mqtt_channel::Topic;
@@ -59,6 +60,7 @@ use super::alarm_converter::AlarmConverter;
 use super::error::CumulocityMapperError;
 use super::fragments::C8yAgentFragment;
 use super::fragments::C8yDeviceDataFragment;
+use super::health_status;
 use c8y_api::smartrest::message::collect_smartrest_messages;
 use c8y_api::smartrest::message::get_failure_reason_for_smartrest;
 use c8y_api::smartrest::message::get_smartrest_device_id;
@@ -313,49 +315,8 @@ where
         &mut self,
         message: &Message,
     ) -> Result<Vec<Message>, ConversionError> {
-        let mut mqtt_messages: Vec<Message> = Vec::new();
         self.size_threshold.validate(message)?;
-        let topic = message.topic.name.to_owned();
-        dbg!(&topic);
-        let topic_split: Vec<&str> = topic.split('/').collect();
-        let service_name = topic_split[2];
-        dbg!(&service_name);
-        //form a smartrest message
-        let topic = Topic::new_unchecked(format!("c8y/s/us").as_str());
-        let payload = message.payload_str()?;
-        let payload_split: Vec<&str> = payload.split([',', ':']).collect();
-        if payload_split.len() >= 2 {
-            //get device id
-            // get status
-            // get service type
-            // get service name
-            // form a new payload
-            let status = payload_split[3];
-            dbg!(&status.len());
-            let s = if status.len() == 7 {
-                &status[1..status.len() - 2]
-            } else {
-                &status[1..status.len() - 1]
-            };
-
-            dbg!(&s);
-            let pid = payload_split[1];
-            dbg!(&pid);
-
-            let service_type = "debian";
-            let dev_name = "childops_test";
-
-            let monitor_message =
-                format!("102,{dev_name}_{service_name},{service_type},{service_name},{s}");
-
-            //f'102,{device_id}_{name},{service},{name},{status}'
-
-            let alarm_copy =
-                Message::new(&topic, monitor_message.as_bytes().to_owned()).with_retain();
-            mqtt_messages.push(alarm_copy);
-        }
-
-        Ok(mqtt_messages)
+        convert_health_status_message(message)
     }
 
     fn serialize_to_smartrest(c8y_event: &C8yCreateEvent) -> Result<String, ConversionError> {
