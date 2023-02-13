@@ -17,6 +17,7 @@ use std::time::Duration;
 use tedge_api::health::health_check_topics;
 use tedge_api::health::health_status_down_message;
 use tedge_api::health::send_health_status;
+use tedge_api::health::service_monitor_status_down_message;
 use tedge_utils::notify::fs_notify_stream;
 use tedge_utils::notify::FsEvent;
 
@@ -64,6 +65,21 @@ pub fn mqtt_config(
         .with_subscriptions(topic_filter)
         .with_max_packet_size(10 * 1024 * 1024)
         .with_last_will_message(health_status_down_message(name)))
+}
+
+pub fn mqtt_config_monitor(
+    name: &str,
+    session_name: &str,
+    device_name: &str,
+    host: &str,
+    port: u16,
+) -> Result<mqtt_channel::Config, anyhow::Error> {
+    Ok(mqtt_channel::Config::default()
+        .with_host(host)
+        .with_port(port)
+        .with_session_name(session_name)
+        .with_max_packet_size(10 * 1024 * 1024)
+        .with_last_will_message(service_monitor_status_down_message(name, device_name)))
 }
 
 pub struct Mapper {

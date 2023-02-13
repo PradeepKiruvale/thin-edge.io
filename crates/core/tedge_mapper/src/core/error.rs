@@ -116,4 +116,7 @@ pub enum ConversionError {
 
     #[error("Failed to extract the child device name from file path : {dir}")]
     DirPathComponentError { dir: PathBuf },
+
+    #[error("Failed to extract the health status")]
+    HealthStatus,
 }
