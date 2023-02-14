@@ -116,8 +116,6 @@ mod tests {
         .with_retain();
         match convert_health_status_message(&health_message, device_name.into()) {
             Ok(msg) => {
-                dbg!(msg[0].payload_str());
-                dbg!(expected_message.payload_str());
                 assert_eq!(msg[0], expected_message);
             }
             Err(e) => {
