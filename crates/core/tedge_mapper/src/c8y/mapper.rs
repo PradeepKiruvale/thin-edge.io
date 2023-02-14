@@ -7,6 +7,7 @@ use crate::core::component::TEdgeComponent;
 use crate::core::converter::make_valid_topic_or_panic;
 use crate::core::converter::MapperConfig;
 use crate::core::mapper::mqtt_config;
+use crate::core::mapper::mqtt_config_monitor;
 use crate::core::mapper::Mapper;
 use crate::core::size_threshold::SizeThreshold;
 use async_trait::async_trait;
@@ -91,6 +92,14 @@ impl TEdgeComponent for CumulocityMapper {
         )
         .await?;
 
+        let _mqtt_client_wm = create_mqtt_client_wm(
+            CUMULOCITY_MAPPER_NAME,
+            mqtt_host.clone(),
+            mqtt_port,
+            &create_mapper_config_wm(),
+        )
+        .await?;
+
         let device_info = CumulocityDeviceInfo {
             device_name,
             device_type,
@@ -151,6 +160,18 @@ pub fn create_mapper_config(operations: &Operations) -> MapperConfig {
     }
 }
 
+pub fn create_mapper_config_wm() -> MapperConfig {
+    let topic_filter: TopicFilter = vec!["c8y/s/us"]
+        .try_into()
+        .expect("topics that mapper should subscribe to");
+
+    MapperConfig {
+        in_topic_filter: topic_filter,
+        out_topic: make_valid_topic_or_panic("c8y/s/us"),
+        errors_topic: make_valid_topic_or_panic("tedge/errors"),
+    }
+}
+
 pub async fn create_mqtt_client(
     app_name: &str,
     mqtt_host: String,
@@ -163,6 +184,28 @@ pub async fn create_mqtt_client(
 
     let mqtt_client =
         Connection::new(&mqtt_config(app_name, &mqtt_host, mqtt_port, topic_filter)?).await?;
+
+    Ok(mqtt_client)
+}
+
+pub async fn create_mqtt_client_wm(
+    app_name: &str,
+    mqtt_host: String,
+    mqtt_port: u16,
+    mapper_config: &MapperConfig,
+) -> Result<Connection, anyhow::Error> {
+    let health_check_topics: TopicFilter = health_check_topics(app_name);
+    let mut topic_filter = mapper_config.in_topic_filter.clone();
+    topic_filter.add_all(health_check_topics.clone());
+
+    let mqtt_client = Connection::new(&mqtt_config_monitor(
+        app_name,
+        "c8y-mapper-monitor",
+        "childops_test",
+        &mqtt_host,
+        mqtt_port,
+    )?)
+    .await?;
 
     Ok(mqtt_client)
 }

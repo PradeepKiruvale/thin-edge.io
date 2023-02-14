@@ -17,6 +17,7 @@ use std::time::Duration;
 use tedge_api::health::health_check_topics;
 use tedge_api::health::health_status_down_message;
 use tedge_api::health::send_health_status;
+use tedge_api::health::service_monitor_status_down_message;
 use tedge_utils::notify::fs_notify_stream;
 use tedge_utils::notify::FsEvent;
 
@@ -33,6 +34,7 @@ pub async fn create_mapper(
     mqtt_port: u16,
     converter: Box<dyn Converter<Error = ConversionError>>,
 ) -> Result<Mapper, anyhow::Error> {
+    dbg!("create mapper {app_name}");
     let health_check_topics: TopicFilter = health_check_topics(app_name);
 
     let mapper_config = converter.get_mapper_config();
@@ -41,6 +43,18 @@ pub async fn create_mapper(
 
     let mqtt_client =
         Connection::new(&mqtt_config(app_name, &mqtt_host, mqtt_port, topic_filter)?).await?;
+    dbg!(&app_name);
+    if app_name.contains("tedge-mapper-c8y") {
+        dbg!("register a last will message");
+        let _mqtt_client = Connection::new(&mqtt_config_monitor(
+            app_name,
+            "monitor_mapper",
+            "childops_test",
+            &mqtt_host,
+            mqtt_port,
+        )?)
+        .await?;
+    }
 
     Ok(Mapper::new(
         app_name.to_string(),
@@ -64,6 +78,21 @@ pub fn mqtt_config(
         .with_subscriptions(topic_filter)
         .with_max_packet_size(10 * 1024 * 1024)
         .with_last_will_message(health_status_down_message(name)))
+}
+
+pub fn mqtt_config_monitor(
+    name: &str,
+    session_name: &str,
+    device_name: &str,
+    host: &str,
+    port: u16,
+) -> Result<mqtt_channel::Config, anyhow::Error> {
+    Ok(mqtt_channel::Config::default()
+        .with_host(host)
+        .with_port(port)
+        .with_session_name(session_name)
+        .with_max_packet_size(10 * 1024 * 1024)
+        .with_last_will_message(service_monitor_status_down_message(name, device_name)))
 }
 
 pub struct Mapper {

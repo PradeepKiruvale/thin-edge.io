@@ -43,3 +43,13 @@ pub fn health_status_down_message(daemon_name: &str) -> Message {
         retain: true,
     }
 }
+
+pub fn service_monitor_status_down_message(daemon_name: &str, device_name: &str) -> Message {
+    Message {
+        topic: Topic::new_unchecked(&format!("c8y/s/us")),
+        payload: format!("102,{device_name}_{daemon_name},thin-edge.io,{daemon_name},down")
+            .into_bytes(),
+        qos: mqtt_channel::QoS::AtLeastOnce,
+        retain: true,
+    }
+}
