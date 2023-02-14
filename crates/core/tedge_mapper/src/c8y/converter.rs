@@ -330,7 +330,7 @@ where
             );
         }
 
-        let mut message = convert_health_status_message(message, self.device_name.clone())?;
+        let mut message = convert_health_status_message(message, self.device_name.clone());
         mqtt_messages.append(&mut message);
         Ok(mqtt_messages)
     }

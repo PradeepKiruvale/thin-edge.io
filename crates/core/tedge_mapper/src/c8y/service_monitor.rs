@@ -1,23 +1,33 @@
-use crate::core::error::ConversionError;
 use c8y_api::smartrest::topic::SMARTREST_PUBLISH_TOPIC;
 use mqtt_channel::Message;
 use mqtt_channel::Topic;
+use serde_json::json;
 use serde_json::Value;
 use std::collections::HashMap;
 
-pub fn convert_health_status_message(
-    message: &Message,
-    device_name: String,
-) -> Result<Vec<Message>, ConversionError> {
+pub fn convert_health_status_message(message: &Message, device_name: String) -> Vec<Message> {
     let mut mqtt_messages: Vec<Message> = Vec::new();
     let topic = message.topic.name.to_owned();
-    let payload: HashMap<String, Value> = serde_json::from_str(message.payload_str()?)?;
+    let service_name = get_service_name(&topic);
+    let child_id = get_child_id(&topic);
 
-    if payload.len() > 1 {
+    // If not Bridge health status
+    if !service_name.contains("mosquitto-c8y-bridge") {
+        let payload_str = message
+            .payload_str()
+            .unwrap_or(r#""type":"thin-edge.io","status":"down""#);
+
+        let payload: HashMap<String, Value> =
+            serde_json::from_str(payload_str).unwrap_or_else(|_| {
+                HashMap::from([
+                    ("type".into(), json!("thin-edge.io")),
+                    ("status".into(), json!("down")),
+                ])
+            });
+
         let service_type = get_service_type(&payload);
-        let status = get_health_status(&payload)?;
-        let service_name = get_service_name(&topic);
-        let child_id = get_child_id(&topic);
+        let status = get_health_status(&payload);
+
         let status_message = service_monitor_status_message(
             &device_name,
             service_name,
@@ -28,14 +38,15 @@ pub fn convert_health_status_message(
 
         mqtt_messages.push(status_message);
     }
-    Ok(mqtt_messages)
+
+    mqtt_messages
 }
 
-fn get_health_status(payload: &HashMap<String, Value>) -> Result<String, ConversionError> {
+fn get_health_status(payload: &HashMap<String, Value>) -> String {
     let status = payload.get("status");
     match status {
-        Some(s) => Ok(s.to_string()),
-        None => Err(ConversionError::HealthStatus),
+        Some(s) => s.to_string(),
+        None => r#""down""#.to_string(),
     }
 }
 
@@ -119,7 +130,7 @@ mod tests {
         "tedge/health/tedge-mapper-c8y",
         r#"{"pid":"1234","type":"systemd"}"#,
         "c8y/s/us",
-        r#"102,test_device_tedge-mapper-c8y,"systemd",tedge-mapper-c8y,"up""#;        
+        r#"102,test_device_tedge-mapper-c8y,"systemd",tedge-mapper-c8y,"down""#;        
         "service-monitoring-thin-edge-no-status"
     )]
     fn translate_health_status_to_c8y_service_monitoring_message(
@@ -136,13 +147,11 @@ mod tests {
             c8y_monitor_payload.as_bytes(),
         )
         .with_retain();
-        match convert_health_status_message(&health_message, device_name.into()) {
-            Ok(msg) => {
-                assert_eq!(msg[0], expected_message);
-            }
-            Err(e) => {
-                assert_eq!(e.to_string(), "Failed to extract the health status")
-            }
-        }
+
+        let msg = convert_health_status_message(&health_message, device_name.into());
+
+        dbg!(&msg[0].payload_str().unwrap());
+        dbg!(&expected_message.payload_str().unwrap());
+        assert_eq!(msg[0], expected_message);
     }
 }
