@@ -17,26 +17,18 @@ pub fn convert_health_status_message(
         let service_type = get_service_type(&payload);
         let status = get_health_status(&payload)?;
         let service_name = get_service_name(&topic);
-        let service_external_id = get_service_id(device_name, service_name, &topic);
-        let monitor_message =
-            format!("102,{service_external_id},{service_type},{service_name},{status}");
-        let topic = Topic::new_unchecked(&get_c8y_health_topic(&topic)?);
-        let status_message =
-            Message::new(&topic, monitor_message.as_bytes().to_owned()).with_retain();
+        let child_id = get_child_id(&topic);
+        let status_message = service_monitor_status_message(
+            &device_name,
+            service_name,
+            &status,
+            &service_type,
+            child_id,
+        );
+
         mqtt_messages.push(status_message);
     }
     Ok(mqtt_messages)
-}
-
-fn get_c8y_health_topic(topic: &str) -> Result<String, ConversionError> {
-    let topic_split: Vec<&str> = topic.split('/').collect();
-    if topic_split.len() == 3 {
-        Ok(SMARTREST_PUBLISH_TOPIC.to_string())
-    } else if topic_split.len() == 4 {
-        Ok(format!("{SMARTREST_PUBLISH_TOPIC}/{}", topic_split[2]))
-    } else {
-        Err(ConversionError::UnsupportedTopic(topic.to_string()))
-    }
 }
 
 fn get_health_status(payload: &HashMap<String, Value>) -> Result<String, ConversionError> {
@@ -64,12 +56,12 @@ fn get_service_name(topic: &str) -> &str {
     }
 }
 
-fn get_service_id(device_name: String, service_name: &str, topic: &str) -> String {
+fn get_child_id(topic: &str) -> Option<String> {
     let topic_split: Vec<&str> = topic.split('/').collect();
     if topic_split.len() == 4 {
-        format!("{device_name}_{}_{service_name}", topic_split[2])
+        Some(topic_split[2].to_owned())
     } else {
-        format!("{device_name}_{service_name}")
+        None
     }
 }
 
