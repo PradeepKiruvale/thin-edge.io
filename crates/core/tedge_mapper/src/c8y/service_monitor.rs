@@ -21,8 +21,9 @@ pub fn convert_health_status_message(
         let monitor_message =
             format!("102,{service_external_id},{service_type},{service_name},{status}");
         let topic = Topic::new_unchecked(&get_c8y_health_topic(&topic)?);
-        let alarm_copy = Message::new(&topic, monitor_message.as_bytes().to_owned()).with_retain();
-        mqtt_messages.push(alarm_copy);
+        let status_message =
+            Message::new(&topic, monitor_message.as_bytes().to_owned()).with_retain();
+        mqtt_messages.push(status_message);
     }
     Ok(mqtt_messages)
 }
@@ -69,6 +70,35 @@ fn get_service_id(device_name: String, service_name: &str, topic: &str) -> Strin
         format!("{device_name}_{}_{service_name}", topic_split[2])
     } else {
         format!("{device_name}_{service_name}")
+    }
+}
+
+pub fn service_monitor_status_message(
+    device_name: &str,
+    daemon_name: &str,
+    status: &str,
+    service_type: &str,
+    child_id: Option<String>,
+) -> Message {
+    match child_id {
+        Some(cid) => Message {
+            topic: Topic::new_unchecked(&format!("{SMARTREST_PUBLISH_TOPIC}/{cid}")),
+            payload: format!(
+                "102,{device_name}_{cid}_{daemon_name},{service_type},{daemon_name},{status}"
+            )
+            .into_bytes(),
+            qos: mqtt_channel::QoS::AtLeastOnce,
+            retain: true,
+        },
+        None => Message {
+            topic: Topic::new_unchecked(SMARTREST_PUBLISH_TOPIC),
+            payload: format!(
+                "102,{device_name}_{daemon_name},{service_type},{daemon_name},{status}"
+            )
+            .into_bytes(),
+            qos: mqtt_channel::QoS::AtLeastOnce,
+            retain: true,
+        },
     }
 }
 
