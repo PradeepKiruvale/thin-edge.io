@@ -184,9 +184,9 @@ pub async fn create_mqtt_client_will_message(
     mqtt_host: String,
     mqtt_port: u16,
 ) -> Result<Connection, anyhow::Error> {
-    let health_check_topics = TopicFilter::new("test")?;
-    let mqtt_config = mqtt_config(app_name, &mqtt_host, mqtt_port, health_check_topics)?
-        .with_session_name("tedge-mapper-c8y-monitor")
+    let mqtt_config = mqtt_channel::Config::default()
+        .with_host(mqtt_host)
+        .with_port(mqtt_port)
         .with_last_will_message(service_monitor_status_message(
             device_name,
             app_name,
