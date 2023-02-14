@@ -56,6 +56,8 @@ pub async fn get_health_status_message(daemon_name: &str) -> Message {
     .to_string();
 
     Message::new(&response_topic_health, health_status)
+}
+
 pub fn service_monitor_status_down_message(daemon_name: &str, device_name: &str) -> Message {
     Message {
         topic: Topic::new_unchecked("c8y/s/us"),
