@@ -316,7 +316,7 @@ where
         message: &Message,
     ) -> Result<Vec<Message>, ConversionError> {
         self.size_threshold.validate(message)?;
-        convert_health_status_message(message)
+        convert_health_status_message(message, self.device_name.clone())
     }
 
     fn serialize_to_smartrest(c8y_event: &C8yCreateEvent) -> Result<String, ConversionError> {
