@@ -21,54 +21,62 @@ fn default_status() -> String {
     "down".to_string()
 }
 
+#[derive(Deserialize, Serialize, Debug)]
+pub struct TopicInfo {
+    pub service_name: String,
+    pub child_id: Option<String>,
+}
+
+impl TopicInfo {
+    fn parse_topic_info(topic: &str) -> Self {
+        let topic_split: Vec<&str> = topic.split('/').collect();
+        let service_name = if topic_split.len() == 4 {
+            topic_split[3]
+        } else {
+            topic_split[2]
+        }
+        .to_string();
+
+        let child_id = if topic_split.len() == 4 {
+            Some(topic_split[2].to_owned())
+        } else {
+            None
+        };
+
+        Self {
+            service_name,
+            child_id,
+        }
+    }
+}
 pub fn convert_health_status_message(message: &Message, device_name: String) -> Vec<Message> {
     let mut mqtt_messages: Vec<Message> = Vec::new();
     let topic = message.topic.name.to_owned();
-    let service_name = get_service_name(&topic);
-    let child_id = get_child_id(&topic);
+    let topic_info = TopicInfo::parse_topic_info(&topic);
 
     // If not Bridge health status
-    if !service_name.contains("bridge") {
+    if !topic_info.service_name.contains("bridge") {
         let payload_str = message
             .payload_str()
             .unwrap_or(r#""type":"thin-edge.io","status":"down""#);
-        dbg!(&payload_str);
 
         let health_status = serde_json::from_str(payload_str).unwrap_or_else(|_| HealthStatus {
             service_type: "unknown".to_string(),
             status: "down".to_string(),
         });
-        dbg!(&health_status);
+
         let status_message = service_monitor_status_message(
             &device_name,
-            service_name,
+            &topic_info.service_name,
             &health_status.status,
             &health_status.service_type,
-            child_id,
+            topic_info.child_id,
         );
 
         mqtt_messages.push(status_message);
     }
 
     mqtt_messages
-}
-
-fn get_service_name(topic: &str) -> &str {
-    let topic_split: Vec<&str> = topic.split('/').collect();
-    if topic_split.len() == 4 {
-        topic_split[3]
-    } else {
-        topic_split[2]
-    }
-}
-
-fn get_child_id(topic: &str) -> Option<String> {
-    let topic_split: Vec<&str> = topic.split('/').collect();
-    if topic_split.len() == 4 {
-        Some(topic_split[2].to_owned())
-    } else {
-        None
-    }
 }
 
 pub fn service_monitor_status_message(
@@ -145,8 +153,6 @@ mod tests {
 
         let msg = convert_health_status_message(&health_message, device_name.into());
 
-        dbg!(&msg[0].payload_str().unwrap());
-        dbg!(&expected_message.payload_str().unwrap());
         assert_eq!(msg[0], expected_message);
     }
 }
