@@ -1,9 +1,25 @@
 use c8y_api::smartrest::topic::SMARTREST_PUBLISH_TOPIC;
 use mqtt_channel::Message;
 use mqtt_channel::Topic;
-use serde_json::json;
-use serde_json::Value;
-use std::collections::HashMap;
+use serde::Deserialize;
+use serde::Serialize;
+
+#[derive(Deserialize, Serialize, Debug)]
+pub struct HealthStatus {
+    #[serde(rename = "type", default = "default_type")]
+    pub service_type: String,
+
+    #[serde(default = "default_status")]
+    pub status: String,
+}
+
+fn default_type() -> String {
+    "thin-edge.io".to_string()
+}
+
+fn default_status() -> String {
+    "down".to_string()
+}
 
 pub fn convert_health_status_message(message: &Message, device_name: String) -> Vec<Message> {
     let mut mqtt_messages: Vec<Message> = Vec::new();
@@ -12,27 +28,22 @@ pub fn convert_health_status_message(message: &Message, device_name: String) -> 
     let child_id = get_child_id(&topic);
 
     // If not Bridge health status
-    if !service_name.contains("mosquitto-c8y-bridge") {
+    if !service_name.contains("bridge") {
         let payload_str = message
             .payload_str()
             .unwrap_or(r#""type":"thin-edge.io","status":"down""#);
+        dbg!(&payload_str);
 
-        let payload: HashMap<String, Value> =
-            serde_json::from_str(payload_str).unwrap_or_else(|_| {
-                HashMap::from([
-                    ("type".into(), json!("thin-edge.io")),
-                    ("status".into(), json!("down")),
-                ])
-            });
-
-        let service_type = get_service_type(&payload);
-        let status = get_health_status(&payload);
-
+        let health_status = serde_json::from_str(payload_str).unwrap_or_else(|_| HealthStatus {
+            service_type: "unknown".to_string(),
+            status: "down".to_string(),
+        });
+        dbg!(&health_status);
         let status_message = service_monitor_status_message(
             &device_name,
             service_name,
-            &status,
-            &service_type,
+            &health_status.status,
+            &health_status.service_type,
             child_id,
         );
 
@@ -40,22 +51,6 @@ pub fn convert_health_status_message(message: &Message, device_name: String) -> 
     }
 
     mqtt_messages
-}
-
-fn get_health_status(payload: &HashMap<String, Value>) -> String {
-    let status = payload.get("status");
-    match status {
-        Some(s) => s.to_string(),
-        None => r#""down""#.to_string(),
-    }
-}
-
-fn get_service_type(payload: &HashMap<String, Value>) -> String {
-    let s_type = payload.get("type");
-    match s_type {
-        Some(t) => t.to_string(),
-        None => "thin-edge.io".to_string(),
-    }
 }
 
 fn get_service_name(topic: &str) -> &str {
@@ -114,7 +109,7 @@ mod tests {
         "tedge/health/tedge-mapper-c8y",
         r#"{"pid":"1234","type":"systemd","status":"up"}"#,
         "c8y/s/us",
-        r#"102,test_device_tedge-mapper-c8y,"systemd",tedge-mapper-c8y,"up""#;        
+        r#"102,test_device_tedge-mapper-c8y,systemd,tedge-mapper-c8y,up"#;        
         "service-monitoring-thin-edge-device"
     )]
     #[test_case(
@@ -122,15 +117,15 @@ mod tests {
         "tedge/health/child/tedge-mapper-c8y",
         r#"{"pid":"1234","type":"systemd","status":"up"}"#,
         "c8y/s/us/child",
-        r#"102,test_device_child_tedge-mapper-c8y,"systemd",tedge-mapper-c8y,"up""#;        
+        r#"102,test_device_child_tedge-mapper-c8y,systemd,tedge-mapper-c8y,up"#;
         "service-monitoring-thin-edge-child-device"
     )]
     #[test_case(
         "test_device",
         "tedge/health/tedge-mapper-c8y",
-        r#"{"pid":"1234","type":"systemd"}"#,
+        r#"{"pid":"123456","type":"systemd"}"#,
         "c8y/s/us",
-        r#"102,test_device_tedge-mapper-c8y,"systemd",tedge-mapper-c8y,"down""#;        
+        r#"102,test_device_tedge-mapper-c8y,systemd,tedge-mapper-c8y,down"#;
         "service-monitoring-thin-edge-no-status"
     )]
     fn translate_health_status_to_c8y_service_monitoring_message(

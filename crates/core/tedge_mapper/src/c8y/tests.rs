@@ -1793,7 +1793,7 @@ async fn translate_service_monitor_message_for_child_device() {
 
     let expected_service_monitor_smart_rest_message = Message::new(
         &Topic::new_unchecked("c8y/s/us/child1"),
-        r#"102,test-device_child1_child-service-c8y,"thin-edge.io",child-service-c8y,"up""#,
+        r#"102,test-device_child1_child-service-c8y,thin-edge.io,child-service-c8y,up"#,
     )
     .with_retain();
 
@@ -1821,7 +1821,7 @@ async fn translate_service_monitor_message_for_thin_edge_device() {
 
     let expected_service_monitor_smart_rest_message = Message::new(
         &Topic::new_unchecked("c8y/s/us"),
-        r#"102,test-device_test-tedge-mapper-c8y,"thin-edge.io",test-tedge-mapper-c8y,"up""#,
+        r#"102,test-device_test-tedge-mapper-c8y,thin-edge.io,test-tedge-mapper-c8y,up"#,
     )
     .with_retain();
 
