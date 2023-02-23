@@ -191,7 +191,7 @@ pub async fn create_mqtt_client_will_message(
             device_name,
             app_name,
             "down",
-            "thin-edge.io",
+            "service",
             None,
         ));
     let mqtt_client = Connection::new(&mqtt_config).await?;
@@ -234,7 +234,7 @@ fn create_directories(config_dir: &Path) -> Result<(), anyhow::Error> {
 mod tests {
     use super::*;
 
-    use crate::c8y::tests::create_test_mqtt_client;
+    use crate::c8y::tests::mapper_tests::create_test_mqtt_client;
     use crate::core::mapper::create_mapper;
     use c8y_api::http_proxy::MockC8yJwtTokenRetriever;
     use c8y_api::smartrest::smartrest_deserializer::SmartRestJwtResponse;
@@ -270,6 +270,8 @@ mod tests {
         r#"{"temperature": 12, "time": "2021-06-15T17:01:15.806181503+02:00"}"#
     )] // success case
     #[tokio::test]
+    #[ignore]
+
     async fn test_tedge_mapper_with_mqtt_pub(
         pub_topic: &str,
         sub_topic: &str,

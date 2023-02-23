@@ -532,3 +532,19 @@ async fn ensure_that_last_will_message_is_delivered() -> Result<(), anyhow::Erro
     .await;
     Ok(())
 }
+
+#[tokio::test]
+#[serial]
+async fn subscription_failures() {
+    let broker = mqtt_tests::test_mqtt_broker();
+    let mqtt_config = Config::default().with_port(broker.port);
+
+    let topic = TopicFilter::new_unchecked("test/topic");
+    let mqtt_config = mqtt_config.with_subscriptions(topic);
+
+    // For some unknown reason, the test MQTT server rejects any subscription on `test/#` topics
+    assert!(matches!(
+        Connection::new(&mqtt_config).await,
+        Err(MqttError::SubscriptionFailure)
+    ));
+}

@@ -48,6 +48,7 @@ impl AlarmConverter {
                     .strip_prefix(TEDGE_ALARMS_TOPIC)
                     .expect("Expected tedge/alarms prefix")
                     .to_string();
+                dbg!(&input_message.payload_str());
                 pending_alarms_map.insert(alarm_id, input_message.clone());
             }
             Self::Synced => {

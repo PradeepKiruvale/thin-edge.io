@@ -2,6 +2,7 @@ use std::collections::HashMap;
 use std::net::Ipv4Addr;
 use std::net::SocketAddr;
 use std::net::SocketAddrV4;
+use std::thread;
 use std::time::Duration;
 
 use futures::channel::mpsc::UnboundedReceiver;
@@ -27,6 +28,7 @@ pub struct MqttProcessHandler {
 
 impl MqttProcessHandler {
     pub fn new(port: u16) -> MqttProcessHandler {
+        thread::sleep(Duration::from_millis(10));
         spawn_broker(port);
         MqttProcessHandler { port }
     }
@@ -136,7 +138,7 @@ fn get_rumqttd_config(port: u16) -> Config {
     let server_config = ServerSettings {
         listen: SocketAddr::V4(SocketAddrV4::new(Ipv4Addr::new(0, 0, 0, 0), port)),
         cert: None,
-        next_connection_delay_ms: 1,
+        next_connection_delay_ms: 0,
         connections: connections_settings,
     };
 

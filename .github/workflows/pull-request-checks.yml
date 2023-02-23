@@ -275,11 +275,7 @@ jobs:
           args: -p tedge-dummy-plugin
 
       - name: Cargo test
-        uses: actions-rs/cargo@v1
-        # https://github.com/marketplace/actions/rust-cargo
-        with:
-          command: test
-          args: --no-fail-fast --all-features
+        run: bash -x ./ci/test.sh
 
   shellcheck:
     name: Shellcheck

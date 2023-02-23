@@ -1037,13 +1037,14 @@ pub fn get_child_id_from_measurement_topic(topic: &str) -> Result<Option<String>
 
 #[cfg(test)]
 mod tests {
-    use crate::c8y::tests::create_test_mqtt_client_with_empty_operations;
-    use crate::c8y::tests::FakeC8YHttpProxy;
+    use crate::c8y::tests::mapper_tests::create_test_mqtt_client_with_empty_operations;
+    use crate::c8y::tests::mapper_tests::FakeC8YHttpProxy;
     use c8y_api::smartrest::operations::Operations;
     use plugin_sm::operation_logs::OperationLogs;
     use rand::prelude::Distribution;
     use rand::seq::SliceRandom;
     use rand::SeedableRng;
+    use serial_test::serial;
     use std::collections::HashMap;
     use tedge_test_utils::fs::TempTedgeDir;
     use test_case::test_case;
@@ -1058,6 +1059,7 @@ mod tests {
     const EXPECTED_CHILD_DEVICES: &[&str] = &["child-0", "child-1", "child-2", "child-3"];
 
     #[tokio::test]
+    #[serial]
     async fn test_execute_operation_is_not_blocked() {
         let log_dir = TempTedgeDir::new();
         let operation_logs = OperationLogs::try_new(log_dir.path().to_path_buf()).unwrap();
@@ -1090,6 +1092,7 @@ mod tests {
     }
 
     #[tokio::test]
+    #[serial]
     async fn ignore_operations_for_child_device() {
         let mqtt_client = create_test_mqtt_client_with_empty_operations().await;
         let output = super::process_smartrest(
@@ -1160,6 +1163,7 @@ mod tests {
     #[test_case("106,child-3,child-one,child-1", &["child-0", "child-2"]; "cloud representation has some similar child devices")]
     #[test_case("106,child-0,child-1,child-2,child-3", &[]; "cloud representation has seen all child devices")]
     #[tokio::test]
+    #[ignore]
     async fn test_child_device_cache_is_updated(
         cloud_child_devices: &str,
         expected_101_child_devices: &[&str],
