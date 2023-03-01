@@ -1,6 +1,11 @@
 use crate::Message;
 use crate::TopicFilter;
 use rumqttc::LastWill;
+use std::fmt::Debug;
+use std::fmt::Formatter;
+use std::ops::Deref;
+use std::rc::Rc;
+use std::sync::Arc;
 
 /// Configuration of an MQTT connection
 #[derive(Debug, Clone)]
@@ -51,8 +56,28 @@ pub struct Config {
 
     /// With first message on connection
     ///
-    /// Default: false
-    pub initial_message: Option<fn() -> Message>,
+    /// Default: None
+    pub initial_message: Option<InitMessageFn>,
+}
+
+#[derive(Clone)]
+pub struct InitMessageFn {
+    initfn: Arc<Box<dyn Fn() -> Message + Send + Sync>>,
+}
+
+impl InitMessageFn {
+    pub fn new(call_back: Arc<Box<dyn Fn() -> Message + Send + Sync>>) -> InitMessageFn {
+        InitMessageFn { initfn: call_back }
+    }
+    pub fn call(&self) -> Message {
+        (*self.initfn)()
+    }
+}
+
+impl Debug for InitMessageFn {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        todo!()
+    }
 }
 
 /// By default a client connects the local MQTT broker.
@@ -143,7 +168,7 @@ impl Config {
     }
 
     /// Set the initial message flag
-    pub fn with_initial_message(self, initial_message: Option<fn() -> Message>) -> Self {
+    pub fn with_initial_message(self, initial_message: Option<InitMessageFn>) -> Self {
         Self {
             initial_message,
             ..self

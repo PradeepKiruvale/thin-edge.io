@@ -188,19 +188,15 @@ impl Connection {
                         eprintln!("ERROR: Connection Error {}", err);
                     } else {
                         match config.session_name {
-                            Some(ref sname) => {
-                                if let Some(msg_fn) = config.initial_message {
-                                    let message = msg_fn();
-                                    println!(
-                                        "........Connected.........................{:?}",
-                                        sname
-                                    );
-
+                            Some(ref _sname) => {
+                                if let Some(ref imsg_fn) = config.initial_message {
+                                    // publish the initial message on connect
+                                    let message = imsg_fn.call();
                                     let _ = mqtt_client
                                         .publish(
                                             message.topic.name.clone(),
-                                            rumqttc::QoS::AtLeastOnce,
-                                            true,
+                                            message.qos,
+                                            message.retain,
                                             message.payload_bytes().to_vec(),
                                         )
                                         .await;

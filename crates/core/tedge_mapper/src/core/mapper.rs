@@ -3,6 +3,7 @@ use crate::core::converter::*;
 use crate::core::error::*;
 use c8y_api::smartrest::topic::SMARTREST_PUBLISH_TOPIC;
 use mqtt_channel::Connection;
+use mqtt_channel::InitMessageFn;
 use mqtt_channel::Message;
 use mqtt_channel::MqttError;
 use mqtt_channel::SinkExt;
@@ -62,7 +63,7 @@ pub fn mqtt_config(
     host: &str,
     port: u16,
     topic_filter: TopicFilter,
-    init_msg_fn: Option<fn() -> Message>,
+    init_msg_fn: Option<InitMessageFn>,
 ) -> Result<mqtt_channel::Config, anyhow::Error> {
     Ok(mqtt_channel::Config::default()
         .with_host(host)
