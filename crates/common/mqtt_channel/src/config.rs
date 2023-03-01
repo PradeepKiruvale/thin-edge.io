@@ -48,6 +48,11 @@ pub struct Config {
     ///
     /// Default: None
     pub last_will_message: Option<Message>,
+
+    /// With first message on connection
+    ///
+    /// Default: false
+    pub initial_message: bool,
 }
 
 /// By default a client connects the local MQTT broker.
@@ -62,6 +67,7 @@ impl Default for Config {
             queue_capacity: 1024,
             max_packet_size: 1024 * 1024,
             last_will_message: None,
+            initial_message: false,
         }
     }
 }
@@ -132,6 +138,14 @@ impl Config {
     pub fn with_last_will_message(self, lwm: Message) -> Self {
         Self {
             last_will_message: Some(lwm),
+            ..self
+        }
+    }
+
+    /// Set the initial message flag
+    pub fn with_initial_message(self, initial_message: bool) -> Self {
+        Self {
+            initial_message,
             ..self
         }
     }

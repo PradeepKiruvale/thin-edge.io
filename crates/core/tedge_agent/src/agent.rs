@@ -183,6 +183,7 @@ impl SmAgentConfig {
             .with_port(tedge_config.query(MqttPortSetting)?.into())
             .with_max_packet_size(10 * 1024 * 1024)
             .with_session_name(TEDGE_AGENT)
+            .with_initial_message(true)
             .with_last_will_message(health_status_down_message(TEDGE_AGENT));
 
         let tedge_config_path = config_repository

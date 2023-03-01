@@ -61,6 +61,7 @@ pub fn mqtt_config(
         .with_host(host)
         .with_port(port)
         .with_session_name(name)
+        .with_initial_message(true)
         .with_subscriptions(topic_filter)
         .with_max_packet_size(10 * 1024 * 1024)
         .with_last_will_message(health_status_down_message(name)))
