@@ -39,8 +39,14 @@ pub async fn create_mapper(
     let mut topic_filter = mapper_config.in_topic_filter.clone();
     topic_filter.add_all(health_check_topics.clone());
 
-    let mqtt_client =
-        Connection::new(&mqtt_config(app_name, &mqtt_host, mqtt_port, topic_filter)?).await?;
+    let mqtt_client = Connection::new(&mqtt_config(
+        app_name,
+        &mqtt_host,
+        mqtt_port,
+        topic_filter,
+        None,
+    )?)
+    .await?;
 
     Ok(Mapper::new(
         app_name.to_string(),
@@ -56,12 +62,13 @@ pub fn mqtt_config(
     host: &str,
     port: u16,
     topic_filter: TopicFilter,
+    init_msg_fn: Option<fn() -> Message>,
 ) -> Result<mqtt_channel::Config, anyhow::Error> {
     Ok(mqtt_channel::Config::default()
         .with_host(host)
         .with_port(port)
         .with_session_name(name)
-        .with_initial_message(true)
+        .with_initial_message(init_msg_fn)
         .with_subscriptions(topic_filter)
         .with_max_packet_size(10 * 1024 * 1024)
         .with_last_will_message(health_status_down_message(name)))

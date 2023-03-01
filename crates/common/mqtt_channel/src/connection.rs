@@ -189,20 +189,19 @@ impl Connection {
                     } else {
                         match config.session_name {
                             Some(ref sname) => {
-                                if config.initial_message {
+                                if let Some(msg_fn) = config.initial_message {
+                                    let message = msg_fn();
                                     println!(
                                         "........Connected.........................{:?}",
                                         sname
                                     );
 
-                                    let health_status = r#"{"status": "up","type": "service"}"#;
-
                                     let _ = mqtt_client
                                         .publish(
-                                            format!("tedge/health/{sname}"),
+                                            message.topic.name.clone(),
                                             rumqttc::QoS::AtLeastOnce,
                                             true,
-                                            health_status.as_bytes().to_vec(),
+                                            message.payload_bytes().to_vec(),
                                         )
                                         .await;
                                 }

@@ -52,7 +52,7 @@ pub struct Config {
     /// With first message on connection
     ///
     /// Default: false
-    pub initial_message: bool,
+    pub initial_message: Option<fn() -> Message>,
 }
 
 /// By default a client connects the local MQTT broker.
@@ -67,7 +67,7 @@ impl Default for Config {
             queue_capacity: 1024,
             max_packet_size: 1024 * 1024,
             last_will_message: None,
-            initial_message: false,
+            initial_message: None,
         }
     }
 }
@@ -143,7 +143,7 @@ impl Config {
     }
 
     /// Set the initial message flag
-    pub fn with_initial_message(self, initial_message: bool) -> Self {
+    pub fn with_initial_message(self, initial_message: Option<fn() -> Message>) -> Self {
         Self {
             initial_message,
             ..self

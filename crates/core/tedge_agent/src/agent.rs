@@ -183,7 +183,7 @@ impl SmAgentConfig {
             .with_port(tedge_config.query(MqttPortSetting)?.into())
             .with_max_packet_size(10 * 1024 * 1024)
             .with_session_name(TEDGE_AGENT)
-            .with_initial_message(true)
+            .with_initial_message(Some(initial_message))
             .with_last_will_message(health_status_down_message(TEDGE_AGENT));
 
         let tedge_config_path = config_repository
@@ -258,6 +258,15 @@ impl SmAgentConfig {
             http_config,
             ..self
         }
+    }
+}
+
+pub fn initial_message() -> Message {
+    Message {
+        topic: Topic::new_unchecked("tedge/health/tedge-agent"),
+        payload: r#"{"status": "up","type": "service"}"#.as_bytes().to_vec(),
+        qos: mqtt_channel::QoS::AtLeastOnce,
+        retain: false,
     }
 }
 

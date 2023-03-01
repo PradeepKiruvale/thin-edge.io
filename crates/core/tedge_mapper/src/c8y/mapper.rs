@@ -15,6 +15,8 @@ use c8y_api::http_proxy::JwtAuthHttpProxy;
 use c8y_api::smartrest::operations::Operations;
 use c8y_api::smartrest::topic::C8yTopic;
 use mqtt_channel::Connection;
+use mqtt_channel::Message;
+use mqtt_channel::Topic;
 use mqtt_channel::TopicFilter;
 use tedge_api::health::health_check_topics;
 use tedge_api::topic::ResponseTopic;
@@ -137,6 +139,15 @@ impl TEdgeComponent for CumulocityMapper {
     }
 }
 
+pub fn initial_message() -> Message {
+    Message {
+        topic: Topic::new_unchecked("tedge/health/tedge-mapper-c8y"),
+        payload: r#"{"status": "up","type": "service"}"#.as_bytes().to_vec(),
+        qos: mqtt_channel::QoS::AtLeastOnce,
+        retain: false,
+    }
+}
+
 pub fn create_mapper_config(operations: &Operations) -> MapperConfig {
     let mut topic_filter: TopicFilter = vec![
         "tedge/measurements",
@@ -172,8 +183,14 @@ pub async fn create_mqtt_client(
     let mut topic_filter = mapper_config.in_topic_filter.clone();
     topic_filter.add_all(health_check_topics.clone());
 
-    let mqtt_client =
-        Connection::new(&mqtt_config(app_name, &mqtt_host, mqtt_port, topic_filter)?).await?;
+    let mqtt_client = Connection::new(&mqtt_config(
+        app_name,
+        &mqtt_host,
+        mqtt_port,
+        topic_filter,
+        Some(initial_message),
+    )?)
+    .await?;
 
     Ok(mqtt_client)
 }
