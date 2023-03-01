@@ -179,8 +179,8 @@ impl SmAgentConfig {
         let config_repository =
             tedge_config::TEdgeConfigRepository::new(tedge_config_location.clone());
         let tedge_config = config_repository.load()?;
-        let imsg =
-            Arc::new(Box::new(|| initial_message()) as Box<dyn Fn() -> Message + Sync + Send>);
+        let imsg = Arc::new(Box::new(|| get_health_status_message("tedge_daemon"))
+            as Box<dyn Fn() -> Message + Sync + Send>);
         let initial_msg = InitMessageFn::new(imsg);
 
         let mqtt_config = mqtt_channel::Config::default()

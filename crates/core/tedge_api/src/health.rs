@@ -44,7 +44,7 @@ pub fn health_status_down_message(daemon_name: &str) -> Message {
     }
 }
 
-pub async fn get_health_status_message(daemon_name: &str) -> Message {
+pub fn get_health_status_message(daemon_name: &str) -> Message {
     let response_topic_health =
         Topic::new_unchecked(format!("tedge/health/{daemon_name}").as_str());
 
