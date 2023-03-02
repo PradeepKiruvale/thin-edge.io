@@ -9,9 +9,8 @@ use crate::state::StateRepository;
 use crate::state::StateStatus;
 use flockfile::check_another_instance_is_not_running;
 use flockfile::Flockfile;
-use mqtt_channel::InitMessageFn;
 use tedge_api::control_filter_topic;
-use tedge_api::health::get_health_status_message;
+use tedge_api::health::health_status_up_message;
 use tedge_api::software_filter_topic;
 use tedge_api::Jsonify;
 use tedge_api::OperationStatus;
@@ -179,16 +178,13 @@ impl SmAgentConfig {
         let config_repository =
             tedge_config::TEdgeConfigRepository::new(tedge_config_location.clone());
         let tedge_config = config_repository.load()?;
-        let imsg = Arc::new(Box::new(|| get_health_status_message("tedge_daemon"))
-            as Box<dyn Fn() -> Message + Sync + Send>);
-        let initial_msg = InitMessageFn::new(imsg);
 
         let mqtt_config = mqtt_channel::Config::default()
             .with_host(tedge_config.query(MqttBindAddressSetting)?.to_string())
             .with_port(tedge_config.query(MqttPortSetting)?.into())
             .with_max_packet_size(10 * 1024 * 1024)
             .with_session_name(TEDGE_AGENT)
-            .with_initial_message(Some(initial_msg))
+            .with_initial_message(|| health_status_up_message("tedge-agent"))
             .with_last_will_message(health_status_down_message(TEDGE_AGENT));
 
         let tedge_config_path = config_repository
@@ -266,15 +262,7 @@ impl SmAgentConfig {
     }
 }
 
-pub fn initial_message() -> Message {
-    //let msg =  get_health_status_message("tedge_agent").await
-    Message {
-        topic: Topic::new_unchecked("tedge/health/tedge-agent"),
-        payload: r#"{"status": "up","type": "service"}"#.as_bytes().to_vec(),
-        qos: mqtt_channel::QoS::AtLeastOnce,
-        retain: true,
-    }
-}
+
 
 #[derive(Debug)]
 pub struct SmAgent {

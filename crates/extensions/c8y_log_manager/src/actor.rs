@@ -26,7 +26,7 @@ use tedge_actors::DynSender;
 use tedge_actors::MessageBox;
 use tedge_actors::RuntimeError;
 use tedge_actors::RuntimeRequest;
-use tedge_api::health::get_health_status_message;
+use tedge_api::health::health_status_up_message;
 use tedge_api::health::health_check_topics;
 use tedge_file_system_ext::FsWatchEvent;
 use tedge_mqtt_ext::MqttMessage;
@@ -343,7 +343,7 @@ impl LogManagerActor {
     }
 
     async fn send_health_status(&mut self) -> Result<(), anyhow::Error> {
-        let message = get_health_status_message("c8y-log-plugin").await;
+        let message = health_status_up_message("c8y-log-plugin");
         self.mqtt_publisher.send(message).await?;
         Ok(())
     }

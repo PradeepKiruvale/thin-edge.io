@@ -3,8 +3,6 @@ use crate::TopicFilter;
 use rumqttc::LastWill;
 use std::fmt::Debug;
 use std::fmt::Formatter;
-use std::ops::Deref;
-use std::rc::Rc;
 use std::sync::Arc;
 
 /// Configuration of an MQTT connection
@@ -66,9 +64,12 @@ pub struct InitMessageFn {
 }
 
 impl InitMessageFn {
-    pub fn new(call_back: Arc<Box<dyn Fn() -> Message + Send + Sync>>) -> InitMessageFn {
-        InitMessageFn { initfn: call_back }
+    pub fn new(call_back: impl Fn() -> Message + Sync + Send + 'static) -> InitMessageFn {
+        InitMessageFn {
+            initfn: Arc::new(Box::new(call_back) as Box<dyn Fn() -> Message + Sync + Send>),
+        }
     }
+
     pub fn call(&self) -> Message {
         (*self.initfn)()
     }
@@ -76,7 +77,7 @@ impl InitMessageFn {
 
 impl Debug for InitMessageFn {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        todo!()
+        write!(f, "Calling init_message function [{:?}]", self)
     }
 }
 
@@ -167,10 +168,13 @@ impl Config {
         }
     }
 
-    /// Set the initial message flag
-    pub fn with_initial_message(self, initial_message: Option<InitMessageFn>) -> Self {
+    /// Set the initial message message
+    pub fn with_initial_message(
+        self,
+        initial_message: impl Fn() -> Message + Send + Sync + 'static,
+    ) -> Self {
         Self {
-            initial_message,
+            initial_message: Some(InitMessageFn::new(initial_message)),
             ..self
         }
     }

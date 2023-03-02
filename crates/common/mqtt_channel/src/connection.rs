@@ -187,33 +187,29 @@ impl Connection {
                     if let Some(err) = MqttError::maybe_connection_error(&ack) {
                         eprintln!("ERROR: Connection Error {}", err);
                     } else {
-                        match config.session_name {
-                            Some(ref _sname) => {
-                                if let Some(ref imsg_fn) = config.initial_message {
-                                    // publish the initial message on connect
-                                    let message = imsg_fn.call();
-                                    let _ = mqtt_client
-                                        .publish(
-                                            message.topic.name.clone(),
-                                            message.qos,
-                                            message.retain,
-                                            message.payload_bytes().to_vec(),
-                                        )
-                                        .await;
-                                }
-                            }
-                            None => {
-                                // Workaround for  https://github.com/bytebeamio/rumqtt/issues/250
-                                // If session_name is not provided, then re-subscribe
+                        if let Some(ref imsg_fn) = config.initial_message {
+                            // publish the initial message on connect
+                            let message = imsg_fn.call();
+                            let _ = mqtt_client
+                                .publish(
+                                    message.topic.name.clone(),
+                                    message.qos,
+                                    message.retain,
+                                    message.payload_bytes().to_vec(),
+                                )
+                                .await;
+                        }
 
-                                let subscriptions = config.subscriptions.filters();
-                                // Need check here otherwise it will hang waiting for a SubAck, and none will come when there is no subscription.
-                                if subscriptions.is_empty() {
-                                    break;
-                                }
-                                Connection::subscribe_to_topics(&mqtt_client, subscriptions)
-                                    .await?;
+                        if config.session_name.is_none() {
+                            // Workaround for  https://github.com/bytebeamio/rumqtt/issues/250
+                            // If session_name is not provided, then re-subscribe
+
+                            let subscriptions = config.subscriptions.filters();
+                            // Need check here otherwise it will hang waiting for a SubAck, and none will come when there is no subscription.
+                            if subscriptions.is_empty() {
+                                break;
                             }
+                            Connection::subscribe_to_topics(&mqtt_client, subscriptions).await?;
                         }
                     }
                 }
