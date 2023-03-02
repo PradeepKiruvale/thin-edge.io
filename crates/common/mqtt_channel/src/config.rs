@@ -168,7 +168,7 @@ impl Config {
         }
     }
 
-    /// Set the initial message message
+    /// Set the initial message
     pub fn with_initial_message(
         self,
         initial_message: impl Fn() -> Message + Send + Sync + 'static,

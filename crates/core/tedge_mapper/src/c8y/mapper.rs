@@ -197,7 +197,7 @@ pub async fn create_mqtt_client_will_message(
             "down",
             "service",
             None,
-        ));
+        ).with_retain());
     let mqtt_client = Connection::new(&mqtt_config).await?;
 
     Ok(mqtt_client)
