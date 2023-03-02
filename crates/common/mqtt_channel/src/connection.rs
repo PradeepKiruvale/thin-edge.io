@@ -190,14 +190,14 @@ impl Connection {
                         if let Some(ref imsg_fn) = config.initial_message {
                             // publish the initial message on connect
                             let message = imsg_fn.call();
-                            let _ = mqtt_client
+                            mqtt_client
                                 .publish(
                                     message.topic.name.clone(),
                                     message.qos,
                                     message.retain,
                                     message.payload_bytes().to_vec(),
                                 )
-                                .await;
+                                .await?;
                         }
 
                         if config.session_name.is_none() {

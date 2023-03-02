@@ -77,7 +77,7 @@ impl InitMessageFn {
 
 impl Debug for InitMessageFn {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        write!(f, "Calling init_message function [{:?}]", self)
+        write!(f, "Calling init_message function")
     }
 }
 
