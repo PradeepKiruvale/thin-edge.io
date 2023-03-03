@@ -189,7 +189,7 @@ impl Connection {
                     } else {
                         if let Some(ref imsg_fn) = config.initial_message {
                             // publish the initial message on connect
-                            let message = imsg_fn.call();
+                            let message = imsg_fn.new_init_message();
                             mqtt_client
                                 .publish(
                                     message.topic.name.clone(),

@@ -184,7 +184,7 @@ impl SmAgentConfig {
             .with_port(tedge_config.query(MqttPortSetting)?.into())
             .with_max_packet_size(10 * 1024 * 1024)
             .with_session_name(TEDGE_AGENT)
-            .with_initial_message(|| health_status_up_message("tedge-agent"))
+            .with_initial_message(|| health_status_up_message(TEDGE_AGENT))
             .with_last_will_message(health_status_down_message(TEDGE_AGENT));
 
         let tedge_config_path = config_repository
@@ -349,7 +349,7 @@ impl SmAgent {
 
         self.process_pending_operation(&mut mqtt.published).await?;
 
-        send_health_status(&mut mqtt.published, "tedge-agent").await;
+        send_health_status(&mut mqtt.published, TEDGE_AGENT).await;
 
         let http_config = self.config.http_config.clone();
 

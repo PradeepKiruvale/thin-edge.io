@@ -70,14 +70,14 @@ impl InitMessageFn {
         }
     }
 
-    pub fn call(&self) -> Message {
+    pub fn new_init_message(&self) -> Message {
         (*self.initfn)()
     }
 }
 
 impl Debug for InitMessageFn {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        write!(f, "Calling init_message function")
+        write!(f, "Init message creation function")
     }
 }
 
