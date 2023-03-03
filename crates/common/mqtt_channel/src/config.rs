@@ -66,7 +66,7 @@ pub struct InitMessageFn {
 impl InitMessageFn {
     pub fn new(call_back: impl Fn() -> Message + Sync + Send + 'static) -> InitMessageFn {
         InitMessageFn {
-            initfn: Arc::new(Box::new(call_back) as Box<dyn Fn() -> Message + Sync + Send>),
+            initfn: Arc::new(Box::new(call_back)),
         }
     }
 
