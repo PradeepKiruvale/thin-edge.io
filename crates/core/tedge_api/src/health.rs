@@ -55,5 +55,7 @@ pub fn health_status_up_message(daemon_name: &str) -> Message {
     })
     .to_string();
 
-    Message::new(&response_topic_health, health_status).with_qos(mqtt_channel::QoS::AtLeastOnce).with_retain()
+    Message::new(&response_topic_health, health_status)
+        .with_qos(mqtt_channel::QoS::AtLeastOnce)
+        .with_retain()
 }

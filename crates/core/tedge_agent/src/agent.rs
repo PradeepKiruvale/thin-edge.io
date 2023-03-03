@@ -262,8 +262,6 @@ impl SmAgentConfig {
     }
 }
 
-
-
 #[derive(Debug)]
 pub struct SmAgent {
     config: SmAgentConfig,

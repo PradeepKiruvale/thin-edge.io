@@ -16,7 +16,6 @@ use c8y_api::smartrest::operations::Operations;
 use c8y_api::smartrest::topic::C8yTopic;
 use mqtt_channel::Connection;
 use mqtt_channel::TopicFilter;
-use tedge_api::health::health_status_up_message;
 use tedge_api::health::health_check_topics;
 use tedge_api::topic::ResponseTopic;
 use tedge_config::ConfigSettingAccessor;
@@ -173,11 +172,8 @@ pub async fn create_mqtt_client(
     let mut topic_filter = mapper_config.in_topic_filter.clone();
     topic_filter.add_all(health_check_topics.clone());
 
-    let mqtt_client = Connection::new(
-        &mqtt_config(app_name, &mqtt_host, mqtt_port, topic_filter)?
-            .with_initial_message(|| health_status_up_message("tedge-mapper-c8y")),
-    )
-    .await?;
+    let mqtt_client =
+        Connection::new(&mqtt_config(app_name, &mqtt_host, mqtt_port, topic_filter)?).await?;
 
     Ok(mqtt_client)
 }
