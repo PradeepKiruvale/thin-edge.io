@@ -17,6 +17,7 @@ use tedge_config::TEdgeConfig;
 use tedge_config::TEdgeConfigError;
 use tedge_config::DEFAULT_TEDGE_CONFIG_PATH;
 use tedge_file_system_ext::FsWatchActorBuilder;
+use tedge_health_ext::HealthMonitorBuilder;
 use tedge_http_ext::HttpActor;
 use tedge_mqtt_ext::MqttActorBuilder;
 use tedge_mqtt_ext::MqttConfig;
@@ -68,6 +69,10 @@ async fn main() -> anyhow::Result<()> {
     log_actor.with_c8y_http_proxy(&mut c8y_http_proxy_actor)?;
     log_actor.with_mqtt_connection(&mut mqtt_actor)?;
 
+    //Instantiate health monitor actor
+    let mut health_actor = HealthMonitorBuilder::new();
+    health_actor.with_mqtt_connection(&mut mqtt_actor)?;
+
     // Shutdown on SIGINT
     signal_actor.register_peer(NoConfig, runtime.get_handle().get_sender());
 
@@ -82,6 +87,7 @@ async fn main() -> anyhow::Result<()> {
     runtime.spawn(config_actor).await?;
     runtime.spawn(log_actor).await?;
     runtime.spawn(timer_actor).await?;
+    runtime.spawn(health_actor).await?;
 
     runtime.run_to_completion().await?;
     Ok(())
