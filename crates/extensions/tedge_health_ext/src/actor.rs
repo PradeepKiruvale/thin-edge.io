@@ -1,3 +1,4 @@
+use anyhow::bail;
 use async_trait::async_trait;
 use tedge_actors::Actor;
 use tedge_actors::CombinedReceiver;
@@ -15,13 +16,13 @@ use tedge_mqtt_ext::TopicFilter;
 type HealthInputMessage = MqttMessage;
 type HealthOutputMessage = MqttMessage;
 
-pub struct TedgeHealthMonitorActor {
+pub struct HealthMonitorActor {
     health_check_topics: TopicFilter,
     mqtt_publisher: DynSender<MqttMessage>,
     daemon_to_be_monitored: String,
 }
 
-impl TedgeHealthMonitorActor {
+impl HealthMonitorActor {
     pub fn new(daemon_to_be_monitored: String, mqtt_publisher: DynSender<MqttMessage>) -> Self {
         let health_check_topics = vec!["tedge/health-check", "tedge/health-check/+"]
             .try_into()
@@ -42,6 +43,8 @@ impl TedgeHealthMonitorActor {
             self.mqtt_publisher
                 .send(health_status_up_message(&self.daemon_to_be_monitored))
                 .await?;
+        } else {
+            bail!("Failed to receive any message");
         }
         Ok(())
     }
@@ -116,7 +119,7 @@ impl ReceiveMessages<HealthInputMessage> for HealthMonitorMessageBox {
 }
 
 #[async_trait]
-impl Actor for TedgeHealthMonitorActor {
+impl Actor for HealthMonitorActor {
     type MessageBox = HealthMonitorMessageBox;
 
     fn name(&self) -> &str {

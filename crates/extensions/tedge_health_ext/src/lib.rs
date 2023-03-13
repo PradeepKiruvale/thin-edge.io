@@ -1,6 +1,6 @@
 mod actor;
+use actor::HealthMonitorActor;
 use actor::HealthMonitorMessageBox;
-use actor::TedgeHealthMonitorActor;
 use tedge_actors::futures::channel::mpsc;
 use tedge_actors::Builder;
 use tedge_actors::CombinedReceiver;
@@ -21,22 +21,22 @@ type HealthOutputMessage = MqttMessage;
 
 pub struct HealthMonitorBuilder {
     input_receiver: CombinedReceiver<HealthInputMessage>,
-    events_sender: mpsc::Sender<HealthInputMessage>,
-    mqtt_publisher: Option<DynSender<HealthOutputMessage>>,
+    input_sender: mpsc::Sender<HealthInputMessage>,
+    output_sender: Option<DynSender<HealthOutputMessage>>,
     signal_sender: mpsc::Sender<RuntimeRequest>,
     name: String,
 }
 
 impl HealthMonitorBuilder {
     pub fn new(name: String) -> Self {
-        let (events_sender, events_receiver) = mpsc::channel(10);
+        let (input_sender, events_receiver) = mpsc::channel(10);
         let (signal_sender, signal_receiver) = mpsc::channel(10);
         let input_receiver = CombinedReceiver::new(events_receiver, signal_receiver);
 
         Self {
             input_receiver,
-            events_sender,
-            mqtt_publisher: None,
+            input_sender,
+            output_sender: None,
             signal_sender,
             name,
         }
@@ -50,7 +50,7 @@ impl HealthMonitorBuilder {
         ]
         .try_into()?;
         //Register peers symmetrically here
-        mqtt.register_peer(subscriptions, self.events_sender.clone().into());
+        mqtt.register_peer(subscriptions, self.input_sender.clone().into());
         self.register_peer(NoConfig, mqtt.get_sender());
         Ok(())
     }
@@ -58,13 +58,13 @@ impl HealthMonitorBuilder {
 
 impl MessageSource<MqttMessage, NoConfig> for HealthMonitorBuilder {
     fn register_peer(&mut self, _config: NoConfig, sender: DynSender<MqttMessage>) {
-        self.mqtt_publisher = Some(sender);
+        self.output_sender = Some(sender);
     }
 }
 
 impl MessageSink<MqttMessage> for HealthMonitorBuilder {
     fn get_sender(&self) -> DynSender<MqttMessage> {
-        self.events_sender.clone().into()
+        self.input_sender.clone().into()
     }
 }
 
@@ -74,27 +74,21 @@ impl RuntimeRequestSink for HealthMonitorBuilder {
     }
 }
 
-impl Builder<(TedgeHealthMonitorActor, HealthMonitorMessageBox)> for HealthMonitorBuilder {
+impl Builder<(HealthMonitorActor, HealthMonitorMessageBox)> for HealthMonitorBuilder {
     type Error = LinkError;
 
-    fn try_build(self) -> Result<(TedgeHealthMonitorActor, HealthMonitorMessageBox), Self::Error> {
-        let mqtt_publisher = self.mqtt_publisher.ok_or_else(|| LinkError::MissingPeer {
+    fn try_build(self) -> Result<(HealthMonitorActor, HealthMonitorMessageBox), Self::Error> {
+        let mqtt_publisher = self.output_sender.ok_or_else(|| LinkError::MissingPeer {
             role: "mqtt".to_string(),
         })?;
 
         let message_box = HealthMonitorMessageBox::new(self.input_receiver, mqtt_publisher.clone());
 
-        let actor = TedgeHealthMonitorActor::new(self.name, mqtt_publisher);
+        let actor = HealthMonitorActor::new(self.name, mqtt_publisher);
 
         Ok((actor, message_box))
     }
 }
-
-// impl Default for HealthMonitorBuilder {
-//     fn default() -> Self {
-//         Self::new()
-//     }
-// }
 
 impl ServiceConsumer<MqttMessage, MqttMessage, TopicFilter> for HealthMonitorBuilder {
     fn get_config(&self) -> TopicFilter {
@@ -107,10 +101,10 @@ impl ServiceConsumer<MqttMessage, MqttMessage, TopicFilter> for HealthMonitorBui
     }
 
     fn set_request_sender(&mut self, request_sender: DynSender<MqttMessage>) {
-        self.mqtt_publisher = Some(request_sender)
+        self.output_sender = Some(request_sender)
     }
 
     fn get_response_sender(&self) -> DynSender<MqttMessage> {
-        self.events_sender.clone().into()
+        self.input_sender.clone().into()
     }
 }

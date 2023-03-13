@@ -57,5 +57,4 @@ pub enum LinkError {
 
     #[error(transparent)]
     MqttConnectionError(#[from] mqtt_channel::MqttError),
-
 }
