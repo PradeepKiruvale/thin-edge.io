@@ -17,16 +17,18 @@ type HealthOutputMessage = MqttMessage;
 pub struct TedgeHealthMonitorActor {
     health_check_topics: TopicFilter,
     mqtt_publisher: DynSender<MqttMessage>,
+    daemon_to_be_monitored: String,
 }
 
 impl TedgeHealthMonitorActor {
-    pub fn new(mqtt_publisher: DynSender<MqttMessage>) -> Self {
+    pub fn new(daemon_to_be_monitored: String, mqtt_publisher: DynSender<MqttMessage>) -> Self {
         let health_check_topics = vec!["tedge/health-check", "tedge/health-check/+"]
             .try_into()
             .unwrap();
         Self {
             health_check_topics,
             mqtt_publisher,
+            daemon_to_be_monitored,
         }
     }
 
@@ -37,33 +39,40 @@ impl TedgeHealthMonitorActor {
         if self.health_check_topics.accept(&message) {
             //Process the mqtt message and send the reply to the health check request message
             self.mqtt_publisher
-                .send(health_status_up_message("c8y-device-management"))
+                .send(health_status_up_message(&self.daemon_to_be_monitored))
                 .await?;
         }
         Ok(())
     }
+
+    pub async fn send_health_status(&mut self) -> Result<(), anyhow::Error> {
+        Ok(self
+            .mqtt_publisher
+            .send(health_status_up_message(&self.daemon_to_be_monitored))
+            .await?)
+    }
 }
 
 // FIXME: Consider to use a SimpleMessageBox<LogInput,MqttMessage>
-pub struct HealthManagerMessageBox {
+pub struct HealthMonitorMessageBox {
     input_receiver: CombinedReceiver<HealthInputMessage>,
     #[allow(dead_code)]
     mqtt_requests: DynSender<MqttMessage>,
 }
 
-impl HealthManagerMessageBox {
+impl HealthMonitorMessageBox {
     pub fn new(
         input_receiver: CombinedReceiver<HealthInputMessage>,
         mqtt_con: DynSender<MqttMessage>,
-    ) -> HealthManagerMessageBox {
-        HealthManagerMessageBox {
+    ) -> HealthMonitorMessageBox {
+        HealthMonitorMessageBox {
             input_receiver,
             mqtt_requests: mqtt_con,
         }
     }
 }
 
-impl MessageBox for HealthManagerMessageBox {
+impl MessageBox for HealthMonitorMessageBox {
     type Input = HealthInputMessage;
     type Output = HealthOutputMessage;
 
@@ -82,7 +91,7 @@ impl MessageBox for HealthManagerMessageBox {
 }
 
 #[async_trait]
-impl ReceiveMessages<HealthInputMessage> for HealthManagerMessageBox {
+impl ReceiveMessages<HealthInputMessage> for HealthMonitorMessageBox {
     async fn try_recv(&mut self) -> Result<Option<HealthOutputMessage>, RuntimeRequest> {
         self.input_receiver.try_recv().await
     }
@@ -101,15 +110,15 @@ impl ReceiveMessages<HealthInputMessage> for HealthManagerMessageBox {
 
 #[async_trait]
 impl Actor for TedgeHealthMonitorActor {
-    type MessageBox = HealthManagerMessageBox;
+    type MessageBox = HealthMonitorMessageBox;
 
     fn name(&self) -> &str {
         "HealthMonitorActor"
     }
 
     async fn run(mut self, mut messages: Self::MessageBox) -> Result<(), RuntimeError> {
-        while let Some(event) = messages.recv().await {
-            let message = event;
+        self.send_health_status().await.unwrap();
+        while let Some(message) = messages.recv().await {
             {
                 self.process_mqtt_message(message).await.unwrap();
             }
