@@ -48,8 +48,7 @@ impl HealthMonitorBuilder {
             "tedge/health-check",
             "tedge/health-check/c8y-device-management",
         ]
-        .try_into()
-        .unwrap();
+        .try_into()?;
         //Register peers symmetrically here
         mqtt.register_peer(subscriptions, self.events_sender.clone().into());
         self.register_peer(NoConfig, mqtt.get_sender());

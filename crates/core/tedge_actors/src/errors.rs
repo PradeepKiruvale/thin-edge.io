@@ -32,6 +32,9 @@ pub enum RuntimeError {
 
     #[error(transparent)]
     LinkError(#[from] LinkError),
+
+    #[error(transparent)]
+    HealthMonitorError(#[from] anyhow::Error),
 }
 
 impl<T> From<Box<T>> for RuntimeError
@@ -44,11 +47,15 @@ where
 }
 
 /// Error raised while connecting actor instances
-#[derive(Error, Debug, Clone, PartialEq, Eq)]
+#[derive(Error, Debug)]
 pub enum LinkError {
     #[error("Missing peer for {role}")]
     MissingPeer { role: String },
 
     #[error("Extra peer for {role}")]
     ExcessPeer { role: String },
+
+    #[error(transparent)]
+    MqttConnectionError(#[from] mqtt_channel::MqttError),
+
 }

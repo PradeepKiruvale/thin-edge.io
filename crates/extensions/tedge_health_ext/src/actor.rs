@@ -25,7 +25,7 @@ impl TedgeHealthMonitorActor {
     pub fn new(daemon_to_be_monitored: String, mqtt_publisher: DynSender<MqttMessage>) -> Self {
         let health_check_topics = vec!["tedge/health-check", "tedge/health-check/+"]
             .try_into()
-            .unwrap();
+            .expect("Failed to create the TedageHealthMonitorActor");
         Self {
             health_check_topics,
             mqtt_publisher,
@@ -61,7 +61,6 @@ impl TedgeHealthMonitorActor {
     }
 }
 
-// FIXME: Consider to use a SimpleMessageBox<LogInput,MqttMessage>
 pub struct HealthMonitorMessageBox {
     input_receiver: CombinedReceiver<HealthInputMessage>,
     #[allow(dead_code)]
@@ -125,13 +124,13 @@ impl Actor for TedgeHealthMonitorActor {
     }
 
     async fn run(mut self, mut messages: Self::MessageBox) -> Result<(), RuntimeError> {
-        self.send_up_health_status().await.unwrap();
+        self.send_up_health_status().await?;
         while let Some(message) = messages.recv().await {
             {
-                self.process_mqtt_message(message).await.unwrap();
+                self.process_mqtt_message(message).await?;
             }
         }
-        self.send_down_health_status().await.unwrap();
+        self.send_down_health_status().await?;
         Ok(())
     }
 }
