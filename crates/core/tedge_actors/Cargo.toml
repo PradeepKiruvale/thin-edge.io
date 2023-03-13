@@ -14,7 +14,7 @@ anyhow = "1.0.69"
 async-trait = "0.1"
 futures = { version = "0.3" }
 log = "0.4"
-mqtt_channel = {path = "../../common/mqtt_channel"}
+mqtt_channel = { path = "../../common/mqtt_channel" }
 thiserror = "1.0"
 tokio = { version = "1.23", default_features = false, features = [
     "sync",
