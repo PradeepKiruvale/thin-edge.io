@@ -7,6 +7,7 @@ use tedge_actors::ReceiveMessages;
 use tedge_actors::RuntimeError;
 use tedge_actors::RuntimeRequest;
 use tedge_actors::WrappedInput;
+use tedge_api::health::health_status_down_message;
 use tedge_api::health::health_status_up_message;
 use tedge_mqtt_ext::MqttMessage;
 use tedge_mqtt_ext::TopicFilter;
@@ -45,10 +46,17 @@ impl TedgeHealthMonitorActor {
         Ok(())
     }
 
-    pub async fn send_health_status(&mut self) -> Result<(), anyhow::Error> {
+    pub async fn send_up_health_status(&mut self) -> Result<(), anyhow::Error> {
         Ok(self
             .mqtt_publisher
             .send(health_status_up_message(&self.daemon_to_be_monitored))
+            .await?)
+    }
+
+    pub async fn send_down_health_status(&mut self) -> Result<(), anyhow::Error> {
+        Ok(self
+            .mqtt_publisher
+            .send(health_status_down_message(&self.daemon_to_be_monitored))
             .await?)
     }
 }
@@ -117,12 +125,13 @@ impl Actor for TedgeHealthMonitorActor {
     }
 
     async fn run(mut self, mut messages: Self::MessageBox) -> Result<(), RuntimeError> {
-        self.send_health_status().await.unwrap();
+        self.send_up_health_status().await.unwrap();
         while let Some(message) = messages.recv().await {
             {
                 self.process_mqtt_message(message).await.unwrap();
             }
         }
+        self.send_down_health_status().await.unwrap();
         Ok(())
     }
 }
