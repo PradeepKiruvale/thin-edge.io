@@ -130,11 +130,11 @@ pub trait ServiceConsumer<Request: Message, Response: Message, Config> {
 
 /// A builder of SimpleMessageBox
 pub struct SimpleMessageBoxBuilder<I, O> {
-    pub name: String,
-    pub input_sender: mpsc::Sender<I>,
+    name: String,
+    input_sender: mpsc::Sender<I>,
     signal_sender: mpsc::Sender<RuntimeRequest>,
-    pub output_sender: DynSender<O>,
-    pub input_receiver: CombinedReceiver<I>,
+    output_sender: DynSender<O>,
+    input_receiver: CombinedReceiver<I>,
 }
 
 impl<I: Message, O: Message> SimpleMessageBoxBuilder<I, O> {

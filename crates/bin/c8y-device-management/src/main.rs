@@ -75,9 +75,7 @@ async fn main() -> anyhow::Result<()> {
     log_actor.with_mqtt_connection(&mut mqtt_actor)?;
 
     //Instantiate health monitor actor
-    let mut health_actor = HealthMonitorBuilder::new(PLUGIN_NAME);
-    health_actor.set_connection(&mut mqtt_actor);
-    // health_actor.with_mqtt_connection(&mut mqtt_actor)?;
+    let health_actor = HealthMonitorBuilder::new(PLUGIN_NAME).with_connection(&mut mqtt_actor);
 
     // Shutdown on SIGINT
     signal_actor.register_peer(NoConfig, runtime.get_handle().get_sender());
