@@ -12,10 +12,7 @@ use tedge_actors::SimpleMessageBoxBuilder;
 use tedge_mqtt_ext::MqttMessage;
 use tedge_mqtt_ext::TopicFilter;
 
-type HealthInputMessage = MqttMessage;
-type HealthOutputMessage = MqttMessage;
-
-type HealthMonitorMessageBox = SimpleMessageBox<HealthInputMessage, HealthOutputMessage>;
+type HealthMonitorMessageBox = SimpleMessageBox<MqttMessage, MqttMessage>;
 
 pub struct HealthMonitorBuilder {
     service_name: String,
