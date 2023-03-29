@@ -80,9 +80,12 @@ reqwest = { version = "0.11", default-features = false, features = [
 ] }
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
+tedge_actors = { path = "../../core/tedge_actors" }
 tedge_api = { path = "../tedge_api" }
 tedge_config = { path = "../../common/tedge_config" }
-tedge_mapper_core =  { path = "../../extensions/tedge_mapper_core" }
+tedge_health_ext = { path = "../../extensions/tedge_health_ext" }
+tedge_mqtt_ext = { path = "../../extensions/tedge_mqtt_ext" }
+tedge_signal_ext = { path = "../../extensions/tedge_signal_ext" }
 tedge_utils = { path = "../../common/tedge_utils", features = [
     "logging",
     "fs-notify",

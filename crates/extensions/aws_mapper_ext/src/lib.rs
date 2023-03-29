@@ -1,6 +1,4 @@
 mod actor;
-mod converter;
-pub mod mapper;
 
 use actor::AwsMapperActor;
 use tedge_actors::Builder;

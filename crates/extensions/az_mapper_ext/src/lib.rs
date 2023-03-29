@@ -1,7 +1,4 @@
 mod actor;
-mod converter;
-pub mod mapper;
-
 use actor::AzMapperActor;
 use tedge_actors::Builder;
 use tedge_actors::DynSender;

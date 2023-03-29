@@ -21,7 +21,6 @@ tedge_actors = { path = "../../core/tedge_actors" }
 tedge_api = { path = "../../core/tedge_api" }
 tedge_config = { path = "../../common/tedge_config" }
 tedge_health_ext = { path = "../../extensions/tedge_health_ext" }
-tedge_mapper_core = { path = "../tedge_mapper_core" }
 tedge_mqtt_ext = { path = "../../extensions/tedge_mqtt_ext" }
 tedge_signal_ext = { path = "../../extensions/tedge_signal_ext" }
 tedge_utils = { path = "../../common/tedge_utils" }
@@ -35,15 +34,8 @@ tracing = { version = "0.1", features = ["attributes", "log"] }
 anyhow = "1.0.6"
 assert-json-diff = "2.0"
 assert_matches = "1.5"
-mockito = "0.31"
-mqtt_tests = { path = "../../tests/mqtt_tests" }
-proptest = "1.0"
 rand = "0.8"
 serde = "1.0"
 serde_json = "1.0"
-serial_test = "0.8"
-tedge_test_utils = { path = "../../tests/tedge_test_utils" }
-test-case = "2.2"
 time = { version = "0.3", features = ["macros"] }
 tokio = { version = "1.23", features = ["time"] }
-tokio-test = "0.4"

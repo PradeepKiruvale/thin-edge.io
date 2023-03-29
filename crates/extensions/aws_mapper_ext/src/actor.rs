@@ -4,10 +4,7 @@ use tedge_actors::Actor;
 use tedge_actors::MessageReceiver;
 use tedge_actors::RuntimeError;
 use tedge_actors::SimpleMessageBox;
-use tedge_mapper_core::size_threshold::SizeThreshold;
 use tedge_mqtt_ext::MqttMessage;
-
-use crate::converter::AwsConverter;
 
 pub struct AwsMapperActor {
     add_time_stamp: bool,

@@ -5,7 +5,17 @@ use crate::c8y::mapper::CumulocityMapper;
 use crate::collectd::mapper::CollectdMapper;
 use aws_mapper_ext::mapper::AwsMapper;
 use az_mapper_ext::mapper::AzureMapper;
+use az_mapper_ext::AzureMapperBuilder;
+use tedge_actors::builders::ServiceConsumer;
+use tedge_actors::MessageSink;
+use tedge_actors::MessageSource;
+use tedge_actors::NoConfig;
+use tedge_actors::Runtime;
+use tedge_health_ext::HealthMonitorBuilder;
 use tedge_mapper_core::component::TEdgeComponent;
+use tedge_mqtt_ext::MqttActorBuilder;
+use tedge_mqtt_ext::MqttConfig;
+use tedge_signal_ext::SignalActor;
 
 use clap::Parser;
 use flockfile::check_another_instance_is_not_running;
@@ -109,11 +119,51 @@ async fn main() -> anyhow::Result<()> {
         )?);
     }
 
+    let mut mqtt_actor = get_mqtt_actor(component.session_name(), &config).await?;
+    let runtime_events_logger = None;
+    let mut runtime = Runtime::try_new(runtime_events_logger).await?;
+    let mut signal_actor = SignalActor::builder();
     if mapper_opt.init {
         component.init(&mapper_opt.config_dir).await
     } else if mapper_opt.clear {
         component.clear_session().await
+    } else if component.session_name().eq("tedge-mapper-az") {
+        let add_timestamp = config.query(AzureMapperTimestamp)?.is_set();
+        let azure_actor = AzureMapperBuilder::new(component.session_name(), add_timestamp);
+        let azure_actor = azure_actor.with_connection(&mut mqtt_actor);
+
+        //Instantiate health monitor actor
+        let health_actor = HealthMonitorBuilder::new(component.session_name());
+        mqtt_actor.mqtt_config = health_actor.set_init_and_last_will(mqtt_actor.mqtt_config);
+        let health_actor = health_actor.with_connection(&mut mqtt_actor);
+
+        // Shutdown on SIGINT
+        signal_actor.register_peer(NoConfig, runtime.get_handle().get_sender());
+
+        runtime.spawn(signal_actor).await?;
+        runtime.spawn(mqtt_actor).await?;
+        runtime.spawn(azure_actor).await?;
+        runtime.spawn(health_actor).await?;
+
+        runtime.run_to_completion().await?;
+        Ok(())
     } else {
         component.start(config, &mapper_opt.config_dir).await
     }
+}
+
+async fn get_mqtt_actor(
+    session_name: &str,
+    tedge_config: &TEdgeConfig,
+) -> Result<MqttActorBuilder, anyhow::Error> {
+    let mqtt_port = tedge_config.query(MqttClientPortSetting)?.into();
+    let mqtt_host = tedge_config.query(MqttClientHostSetting)?;
+
+    let mqtt_config = MqttConfig::default()
+        .with_host(mqtt_host)
+        .with_port(mqtt_port);
+
+    Ok(MqttActorBuilder::new(
+        mqtt_config.with_session_name(session_name),
+    ))
 }
