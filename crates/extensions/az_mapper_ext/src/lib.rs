@@ -11,12 +11,9 @@ use tedge_actors::MessageSource;
 use tedge_actors::RuntimeRequest;
 use tedge_actors::RuntimeRequestSink;
 use tedge_actors::ServiceConsumer;
-use tedge_actors::SimpleMessageBox;
 use tedge_actors::SimpleMessageBoxBuilder;
 use tedge_mqtt_ext::MqttMessage;
 use tedge_mqtt_ext::TopicFilter;
-
-type AzureMapperMessageBox = SimpleMessageBox<MqttMessage, MqttMessage>;
 
 pub struct AzureMapperBuilder {
     subscriptions: TopicFilter,
@@ -61,14 +58,12 @@ impl ServiceConsumer<MqttMessage, MqttMessage, TopicFilter> for AzureMapperBuild
     }
 }
 
-impl Builder<(AzMapperActor, AzureMapperMessageBox)> for AzureMapperBuilder {
+impl Builder<AzMapperActor> for AzureMapperBuilder {
     type Error = LinkError;
 
-    fn try_build(self) -> Result<(AzMapperActor, AzureMapperMessageBox), tedge_actors::LinkError> {
-        let message_box = self.box_builder.build();
+    fn try_build(self) -> Result<AzMapperActor, tedge_actors::LinkError> {
+        let actor = AzMapperActor::new(self.add_time_stamp, self.box_builder.build());
 
-        let actor = AzMapperActor::new(self.add_time_stamp);
-
-        Ok((actor, message_box))
+        Ok(actor)
     }
 }
