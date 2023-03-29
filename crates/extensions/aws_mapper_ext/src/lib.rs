@@ -11,12 +11,9 @@ use tedge_actors::MessageSource;
 use tedge_actors::RuntimeRequest;
 use tedge_actors::RuntimeRequestSink;
 use tedge_actors::ServiceConsumer;
-use tedge_actors::SimpleMessageBox;
 use tedge_actors::SimpleMessageBoxBuilder;
 use tedge_mqtt_ext::MqttMessage;
 use tedge_mqtt_ext::TopicFilter;
-
-type AwsMapperMessageBox = SimpleMessageBox<MqttMessage, MqttMessage>;
 
 pub struct AwsMapperBuilder {
     subscriptions: TopicFilter,
@@ -61,14 +58,14 @@ impl ServiceConsumer<MqttMessage, MqttMessage, TopicFilter> for AwsMapperBuilder
     }
 }
 
-impl Builder<(AwsMapperActor, AwsMapperMessageBox)> for AwsMapperBuilder {
+impl Builder<AwsMapperActor> for AwsMapperBuilder {
     type Error = LinkError;
 
-    fn try_build(self) -> Result<(AwsMapperActor, AwsMapperMessageBox), tedge_actors::LinkError> {
+    fn try_build(self) -> Result<AwsMapperActor, tedge_actors::LinkError> {
         let message_box = self.box_builder.build();
 
-        let actor = AwsMapperActor::new(self.add_time_stamp);
+        let actor = AwsMapperActor::new(self.add_time_stamp, message_box);
 
-        Ok((actor, message_box))
+        Ok(actor)
     }
 }
