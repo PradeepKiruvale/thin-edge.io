@@ -71,7 +71,6 @@ flockfile = { path = "../../common/flockfile" }
 futures = "0.3"
 json-writer = { path = "../../common/json_writer" }
 logged_command = { path = "../../common/logged_command" }
-mapper_utils = { path = "../../common/mapper_utils" }
 mockall = "0.11"
 mqtt_channel = { path = "../../common/mqtt_channel" }
 plugin_sm = { path = "../plugin_sm" }

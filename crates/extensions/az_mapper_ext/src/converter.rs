@@ -1,7 +1,7 @@
-use mapper_utils::error::*;
-use mapper_utils::size_threshold::SizeThreshold;
-
+use crate::error::ConversionError;
+use crate::size_threshold::SizeThreshold;
 use clock::Clock;
+use clock::WallClock;
 use tedge_actors::Converter;
 use tedge_api::serialize::ThinEdgeJsonSerializer;
 use tedge_mqtt_ext::MqttMessage;
@@ -23,12 +23,14 @@ pub struct AzureConverter {
 }
 
 impl AzureConverter {
-    pub fn new(add_timestamp: bool, clock: Box<dyn Clock>, size_threshold: SizeThreshold) -> Self {
+    pub fn new(add_timestamp: bool) -> Self {
         let mapper_config = MapperConfig {
             in_topic_filter: Self::in_topic_filter(),
             out_topic: make_valid_topic_or_panic("az/messages/events/"),
             errors_topic: make_valid_topic_or_panic("tedge/errors"),
         };
+        let clock = Box::new(WallClock);
+        let size_threshold = SizeThreshold(1024 * 128);
         AzureConverter {
             add_timestamp,
             clock,
@@ -70,8 +72,6 @@ impl Converter for AzureConverter {
 mod tests {
     use crate::converter::AzureConverter;
     use crate::converter::*;
-    use crate::error::ConversionError;
-    use crate::size_threshold::SizeThreshold;
 
     use assert_json_diff::*;
     use assert_matches::*;
@@ -91,8 +91,7 @@ mod tests {
 
     #[test]
     fn converting_invalid_json_is_invalid() {
-        let mut converter =
-            AzureConverter::new(false, Box::new(TestClock), SizeThreshold(255 * 1024));
+        let mut converter = AzureConverter::new(false);
 
         let input = "This is not Thin Edge JSON";
         let result = converter.convert(&new_tedge_message(input));
@@ -111,8 +110,7 @@ mod tests {
     #[test]
     fn converting_input_without_timestamp_produces_output_without_timestamp_given_add_timestamp_is_false(
     ) {
-        let mut converter =
-            AzureConverter::new(false, Box::new(TestClock), SizeThreshold(255 * 1024));
+        let mut converter = AzureConverter::new(false);
 
         let input = r#"{
             "temperature": 23.0
@@ -134,8 +132,7 @@ mod tests {
     #[test]
     fn converting_input_with_timestamp_produces_output_with_timestamp_given_add_timestamp_is_false()
     {
-        let mut converter =
-            AzureConverter::new(false, Box::new(TestClock), SizeThreshold(255 * 1024));
+        let mut converter = AzureConverter::new(false);
 
         let input = r#"{
             "time" : "2013-06-22T17:03:14.000+02:00",
@@ -159,8 +156,7 @@ mod tests {
     #[test]
     fn converting_input_with_timestamp_produces_output_with_timestamp_given_add_timestamp_is_true()
     {
-        let mut converter =
-            AzureConverter::new(true, Box::new(TestClock), SizeThreshold(255 * 1024));
+        let mut converter = AzureConverter::new(true);
 
         let input = r#"{
             "time" : "2013-06-22T17:03:14.000+02:00",
@@ -184,8 +180,7 @@ mod tests {
     #[test]
     fn converting_input_without_timestamp_produces_output_with_timestamp_given_add_timestamp_is_true(
     ) {
-        let mut converter =
-            AzureConverter::new(true, Box::new(TestClock), SizeThreshold(255 * 1024));
+        let mut converter = AzureConverter::new(true);
 
         let input = r#"{
             "temperature": 23.0
@@ -207,7 +202,7 @@ mod tests {
 
     #[test]
     fn exceeding_threshold_returns_error() {
-        let mut converter = AzureConverter::new(false, Box::new(TestClock), SizeThreshold(1));
+        let mut converter = AzureConverter::new(false);
 
         let _topic = "tedge/measurements".to_string();
         let input = "ABC";

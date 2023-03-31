@@ -1,9 +1,16 @@
 use std::path::Path;
 
 use crate::core::component::TEdgeComponent;
+use crate::core::mapper::start_basic_actors;
 use aws_mapper_ext::converter::AwsConverter;
 
 use async_trait::async_trait;
+use tedge_actors::ConvertingActor;
+use tedge_actors::MessageSink;
+use tedge_actors::MessageSource;
+use tedge_actors::NoConfig;
+use tedge_config::AwsMapperTimestamp;
+use tedge_config::ConfigSettingAccessor;
 use tedge_config::TEdgeConfig;
 use tracing::info;
 
@@ -26,9 +33,23 @@ impl TEdgeComponent for AwsMapper {
 
     async fn start(
         &self,
-        _tedge_config: TEdgeConfig,
+        tedge_config: TEdgeConfig,
         _config_dir: &Path,
     ) -> Result<(), anyhow::Error> {
-        panic!("This method should no more be used");
+        let (mut runtime, mut mqtt_actor) =
+            start_basic_actors(self.session_name(), &tedge_config).await?;
+
+        let aws_converter = AwsConverter::new(tedge_config.query(AwsMapperTimestamp)?.is_set());
+        let mut aws_converting_actor = ConvertingActor::builder("AwsConverter", aws_converter);
+        mqtt_actor.register_peer(
+            AwsConverter::in_topic_filter(),
+            aws_converting_actor.get_sender(),
+        );
+        aws_converting_actor.register_peer(NoConfig, mqtt_actor.get_sender());
+
+        runtime.spawn(aws_converting_actor).await?;
+        runtime.spawn(mqtt_actor).await?;
+        runtime.run_to_completion().await?;
+        Ok(())
     }
 }

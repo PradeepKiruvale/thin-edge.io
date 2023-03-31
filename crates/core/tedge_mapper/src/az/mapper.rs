@@ -1,9 +1,15 @@
 use std::path::Path;
 
 use crate::core::component::TEdgeComponent;
+use crate::core::mapper::start_basic_actors;
 use async_trait::async_trait;
 use az_mapper_ext::converter::AzureConverter;
+use tedge_actors::ConvertingActor;
+use tedge_actors::MessageSink;
+use tedge_actors::MessageSource;
+use tedge_actors::NoConfig;
 use tedge_config::TEdgeConfig;
+use tedge_config::*;
 use tedge_utils::file::create_directory_with_user_group;
 use tracing::info;
 
@@ -38,9 +44,23 @@ impl TEdgeComponent for AzureMapper {
 
     async fn start(
         &self,
-        _tedge_config: TEdgeConfig,
+        tedge_config: TEdgeConfig,
         _config_dir: &Path,
     ) -> Result<(), anyhow::Error> {
-        panic!("This method should no more be used");
+        let (mut runtime, mut mqtt_actor) =
+            start_basic_actors(self.session_name(), &tedge_config).await?;
+
+        let az_converter = AzureConverter::new(tedge_config.query(AzureMapperTimestamp)?.is_set());
+        let mut az_converting_actor = ConvertingActor::builder("AzConverter", az_converter);
+        mqtt_actor.register_peer(
+            AzureConverter::in_topic_filter(),
+            az_converting_actor.get_sender(),
+        );
+        az_converting_actor.register_peer(NoConfig, mqtt_actor.get_sender());
+
+        runtime.spawn(az_converting_actor).await?;
+        runtime.spawn(mqtt_actor).await?;
+        runtime.run_to_completion().await?;
+        Ok(())
     }
 }

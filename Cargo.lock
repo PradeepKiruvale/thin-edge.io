@@ -269,7 +269,6 @@ dependencies = [
  "async-trait",
  "clock",
  "log",
- "mapper_utils",
  "rand",
  "serde",
  "serde_json",
@@ -294,7 +293,6 @@ dependencies = [
  "async-trait",
  "clock",
  "log",
- "mapper_utils",
  "rand",
  "serde",
  "serde_json",
@@ -1921,30 +1919,6 @@ name = "maplit"
 version = "1.0.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "3e2e65a1a2e43cfcb47a895c4c8b10d1f4a61097f9f254f183aee60cad9c651d"
-
-[[package]]
-name = "mapper_utils"
-version = "0.10.0"
-dependencies = [
- "assert-json-diff",
- "assert_matches",
- "async-trait",
- "clock",
- "log",
- "rand",
- "serde",
- "serde_json",
- "tedge_actors",
- "tedge_api",
- "tedge_config",
- "tedge_mqtt_ext",
- "tedge_utils",
- "thiserror",
- "time",
- "tokio",
- "toml",
- "tracing",
-]
 
 [[package]]
 name = "memchr"
@@ -3629,7 +3603,6 @@ dependencies = [
  "futures",
  "json-writer",
  "logged_command",
- "mapper_utils",
  "mockall",
  "mockito",
  "mqtt_channel",
