@@ -1,5 +1,9 @@
 mod actor;
+mod converter;
+
 use actor::AzMapperActor;
+use tedge_actors::test_helpers::MessageReceiverExt;
+use tedge_actors::test_helpers::TimedMessageBox;
 use tedge_actors::Builder;
 use tedge_actors::DynSender;
 use tedge_actors::LinkError;
@@ -11,6 +15,7 @@ use tedge_actors::ServiceConsumer;
 use tedge_actors::SimpleMessageBoxBuilder;
 use tedge_mqtt_ext::MqttMessage;
 use tedge_mqtt_ext::TopicFilter;
+use tokio::time::Duration;
 
 pub struct AzureMapperBuilder {
     subscriptions: TopicFilter,

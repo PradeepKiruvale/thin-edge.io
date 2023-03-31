@@ -5,6 +5,7 @@ use tedge_actors::MessageReceiver;
 use tedge_actors::RuntimeError;
 use tedge_actors::SimpleMessageBox;
 use tedge_mqtt_ext::MqttMessage;
+use tedge_actors::Sender;
 
 pub struct AzMapperActor {
     add_time_stamp: bool,
@@ -30,20 +31,9 @@ impl Actor for AzMapperActor {
     }
 
     async fn run(mut self) -> Result<(), RuntimeError> {
-        let clock = Box::new(WallClock);
-        let size_threshold = SizeThreshold(255 * 1024);
-        let mut converter = Box::new(AzureConverter::new(
-            self.add_time_stamp,
-            clock,
-            size_threshold,
-        ));
-
         while let Some(message) = self.message_box.recv().await {
             {
-                let converted_messages = converter.convert(&message).await;
-                for converted_message in converted_messages.into_iter() {
-                    let _ = self.message_box.send(converted_message).await;
-                }
+                let _ = self.message_box.send(message).await;
             }
         }
 

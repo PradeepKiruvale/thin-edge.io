@@ -1,10 +1,13 @@
 use std::fmt;
 use std::path::PathBuf;
 mod core;
+use crate::core::size_threshold::SizeThreshold;
+use clock::WallClock;
 use crate::c8y::mapper::CumulocityMapper;
 use crate::collectd::mapper::CollectdMapper;
-use aws_mapper_ext::mapper::AwsMapper;
-use az_mapper_ext::mapper::AzureMapper;
+//use aws_mapper_ext::mapper::AwsMapper;
+use tedge_actors::ConvertingActor;
+use crate::az::AzureMapper;
 use az_mapper_ext::AzureMapperBuilder;
 use tedge_actors::builders::ServiceConsumer;
 use tedge_actors::MessageSink;
@@ -12,10 +15,12 @@ use tedge_actors::MessageSource;
 use tedge_actors::NoConfig;
 use tedge_actors::Runtime;
 use tedge_health_ext::HealthMonitorBuilder;
-use tedge_mapper_core::component::TEdgeComponent;
+use crate::core::component::TEdgeComponent;
 use tedge_mqtt_ext::MqttActorBuilder;
 use tedge_mqtt_ext::MqttConfig;
 use tedge_signal_ext::SignalActor;
+use az_mapper_ext::AzureConverter;
+
 
 use clap::Parser;
 use flockfile::check_another_instance_is_not_running;
@@ -30,7 +35,7 @@ mod collectd;
 fn lookup_component(component_name: &MapperName) -> Box<dyn TEdgeComponent> {
     match component_name {
         MapperName::Az => Box::new(AzureMapper::new()),
-        MapperName::Aws => Box::new(AwsMapper::new()),
+        MapperName::Aws => {},//Box::new(AwsMapper::new()),
         MapperName::Collectd => Box::new(CollectdMapper::new()),
         MapperName::C8y => Box::new(CumulocityMapper::new()),
     }
@@ -128,9 +133,20 @@ async fn main() -> anyhow::Result<()> {
     } else if mapper_opt.clear {
         component.clear_session().await
     } else if component.session_name().eq("tedge-mapper-az") {
+
         let add_timestamp = config.query(AzureMapperTimestamp)?.is_set();
+        let clock = Box::new(WallClock);
+        let size_threshold = SizeThreshold(255 * 1024);
+        let mut converter = AzureConverter::new(
+            add_time_stamp,
+            clock,
+            size_threshold,
+        );
+
+        let mut converting_actor = ConvertingActor::builder("AzConverter", converter);
+
         let azure_actor = AzureMapperBuilder::new(component.session_name(), add_timestamp);
-        let azure_actor = azure_actor.with_connection(&mut mqtt_actor);
+        let azure_actor = azure_actor.with_connection(&mut mqtt_actor).with_connection(converting_actor);
 
         //Instantiate health monitor actor
         let health_actor = HealthMonitorBuilder::new(component.session_name());
