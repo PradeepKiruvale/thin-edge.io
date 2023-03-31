@@ -1,35 +1,27 @@
-use crate::core::converter::*;
-use crate::core::error::*;
-use crate::core::size_threshold::SizeThreshold;
+use mapper_utils::error::ConversionError;
+use mapper_utils::size_threshold::SizeThreshold;
 
-use async_trait::async_trait;
 use clock::Clock;
-use mqtt_channel::Message;
-use mqtt_channel::Topic;
-use mqtt_channel::TopicFilter;
 use serde_json::Map;
 use serde_json::Value;
+use tedge_actors::Converter;
 use tedge_api::serialize::ThinEdgeJsonSerializer;
+use tedge_mqtt_ext::MqttMessage;
+use tedge_mqtt_ext::Topic;
+use tedge_mqtt_ext::TopicFilter;
 
 pub struct AwsConverter {
     pub(crate) add_timestamp: bool,
     pub(crate) clock: Box<dyn Clock>,
     pub(crate) size_threshold: SizeThreshold,
-    pub(crate) mapper_config: MapperConfig,
 }
 
 impl AwsConverter {
     pub fn new(add_timestamp: bool, clock: Box<dyn Clock>, size_threshold: SizeThreshold) -> Self {
-        let mapper_config = MapperConfig {
-            in_topic_filter: Self::in_topic_filter(),
-            out_topic: make_valid_topic_or_panic("aws/td/measurements"),
-            errors_topic: make_valid_topic_or_panic("tedge/errors"),
-        };
         AwsConverter {
             add_timestamp,
             clock,
             size_threshold,
-            mapper_config,
         }
     }
 
@@ -49,15 +41,16 @@ impl AwsConverter {
     }
 }
 
-#[async_trait]
+pub fn make_valid_topic_or_panic(topic_name: &str) -> Topic {
+    Topic::new(topic_name).expect("Invalid topic name")
+}
+
 impl Converter for AwsConverter {
     type Error = ConversionError;
+    type Input = MqttMessage;
+    type Output = MqttMessage;
 
-    fn get_mapper_config(&self) -> &MapperConfig {
-        &self.mapper_config
-    }
-
-    async fn try_convert(&mut self, input: &Message) -> Result<Vec<Message>, Self::Error> {
+    fn convert(&mut self, input: &Self::Input) -> Result<Vec<Self::Output>, Self::Error> {
         let default_timestamp = self.add_timestamp.then(|| self.clock.now());
 
         // serialize with ThinEdgeJson for measurements, for alarms and events just add the timestamp
@@ -71,7 +64,7 @@ impl Converter for AwsConverter {
             || input.topic.name.starts_with("tedge/health")
         {
             let mut payload_json: Map<String, Value> =
-                serde_json::from_slice(input.payload.as_ref())?;
+                serde_json::from_slice(&input.payload.as_bytes())?;
 
             if let Some(timestamp) = default_timestamp {
                 let timestamp = timestamp
@@ -93,7 +86,7 @@ impl Converter for AwsConverter {
 
         let out_topic = Topic::new(&format!("aws/td/{topic_suffix}"))?;
 
-        let output = Message::new(&out_topic, payload);
+        let output = MqttMessage::new(&out_topic, payload);
         self.size_threshold.validate(&output)?;
         Ok(vec![(output)])
     }
@@ -101,17 +94,17 @@ impl Converter for AwsConverter {
 
 #[cfg(test)]
 mod tests {
-    use crate::aws::converter::AwsConverter;
-    use crate::core::converter::*;
-    use crate::core::error::ConversionError;
-    use crate::core::size_threshold::SizeThreshold;
+    use crate::converter::AwsConverter;
+    use crate::converter::*;
+    use crate::error::ConversionError;
+    use crate::size_threshold::SizeThreshold;
 
     use assert_json_diff::*;
     use assert_matches::*;
     use clock::Clock;
-    use mqtt_channel::Message;
-    use mqtt_channel::Topic;
     use serde_json::json;
+    use tedge_mqtt_ext::MqttMessage;
+    use tedge_mqtt_ext::Topic;
     use time::macros::datetime;
 
     struct TestClock;
@@ -122,27 +115,27 @@ mod tests {
         }
     }
 
-    #[tokio::test]
-    async fn converting_invalid_json_is_invalid() {
+    #[test]
+    fn converting_invalid_json_is_invalid() {
         let mut converter =
             AwsConverter::new(false, Box::new(TestClock), SizeThreshold(128 * 1024));
 
         let input = "This is not Thin Edge JSON";
-        let result = converter.try_convert(&new_tedge_message(input)).await;
+        let result = converter.convert(&new_tedge_message(input));
 
         assert_matches!(result, Err(ConversionError::FromThinEdgeJsonParser(_)))
     }
 
-    fn new_tedge_message(input: &str) -> Message {
-        Message::new(&Topic::new_unchecked("tedge/measurements"), input)
+    fn new_tedge_message(input: &str) -> MqttMessage {
+        MqttMessage::new(&Topic::new_unchecked("tedge/measurements"), input)
     }
 
-    fn extract_first_message_payload(mut messages: Vec<Message>) -> String {
+    fn extract_first_message_payload(mut messages: Vec<MqttMessage>) -> String {
         messages.pop().unwrap().payload_str().unwrap().to_string()
     }
 
-    #[tokio::test]
-    async fn converting_input_without_timestamp_produces_output_without_timestamp_given_add_timestamp_is_false(
+    #[test]
+    fn converting_input_without_timestamp_produces_output_without_timestamp_given_add_timestamp_is_false(
     ) {
         let mut converter =
             AwsConverter::new(false, Box::new(TestClock), SizeThreshold(128 * 1024));
@@ -155,7 +148,7 @@ mod tests {
             "temperature": 23.0
         });
 
-        let output = converter.convert(&new_tedge_message(input)).await;
+        let output = converter.convert(&new_tedge_message(input)).unwrap();
 
         assert_json_eq!(
             serde_json::from_str::<serde_json::Value>(&extract_first_message_payload(output))
@@ -164,9 +157,9 @@ mod tests {
         );
     }
 
-    #[tokio::test]
-    async fn converting_input_with_timestamp_produces_output_with_timestamp_given_add_timestamp_is_false(
-    ) {
+    #[test]
+    fn converting_input_with_timestamp_produces_output_with_timestamp_given_add_timestamp_is_false()
+    {
         let mut converter =
             AwsConverter::new(false, Box::new(TestClock), SizeThreshold(128 * 1024));
 
@@ -180,7 +173,7 @@ mod tests {
             "temperature": 23.0
         });
 
-        let output = converter.convert(&new_tedge_message(input)).await;
+        let output = converter.convert(&new_tedge_message(input)).unwrap();
 
         assert_json_eq!(
             serde_json::from_str::<serde_json::Value>(&extract_first_message_payload(output))
@@ -189,9 +182,9 @@ mod tests {
         );
     }
 
-    #[tokio::test]
-    async fn converting_input_with_timestamp_produces_output_with_timestamp_given_add_timestamp_is_true(
-    ) {
+    #[test]
+    fn converting_input_with_timestamp_produces_output_with_timestamp_given_add_timestamp_is_true()
+    {
         let mut converter = AwsConverter::new(true, Box::new(TestClock), SizeThreshold(128 * 1024));
 
         let input = r#"{
@@ -204,7 +197,7 @@ mod tests {
             "temperature": 23.0
         });
 
-        let output = converter.convert(&new_tedge_message(input)).await;
+        let output = converter.convert(&new_tedge_message(input)).unwrap();
 
         assert_json_eq!(
             serde_json::from_str::<serde_json::Value>(&extract_first_message_payload(output))
@@ -213,8 +206,8 @@ mod tests {
         );
     }
 
-    #[tokio::test]
-    async fn converting_input_without_timestamp_produces_output_with_timestamp_given_add_timestamp_is_true(
+    #[test]
+    fn converting_input_without_timestamp_produces_output_with_timestamp_given_add_timestamp_is_true(
     ) {
         let mut converter = AwsConverter::new(true, Box::new(TestClock), SizeThreshold(128 * 1024));
 
@@ -227,7 +220,7 @@ mod tests {
             "time": "2021-04-08T00:00:00+05:00"
         });
 
-        let output = converter.convert(&new_tedge_message(input)).await;
+        let output = converter.convert(&new_tedge_message(input)).unwrap();
 
         assert_json_eq!(
             serde_json::from_str::<serde_json::Value>(&extract_first_message_payload(output))
@@ -236,14 +229,14 @@ mod tests {
         );
     }
 
-    #[tokio::test]
-    async fn exceeding_threshold_returns_error() {
+    #[test]
+    fn exceeding_threshold_returns_error() {
         let mut converter = AwsConverter::new(false, Box::new(TestClock), SizeThreshold(1));
 
         let _topic = "tedge/measurements".to_string();
         let input = r#"{"temperature": 21.3}"#;
         let _input_size = input.len();
-        let result = converter.try_convert(&new_tedge_message(input)).await;
+        let result = converter.convert(&new_tedge_message(input));
 
         assert_matches!(
             result,

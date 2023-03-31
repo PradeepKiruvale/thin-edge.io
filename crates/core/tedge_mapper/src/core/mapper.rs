@@ -2,6 +2,7 @@ use crate::c8y::dynamic_discovery::*;
 use crate::core::converter::*;
 use crate::core::error::*;
 use c8y_api::smartrest::topic::SMARTREST_PUBLISH_TOPIC;
+#[cfg(test)]
 use mqtt_channel::Connection;
 use mqtt_channel::Message;
 use mqtt_channel::MqttError;
@@ -28,6 +29,7 @@ use tracing::warn;
 const SYNC_WINDOW: Duration = Duration::from_secs(3);
 use std::result::Result::Ok;
 
+#[cfg(test)]
 pub async fn create_mapper(
     app_name: &str,
     mqtt_host: String,

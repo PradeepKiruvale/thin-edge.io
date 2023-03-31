@@ -3,11 +3,12 @@ use crate::az::mapper::AzureMapper;
 use crate::c8y::mapper::CumulocityMapper;
 use crate::collectd::mapper::CollectdMapper;
 use crate::core::component::TEdgeComponent;
+use aws_mapper_ext::converter::AwsConverter;
 use az_mapper_ext::converter::AzureConverter;
-use az_mapper_ext::size_threshold::SizeThreshold;
 use clap::Parser;
 use clock::WallClock;
 use flockfile::check_another_instance_is_not_running;
+use mapper_utils::size_threshold::SizeThreshold;
 use std::fmt;
 use std::path::PathBuf;
 use tedge_actors::builders::ServiceConsumer;
@@ -123,46 +124,87 @@ async fn main() -> anyhow::Result<()> {
         )?);
     }
 
-    let mut mqtt_actor = get_mqtt_actor(component.session_name(), &config).await?;
-    let runtime_events_logger = None;
-    let mut runtime = Runtime::try_new(runtime_events_logger).await?;
-    let mut signal_actor = SignalActor::builder();
     if mapper_opt.init {
         component.init(&mapper_opt.config_dir).await
     } else if mapper_opt.clear {
         component.clear_session().await
     } else if component.session_name().eq("tedge-mapper-az") {
-        let add_time_stamp = config.query(AzureMapperTimestamp)?.is_set();
-        let clock = Box::new(WallClock);
-        let size_threshold = SizeThreshold(255 * 1024);
-        let az_converter = AzureConverter::new(add_time_stamp, clock, size_threshold);
-
-        // Instantiate the azure mapper converter
-        let mut az_converting_actor = ConvertingActor::builder("AzConverter", az_converter);
-        mqtt_actor.register_peer(
-            AzureConverter::in_topic_filter(),
-            az_converting_actor.get_sender(),
-        );
-        az_converting_actor.register_peer(NoConfig, mqtt_actor.get_sender());
-
-        //Instantiate health monitor actor
-        let health_actor = HealthMonitorBuilder::new(component.session_name());
-        mqtt_actor.mqtt_config = health_actor.set_init_and_last_will(mqtt_actor.mqtt_config);
-        let health_actor = health_actor.with_connection(&mut mqtt_actor);
-
-        // Shutdown on SIGINT
-        signal_actor.register_peer(NoConfig, runtime.get_handle().get_sender());
-
-        runtime.spawn(signal_actor).await?;
-        runtime.spawn(mqtt_actor).await?;
-        runtime.spawn(az_converting_actor).await?;
-        runtime.spawn(health_actor).await?;
-
-        runtime.run_to_completion().await?;
-        Ok(())
+        run_mapper(component.session_name(), config).await
+    } else if component.session_name().eq("tedge-mapper-aws") {
+        run_mapper(component.session_name(), config).await
     } else {
         component.start(config, &mapper_opt.config_dir).await
     }
+}
+
+async fn run_mapper(mapper_name: &str, config: TEdgeConfig) -> Result<(), anyhow::Error> {
+    let clock = Box::new(WallClock);
+    match mapper_name {
+        "tedge-mapper-aws" => {
+            let (mut runtime, mut mqtt_actor) = start_basic_actors(mapper_name, &config).await?;
+
+            let aws_converter = AwsConverter::new(
+                config.query(AwsMapperTimestamp)?.is_set(),
+                clock,
+                SizeThreshold(255 * 1024),
+            );
+            let mut aws_converting_actor = ConvertingActor::builder("AwsConverter", aws_converter);
+            mqtt_actor.register_peer(
+                AwsConverter::in_topic_filter(),
+                aws_converting_actor.get_sender(),
+            );
+            aws_converting_actor.register_peer(NoConfig, mqtt_actor.get_sender());
+
+            runtime.spawn(aws_converting_actor).await?;
+            runtime.spawn(mqtt_actor).await?;
+            runtime.run_to_completion().await?;
+        }
+        "tedge-mapper-az" => {
+            let (mut runtime, mut mqtt_actor) = start_basic_actors(mapper_name, &config).await?;
+
+            let az_converter = AzureConverter::new(
+                config.query(AzureMapperTimestamp)?.is_set(),
+                clock,
+                SizeThreshold(128 * 1024),
+            );
+            let mut az_converting_actor = ConvertingActor::builder("AzConverter", az_converter);
+            mqtt_actor.register_peer(
+                AzureConverter::in_topic_filter(),
+                az_converting_actor.get_sender(),
+            );
+            az_converting_actor.register_peer(NoConfig, mqtt_actor.get_sender());
+
+            runtime.spawn(az_converting_actor).await?;
+            runtime.spawn(mqtt_actor).await?;
+            runtime.run_to_completion().await?;
+        }
+        _ => panic!("Provided wrong mapper name"),
+    }
+
+    Ok(())
+}
+
+async fn start_basic_actors(
+    mapper_name: &str,
+    config: &TEdgeConfig,
+) -> Result<(Runtime, MqttActorBuilder), anyhow::Error> {
+    let runtime_events_logger = None;
+    let mut runtime = Runtime::try_new(runtime_events_logger).await?;
+    let mut signal_actor = SignalActor::builder();
+
+    let mut mqtt_actor = get_mqtt_actor(mapper_name, &config).await?;
+
+    //Instantiate health monitor actor
+    let health_actor = HealthMonitorBuilder::new(mapper_name);
+    mqtt_actor.mqtt_config = health_actor.set_init_and_last_will(mqtt_actor.mqtt_config);
+    let health_actor = health_actor.with_connection(&mut mqtt_actor);
+
+    // Shutdown on SIGINT
+    signal_actor.register_peer(NoConfig, runtime.get_handle().get_sender());
+
+    runtime.spawn(signal_actor).await?;
+    runtime.spawn(health_actor).await?;
+    Ok((runtime, mqtt_actor))
 }
 
 async fn get_mqtt_actor(

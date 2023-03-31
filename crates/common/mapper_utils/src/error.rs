@@ -1,5 +1,6 @@
 use tedge_api::serialize::ThinEdgeJsonSerializationError;
 use tedge_config::TEdgeConfigError;
+use tedge_mqtt_ext::MqttError;
 
 // allowing enum_variant_names due to a False positive where it is
 // detected that "all variants have the same prefix: `From`"
@@ -65,4 +66,7 @@ pub enum ConversionError {
         actual_size: usize,
         threshold: usize,
     },
+
+    #[error(transparent)]
+    MqttError(#[from] MqttError),
 }

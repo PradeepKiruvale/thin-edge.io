@@ -41,6 +41,6 @@ impl TEdgeComponent for AzureMapper {
         _tedge_config: TEdgeConfig,
         _config_dir: &Path,
     ) -> Result<(), anyhow::Error> {
-        Ok(())
+        panic!("This method should no more be used");
     }
 }

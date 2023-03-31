@@ -1,5 +1,5 @@
-use crate::error::*;
-use crate::size_threshold::SizeThreshold;
+use mapper_utils::error::*;
+use mapper_utils::size_threshold::SizeThreshold;
 
 use clock::Clock;
 use tedge_actors::Converter;
@@ -57,7 +57,7 @@ impl Converter for AzureConverter {
         self.size_threshold.validate(input)?;
         let default_timestamp = self.add_timestamp.then(|| self.clock.now());
         let mut serializer = ThinEdgeJsonSerializer::new_with_timestamp(default_timestamp);
-        tedge_api::parser::parse_str(input.payload_str().unwrap(), &mut serializer)?;
+        tedge_api::parser::parse_str(input.payload_str()?, &mut serializer)?;
 
         let payload = serializer.into_string()?;
         Ok(vec![
@@ -68,17 +68,17 @@ impl Converter for AzureConverter {
 
 #[cfg(test)]
 mod tests {
-    use crate::az::converter::AzureConverter;
-    use crate::core::converter::*;
-    use crate::core::error::ConversionError;
-    use crate::core::size_threshold::SizeThreshold;
+    use crate::converter::AzureConverter;
+    use crate::converter::*;
+    use crate::error::ConversionError;
+    use crate::size_threshold::SizeThreshold;
 
     use assert_json_diff::*;
     use assert_matches::*;
     use clock::Clock;
-    use mqtt_channel::Message;
-    use mqtt_channel::Topic;
     use serde_json::json;
+    use tedge_mqtt_ext::MqttMessage;
+    use tedge_mqtt_ext::Topic;
     use time::macros::datetime;
 
     struct TestClock;
@@ -89,27 +89,27 @@ mod tests {
         }
     }
 
-    #[tokio::test]
-    async fn converting_invalid_json_is_invalid() {
+    #[test]
+    fn converting_invalid_json_is_invalid() {
         let mut converter =
             AzureConverter::new(false, Box::new(TestClock), SizeThreshold(255 * 1024));
 
         let input = "This is not Thin Edge JSON";
-        let result = converter.try_convert(&new_tedge_message(input)).await;
+        let result = converter.convert(&new_tedge_message(input));
 
         assert_matches!(result, Err(ConversionError::FromThinEdgeJsonParser(_)))
     }
 
-    fn new_tedge_message(input: &str) -> Message {
-        Message::new(&Topic::new_unchecked("tedge/measurements"), input)
+    fn new_tedge_message(input: &str) -> MqttMessage {
+        MqttMessage::new(&Topic::new_unchecked("tedge/measurements"), input)
     }
 
-    fn extract_first_message_payload(mut messages: Vec<Message>) -> String {
+    fn extract_first_message_payload(mut messages: Vec<MqttMessage>) -> String {
         messages.pop().unwrap().payload_str().unwrap().to_string()
     }
 
-    #[tokio::test]
-    async fn converting_input_without_timestamp_produces_output_without_timestamp_given_add_timestamp_is_false(
+    #[test]
+    fn converting_input_without_timestamp_produces_output_without_timestamp_given_add_timestamp_is_false(
     ) {
         let mut converter =
             AzureConverter::new(false, Box::new(TestClock), SizeThreshold(255 * 1024));
@@ -122,7 +122,7 @@ mod tests {
             "temperature": 23.0
         });
 
-        let output = converter.convert(&new_tedge_message(input)).await;
+        let output = converter.convert(&new_tedge_message(input)).unwrap();
 
         assert_json_eq!(
             serde_json::from_str::<serde_json::Value>(&extract_first_message_payload(output))
@@ -131,9 +131,9 @@ mod tests {
         );
     }
 
-    #[tokio::test]
-    async fn converting_input_with_timestamp_produces_output_with_timestamp_given_add_timestamp_is_false(
-    ) {
+    #[test]
+    fn converting_input_with_timestamp_produces_output_with_timestamp_given_add_timestamp_is_false()
+    {
         let mut converter =
             AzureConverter::new(false, Box::new(TestClock), SizeThreshold(255 * 1024));
 
@@ -147,7 +147,7 @@ mod tests {
             "temperature": 23.0
         });
 
-        let output = converter.convert(&new_tedge_message(input)).await;
+        let output = converter.convert(&new_tedge_message(input)).unwrap();
 
         assert_json_eq!(
             serde_json::from_str::<serde_json::Value>(&extract_first_message_payload(output))
@@ -156,9 +156,9 @@ mod tests {
         );
     }
 
-    #[tokio::test]
-    async fn converting_input_with_timestamp_produces_output_with_timestamp_given_add_timestamp_is_true(
-    ) {
+    #[test]
+    fn converting_input_with_timestamp_produces_output_with_timestamp_given_add_timestamp_is_true()
+    {
         let mut converter =
             AzureConverter::new(true, Box::new(TestClock), SizeThreshold(255 * 1024));
 
@@ -172,7 +172,7 @@ mod tests {
             "temperature": 23.0
         });
 
-        let output = converter.convert(&new_tedge_message(input)).await;
+        let output = converter.convert(&new_tedge_message(input)).unwrap();
 
         assert_json_eq!(
             serde_json::from_str::<serde_json::Value>(&extract_first_message_payload(output))
@@ -181,8 +181,8 @@ mod tests {
         );
     }
 
-    #[tokio::test]
-    async fn converting_input_without_timestamp_produces_output_with_timestamp_given_add_timestamp_is_true(
+    #[test]
+    fn converting_input_without_timestamp_produces_output_with_timestamp_given_add_timestamp_is_true(
     ) {
         let mut converter =
             AzureConverter::new(true, Box::new(TestClock), SizeThreshold(255 * 1024));
@@ -196,7 +196,7 @@ mod tests {
             "time": "2021-04-08T00:00:00+05:00"
         });
 
-        let output = converter.convert(&new_tedge_message(input)).await;
+        let output = converter.convert(&new_tedge_message(input)).unwrap();
 
         assert_json_eq!(
             serde_json::from_str::<serde_json::Value>(&extract_first_message_payload(output))
@@ -205,13 +205,13 @@ mod tests {
         );
     }
 
-    #[tokio::test]
-    async fn exceeding_threshold_returns_error() {
+    #[test]
+    fn exceeding_threshold_returns_error() {
         let mut converter = AzureConverter::new(false, Box::new(TestClock), SizeThreshold(1));
 
         let _topic = "tedge/measurements".to_string();
         let input = "ABC";
-        let result = converter.try_convert(&new_tedge_message(input)).await;
+        let result = converter.convert(&new_tedge_message(input));
 
         assert_matches!(
             result,
