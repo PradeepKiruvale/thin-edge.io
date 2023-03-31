@@ -175,7 +175,7 @@ impl Actor for MqttActor {
                 message_or_signal = self.messages.try_recv() => {
                     match message_or_signal {
                         Ok(Some(message)) => {
-                                                mqtt_client
+                            mqtt_client
                             .published
                             .send(message)
                             .await

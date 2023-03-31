@@ -1,14 +1,19 @@
-use crate::core::converter::*;
-use crate::core::error::*;
-use crate::core::size_threshold::SizeThreshold;
+use crate::error::*;
+use crate::size_threshold::SizeThreshold;
 
-use async_trait::async_trait;
 use clock::Clock;
-use mqtt_channel::Message;
-use mqtt_channel::Topic;
-use mqtt_channel::TopicFilter;
+use tedge_actors::Converter;
 use tedge_api::serialize::ThinEdgeJsonSerializer;
-use tedge_api::topic::get_child_id_from_measurement_topic;
+use tedge_mqtt_ext::MqttMessage;
+use tedge_mqtt_ext::Topic;
+use tedge_mqtt_ext::TopicFilter;
+
+#[derive(Debug)]
+pub struct MapperConfig {
+    pub in_topic_filter: TopicFilter,
+    pub out_topic: Topic,
+    pub errors_topic: Topic,
+}
 
 pub struct AzureConverter {
     pub(crate) add_timestamp: bool,
@@ -39,29 +44,25 @@ impl AzureConverter {
     }
 }
 
-#[async_trait]
+pub fn make_valid_topic_or_panic(topic_name: &str) -> Topic {
+    Topic::new(topic_name).expect("Invalid topic name")
+}
+
 impl Converter for AzureConverter {
     type Error = ConversionError;
+    type Input = MqttMessage;
+    type Output = MqttMessage;
 
-    fn get_mapper_config(&self) -> &MapperConfig {
-        &self.mapper_config
-    }
-
-    async fn try_convert(&mut self, input: &Message) -> Result<Vec<Message>, Self::Error> {
-        let maybe_child_id = get_child_id_from_measurement_topic(&input.topic.name);
-
-        let az_out_topic = match maybe_child_id {
-            Some(child_id) => Topic::new_unchecked(&format!("az/messages/events/$.sub={child_id}")),
-            None => self.mapper_config.out_topic.clone(),
-        };
-
+    fn convert(&mut self, input: &Self::Input) -> Result<Vec<Self::Output>, Self::Error> {
         self.size_threshold.validate(input)?;
         let default_timestamp = self.add_timestamp.then(|| self.clock.now());
         let mut serializer = ThinEdgeJsonSerializer::new_with_timestamp(default_timestamp);
-        tedge_api::parser::parse_str(input.payload_str()?, &mut serializer)?;
+        tedge_api::parser::parse_str(input.payload_str().unwrap(), &mut serializer)?;
 
         let payload = serializer.into_string()?;
-        Ok(vec![(Message::new(&az_out_topic, payload))])
+        Ok(vec![
+            (MqttMessage::new(&self.mapper_config.out_topic, payload)),
+        ])
     }
 }
 
