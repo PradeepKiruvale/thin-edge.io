@@ -7,6 +7,7 @@ use time::OffsetDateTime;
 pub struct ThinEdgeJson {
     pub timestamp: Option<OffsetDateTime>,
     pub values: Vec<ThinEdgeValue>,
+    pub measurement_type: Option<String>,
 }
 
 impl ThinEdgeJson {

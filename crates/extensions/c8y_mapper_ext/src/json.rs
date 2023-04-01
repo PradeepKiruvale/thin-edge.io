@@ -80,7 +80,6 @@ mod tests {
             from_thin_edge_json_with_timestamp(single_value_thin_edge_json, timestamp, None);
 
         let expected_output = json!({
-            "type": "ThinEdgeMeasurement",
             "time": timestamp
                 .format(&format_description::well_known::Rfc3339)
                 .unwrap()
@@ -94,7 +93,8 @@ mod tests {
                 "pressure": {
                     "value": 220.0
                 }
-            }
+            },
+            "type": "ThinEdgeMeasurement"
         });
 
         assert_json_eq!(
@@ -112,7 +112,6 @@ mod tests {
                }"#;
 
         let expected_output = r#"{
-                     "type": "ThinEdgeMeasurement",
                      "time": "2013-06-22T17:03:14.123+02:00",
                      "temperature": {
                          "temperature": {
@@ -123,7 +122,8 @@ mod tests {
                        "pressure": {
                           "value" : 220.0
                           }
-                       }
+                       },
+                    "type": "ThinEdgeMeasurement"
                   }"#;
 
         let output = from_thin_edge_json(single_value_thin_edge_json);
@@ -152,7 +152,6 @@ mod tests {
             from_thin_edge_json_with_timestamp(multi_value_thin_edge_json, timestamp, None);
 
         let expected_output = json!({
-            "type": "ThinEdgeMeasurement",
             "time": timestamp
                 .format(&format_description::well_known::Rfc3339)
                 .unwrap()
@@ -177,7 +176,8 @@ mod tests {
             "pressure": {
                  "value": 98.0
             }
-          }
+          },
+          "type": "ThinEdgeMeasurement"
         });
 
         assert_json_eq!(
@@ -194,13 +194,13 @@ mod tests {
           }"#;
 
         let expected_output = r#"{
-             "type": "ThinEdgeMeasurement",
              "time": "2013-06-22T17:03:14+02:00",
              "temperature": {
                  "temperature": {
                     "value": 0.0
                  }
-            }
+            },
+            "type": "ThinEdgeMeasurement"
         }"#;
 
         let output = from_thin_edge_json(input);
@@ -226,13 +226,13 @@ mod tests {
                       }}"#, measurement);
             let time = "2013-06-22T17:03:14.453+02:00";
             let expected_output = format!(r#"{{
-                  "type": "ThinEdgeMeasurement",
                   "time": "{}",
                   "{}": {{
                   "{}": {{
                        "value": 123.0
                       }}
-                   }}
+                   }},
+                  "type": "ThinEdgeMeasurement"
                 }}"#, time, measurement, measurement);
 
         let output = from_thin_edge_json(input.as_str()).unwrap();
@@ -249,31 +249,31 @@ mod tests {
     "child1",
     r#"{"temperature": 23.0}"#,
     json!({
-        "type": "ThinEdgeMeasurement",
         "externalSource": {"externalId": "child1","type": "c8y_Serial",},
         "time": "2021-04-08T00:00:00+05:00",
-        "temperature": {"temperature": {"value": 23.0}}
+        "temperature": {"temperature": {"value": 23.0}},
+        "type": "ThinEdgeMeasurement"
     })
     ;"child device single value thin-edge json translation")]
     #[test_case(
     "child2",
     r#"{"temperature": 23.0, "pressure": 220.0}"#,
     json!({
-        "type": "ThinEdgeMeasurement",
         "externalSource": {"externalId": "child2","type": "c8y_Serial",},
         "time": "2021-04-08T00:00:00+05:00",
         "temperature": {"temperature": {"value": 23.0}},
-        "pressure": {"pressure": {"value": 220.0}}
+        "pressure": {"pressure": {"value": 220.0}},
+        "type": "ThinEdgeMeasurement"
     })
     ;"child device multiple values thin-edge json translation")]
     #[test_case(
     "child3",
     r#"{"temperature": 23.0, "time": "2021-04-23T19:00:00+05:00"}"#,
     json!({
-        "type": "ThinEdgeMeasurement",
         "externalSource": {"externalId": "child3","type": "c8y_Serial",},
         "time": "2021-04-23T19:00:00+05:00",
         "temperature": {"temperature": {"value": 23.0}},
+        "type": "ThinEdgeMeasurement"
     })
     ;"child device single value with timestamp thin-edge json translation")]
     fn check_value_translation_for_child_device(

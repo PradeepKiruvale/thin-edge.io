@@ -9,6 +9,8 @@ pub struct C8yJsonSerializer {
     is_within_group: bool,
     timestamp_present: bool,
     default_timestamp: OffsetDateTime,
+    type_present: bool,
+    default_type: String,
 }
 
 #[derive(thiserror::Error, Debug)]
@@ -26,6 +28,9 @@ pub enum MeasurementStreamError {
     #[error("Unexpected time stamp within a group")]
     UnexpectedTimestamp,
 
+    #[error("Unexpected type within a group")]
+    UnexpectedType,
+
     #[error("Unexpected end of data")]
     UnexpectedEndOfData,
 
@@ -40,10 +45,9 @@ impl C8yJsonSerializer {
     pub fn new(default_timestamp: OffsetDateTime, maybe_child_id: Option<&str>) -> Self {
         let capa = 1024; // XXX: Choose a capacity based on expected JSON length.
         let mut json = JsonWriter::with_capacity(capa);
+        let default_type = "ThinEdgeMeasurement".to_string();
 
         json.write_open_obj();
-        let _ = json.write_key("type");
-        let _ = json.write_str("ThinEdgeMeasurement");
 
         if let Some(child_id) = maybe_child_id {
             // In case the measurement is addressed to a child-device use fragment
@@ -64,6 +68,8 @@ impl C8yJsonSerializer {
             is_within_group: false,
             timestamp_present: false,
             default_timestamp,
+            type_present: false,
+            default_type,
         }
     }
 
@@ -74,6 +80,10 @@ impl C8yJsonSerializer {
 
         if !self.timestamp_present {
             self.visit_timestamp(self.default_timestamp)?;
+        }
+
+        if !self.type_present {
+            self.visit_type(self.default_type.to_owned().as_str())?;
         }
 
         assert!(self.timestamp_present);
@@ -113,6 +123,18 @@ impl MeasurementVisitor for C8yJsonSerializer {
         )?;
 
         self.timestamp_present = true;
+        Ok(())
+    }
+
+    fn visit_type(&mut self, measurement_type: &str) -> Result<(), Self::Error> {
+        if self.is_within_group {
+            return Err(MeasurementStreamError::UnexpectedType.into());
+        }
+
+        self.json.write_key("type")?;
+        self.json.write_str(measurement_type)?;
+
+        self.type_present = true;
         Ok(())
     }
 

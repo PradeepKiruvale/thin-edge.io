@@ -92,7 +92,12 @@ where
             let key: Cow<str> = key;
 
             match key.as_ref() {
-                "type" => return Err(de::Error::custom(invalid_measurement_name("type"))),
+                "type" => {
+                    let measurement_type_str: &str = map.next_value()?;
+                    self.visitor
+                        .visit_type(measurement_type_str)
+                        .map_err(de::Error::custom)?
+                }
                 "externalSource" => {
                     return Err(de::Error::custom(invalid_measurement_name(
                         "externalSource",
@@ -357,6 +362,78 @@ mod tests {
         assert_eq!(
         res.unwrap_err().to_string(),
         "Invalid JSON: invalid type: null, expected a borrowed string at line 2 column 13: `l\n}\n`",
+    );
+
+        Ok(())
+    }
+
+    #[test]
+    fn parse_given_type() -> anyhow::Result<()> {
+        use crate::builder::ThinEdgeJsonBuilder;
+
+        let input = r#"{
+            "time" : "2021-04-30T17:03:14.123+02:00",
+            "pressure": 123.4,
+            "type": "test type"
+        }"#;
+
+        let mut builder = ThinEdgeJsonBuilder::default();
+
+        let _res = parse_str(input, &mut builder);
+
+        let output = builder.done()?;
+
+        assert_eq!(output.measurement_type, Some("test type".to_string()));
+
+        assert_eq!(output.values, vec![("pressure", 123.4).into()]);
+
+        Ok(())
+    }
+
+    #[test]
+    fn parse_default_type() -> anyhow::Result<()> {
+        use crate::builder::ThinEdgeJsonBuilder;
+
+        let input = r#"{
+            "time" : "2021-04-30T17:03:14.123+02:00",
+            "pressure": 123.4,           
+        }"#;
+
+        let mut builder = ThinEdgeJsonBuilder::default();
+
+        let _res = parse_str(input, &mut builder);
+
+        let output = builder.done()?;
+
+        assert_eq!(
+            output.measurement_type,
+            Some("ThinEdgeMeasurement".to_string())
+        );
+
+        assert_eq!(output.values, vec![("pressure", 123.4).into()]);
+
+        Ok(())
+    }
+
+    #[test]
+    fn parse_wrong_type() -> anyhow::Result<()> {
+        use crate::builder::ThinEdgeJsonBuilder;
+
+        let input = r#"{
+            "time" : "2021-04-30T17:03:14.123+02:00",
+            "pressure": 123.4,
+            "type": 456        
+        }"#;
+
+        let mut builder = ThinEdgeJsonBuilder::default();
+
+        let res = parse_str(input, &mut builder);
+
+        assert!(res.is_err());
+
+        assert_eq!(
+        res.unwrap_err().to_string(),
+        "Invalid JSON: invalid type: integer `456`, expected a borrowed string at line 4 column 23: `6        \n        }\n`",
     );
 
         Ok(())
