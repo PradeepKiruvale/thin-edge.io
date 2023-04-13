@@ -40,11 +40,7 @@ pub async fn init_session(config: &Config) -> Result<(), MqttError> {
             }
 
             Err(err) => {
-                if err.to_string().contains("Connection refused") {
-                    eprintln!("Couldn't connect to mqtt broker due to {}", err);
-                } else {
-                    eprintln!("Connection Error {}", err);
-                }
+                eprintln!("Couldn't connect to mqtt broker due to {}", err);
                 break;
             }
             _ => (),
