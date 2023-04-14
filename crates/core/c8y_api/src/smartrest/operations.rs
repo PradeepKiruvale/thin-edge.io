@@ -22,6 +22,7 @@ pub struct OnMessageExec {
     on_message: Option<String>,
     topic: Option<String>,
     user: Option<String>,
+    timeout: Option<usize>,
 }
 
 #[derive(Debug, Clone, Deserialize, Eq, PartialEq)]
@@ -34,6 +35,9 @@ pub struct Operation {
 
 impl Operation {
     pub fn exec(&self) -> Option<&OnMessageExec> {
+        if self.exec.is_some() {
+            if self.exec.clone().unwrap().command.is_some() {}
+        }
         self.exec.as_ref()
     }
 
@@ -43,6 +47,10 @@ impl Operation {
 
     pub fn topic(&self) -> Option<String> {
         self.exec().and_then(|exec| exec.topic.clone())
+    }
+
+    pub fn time_out(&self) -> Option<usize> {
+        self.exec().and_then(|exec| exec.timeout.clone())
     }
 }
 

@@ -400,7 +400,7 @@ impl Plugin for ExternalPluginCommand {
             child_stdin.write_all(action.as_bytes()).await?
         }
 
-        let output = child.wait_with_output(logger).await?;
+        let output = child.wait_with_output(logger, 60).await?;
         match output.status.code() {
             Some(0) => Ok(()),
             Some(1) => Err(SoftwareError::UpdateListNotSupported(self.name.clone())),

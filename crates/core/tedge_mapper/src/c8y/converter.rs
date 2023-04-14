@@ -764,6 +764,7 @@ async fn execute_operation(
     operation_name: &str,
     operation_logs: &OperationLogs,
     mqtt_publisher: &mpsc::UnboundedSender<Message>,
+    time_out: usize,
 ) -> Result<(), CumulocityMapperError> {
     let command = command.to_owned();
     let payload = payload.to_string();
@@ -805,7 +806,7 @@ async fn execute_operation(
 
                 // execute the command and wait until it finishes
                 // mqtt client publishes failed or successful depending on the exit code
-                if let Ok(output) = child_process.wait_with_output(logger).await {
+                if let Ok(output) = child_process.wait_with_output(logger, time_out).await {
                     match output.status.code() {
                         Some(0) => {
                             let sanitized_stdout =
@@ -821,6 +822,7 @@ async fn execute_operation(
                                 output.stderr,
                                 MAX_PAYLOAD_LIMIT_IN_BYTES,
                             );
+
                             let failed_str = format!("502,{op_name},\"{failure_reason}\"");
                             mqtt_publisher
                                 .send(Message::new(&topic, failed_str.as_str()))
@@ -997,6 +999,7 @@ async fn forward_operation_request(
                 &operation.name,
                 operation_logs,
                 mqtt_publisher,
+                operation.time_out().unwrap(),
             )
             .await?;
         }
@@ -1090,6 +1093,7 @@ mod tests {
             "sleep_one",
             &operation_logs,
             &mqtt_client.published,
+            10,
         )
         .await
         .unwrap();
@@ -1099,6 +1103,7 @@ mod tests {
             "sleep_two",
             &operation_logs,
             &mqtt_client.published,
+            10,
         )
         .await
         .unwrap();

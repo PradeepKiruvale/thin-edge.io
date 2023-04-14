@@ -8,6 +8,8 @@ use tokio::io::BufWriter;
 use tokio::process::Child;
 use tokio::process::Command;
 
+const OPERATION_TIMEOUT: u64 = 10; // in seconds
+
 #[derive(Debug)]
 pub struct LoggingChild {
     command_line: String,
@@ -16,16 +18,41 @@ pub struct LoggingChild {
 
 impl LoggingChild {
     pub async fn wait_with_output(
-        self,
+        mut self,
         logger: &mut BufWriter<File>,
+        time_out: usize,
     ) -> Result<Output, std::io::Error> {
-        let outcome = self.inner_child.wait_with_output().await;
-        if let Err(err) = LoggedCommand::log_outcome(&self.command_line, &outcome, logger).await {
-            error!("Fail to log the command execution: {}", err);
-        }
+        tokio::select! {
+            _ = self.inner_child.wait() => {
+                let outcome = self.inner_child.wait_with_output().await;
+                if let Err(err) = LoggedCommand::log_outcome(&self.command_line, &outcome, logger).await {
+                    error!("Fail to log the command execution: {}", err);
+                }
+                outcome
+            }
+            _ = tokio::time::sleep(std::time::Duration::from_secs(time_out.try_into().unwrap())) => {
+                        // stop the child process by sending sigterm
+                        send_sig_term(&self.inner_child, time_out).await;
+                        // wait to gracefully stop, if not stopped then send sigkill
+                        tokio::time::sleep(std::time::Duration::from_secs(OPERATION_TIMEOUT)).await;
+                        self.inner_child.kill().await.expect("kill failed");
 
-        outcome
+                        let mut outcome = self.inner_child.wait_with_output().await;
+                        if let Err(err) = LoggedCommand::log_outcome(&self.command_line, &outcome, logger).await {
+                            error!("Fail to log the command execution: {}", err);
+                        }
+                        // update the stderr message
+                        outcome.as_mut().unwrap().stderr.append(&mut "operation failed due to timeout".as_bytes().to_vec());
+                        outcome
+                    }
+        }
     }
+}
+
+async fn send_sig_term(child: &Child, time_out: usize) {
+    let pid = nix::unistd::Pid::from_raw(child.id().unwrap() as nix::libc::pid_t);
+    tokio::time::sleep(std::time::Duration::from_secs(time_out.try_into().unwrap())).await;
+    let _ = nix::sys::signal::kill(pid, nix::sys::signal::SIGTERM);
 }
 
 /// A command which execution is logged.
