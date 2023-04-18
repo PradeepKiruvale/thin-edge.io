@@ -35,9 +35,6 @@ pub struct Operation {
 
 impl Operation {
     pub fn exec(&self) -> Option<&OnMessageExec> {
-        if self.exec.is_some() {
-            if self.exec.clone().unwrap().command.is_some() {}
-        }
         self.exec.as_ref()
     }
 
