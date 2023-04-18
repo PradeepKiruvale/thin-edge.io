@@ -29,7 +29,7 @@ impl LoggingChild {
                         self.get_outcome(logger).await
                     }
                     _ = tokio::time::sleep(std::time::Duration::from_secs(timeout.try_into().unwrap())) => {
-                        self.timeout_operation(logger, timeout).await
+                        self.timeout_operation(logger).await
                     }
                 }
             }
@@ -48,10 +48,9 @@ impl LoggingChild {
     async fn timeout_operation(
         mut self,
         logger: &mut BufWriter<File>,
-        timeout: usize,
     ) -> Result<Output, std::io::Error> {
         // stop the child process by sending sigterm
-        send_sig_term(&self.inner_child, timeout).await;
+        send_sig_term(&self.inner_child).await;
         // wait to gracefully stop, if not stopped then send sigkill
         tokio::time::sleep(std::time::Duration::from_secs(OPERATION_TIMEOUT)).await;
         self.inner_child.kill().await?;
@@ -66,9 +65,8 @@ impl LoggingChild {
     }
 }
 
-async fn send_sig_term(child: &Child, time_out: usize) {
+async fn send_sig_term(child: &Child) {
     let pid = nix::unistd::Pid::from_raw(child.id().unwrap() as nix::libc::pid_t);
-    tokio::time::sleep(std::time::Duration::from_secs(time_out.try_into().unwrap())).await;
     let _ = nix::sys::signal::kill(pid, nix::sys::signal::SIGTERM);
 }
 
