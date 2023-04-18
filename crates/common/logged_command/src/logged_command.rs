@@ -1,4 +1,5 @@
 use log::error;
+use nix::unistd::Pid;
 use std::ffi::OsStr;
 use std::process::Output;
 use std::process::Stdio;
@@ -9,7 +10,7 @@ use tokio::io::BufWriter;
 use tokio::process::Child;
 use tokio::process::Command;
 
-const OPERATION_TIMEOUT: Duration = tokio::time::Duration::from_secs(10); // in seconds
+const OPERATION_TIMEOUT: Duration = tokio::time::Duration::from_secs(2);
 
 #[derive(Debug)]
 pub struct LoggingChild {
@@ -67,8 +68,10 @@ impl LoggingChild {
 }
 
 async fn send_sig_term(child: &Child) {
-    let pid = nix::unistd::Pid::from_raw(child.id().unwrap() as nix::libc::pid_t);
-    let _ = nix::sys::signal::kill(pid, nix::sys::signal::SIGTERM);
+    if let Some(pid) = child.id() {
+        let pid: Pid = nix::unistd::Pid::from_raw(pid as nix::libc::pid_t);
+        let _ = nix::sys::signal::kill(pid, nix::sys::signal::SIGTERM);
+    }
 }
 
 /// A command which execution is logged.

@@ -3,6 +3,7 @@ use camino::Utf8PathBuf;
 use std::fs;
 use std::fs::OpenOptions;
 use std::io::Write;
+use std::os::unix::prelude::OpenOptionsExt;
 use std::path::Path;
 use std::path::PathBuf;
 use std::sync::Arc;
@@ -77,11 +78,11 @@ impl TempTedgeDir {
 }
 
 impl TempTedgeFile {
-    pub fn with_raw_content(self, content: &str) {
+    pub fn with_raw_content(&self, content: &str) {
         let mut file = OpenOptions::new()
             .write(true)
             .create(false)
-            .open(self.file_path)
+            .open(self.file_path.clone())
             .unwrap();
         file.write_all(content.as_bytes()).unwrap();
         file.sync_all().unwrap();
@@ -109,6 +110,18 @@ impl TempTedgeFile {
     pub fn to_path_buf(&self) -> PathBuf {
         PathBuf::from(self.path())
     }
+}
+
+pub fn with_exec_permission(file_path: &Path, content: &str) {
+    let mut file = OpenOptions::new()
+        .mode(0o744)
+        .create_new(true)
+        .write(true)
+        .open(file_path.clone())
+        .unwrap();
+
+    file.write_all(content.as_bytes()).unwrap();
+    file.sync_all().unwrap();
 }
 
 pub fn create_full_tedge_dir_structure() {

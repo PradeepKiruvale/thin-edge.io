@@ -765,7 +765,7 @@ async fn execute_operation(
     operation_name: &str,
     operation_logs: &OperationLogs,
     mqtt_publisher: &mpsc::UnboundedSender<Message>,
-    time_out: Duration,
+    time_out: Option<Duration>,
 ) -> Result<(), CumulocityMapperError> {
     let command = command.to_owned();
     let payload = payload.to_string();
@@ -807,7 +807,7 @@ async fn execute_operation(
 
                 // execute the command and wait until it finishes
                 // mqtt client publishes failed or successful depending on the exit code
-                if let Ok(output) = child_process.wait_with_output(logger, Some(time_out)).await {
+                if let Ok(output) = child_process.wait_with_output(logger, time_out).await {
                     match output.status.code() {
                         Some(0) => {
                             let sanitized_stdout =
@@ -994,13 +994,14 @@ async fn forward_operation_request(
 ) -> Result<Vec<Message>, CumulocityMapperError> {
     if let Some(operation) = operations.matching_smartrest_template(template) {
         if let Some(command) = operation.command() {
+            dbg!(&command);
             execute_operation(
                 payload,
                 command.as_str(),
                 &operation.name,
                 operation_logs,
                 mqtt_publisher,
-                operation.time_out().unwrap(),
+                operation.time_out(),
             )
             .await?;
         }
@@ -1094,7 +1095,7 @@ mod tests {
             "sleep_one",
             &operation_logs,
             &mqtt_client.published,
-            10,
+            None,
         )
         .await
         .unwrap();
@@ -1104,7 +1105,7 @@ mod tests {
             "sleep_two",
             &operation_logs,
             &mqtt_client.published,
-            10,
+            None,
         )
         .await
         .unwrap();

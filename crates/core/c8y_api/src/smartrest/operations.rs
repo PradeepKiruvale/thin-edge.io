@@ -23,7 +23,7 @@ pub struct OnMessageExec {
     on_message: Option<String>,
     topic: Option<String>,
     user: Option<String>,
-    timeout: Option<Duration>,
+    timeout: Option<u64>,
 }
 
 #[derive(Debug, Clone, Deserialize, Eq, PartialEq)]
@@ -48,7 +48,8 @@ impl Operation {
     }
 
     pub fn time_out(&self) -> Option<Duration> {
-        self.exec().and_then(|exec| exec.timeout)
+        self.exec()
+            .and_then(|exec| exec.timeout.and_then(|t| Some(Duration::from_secs(t))))
     }
 }
 
@@ -78,6 +79,7 @@ impl Operations {
                         .insert(on_message.clone(), self.operations.len());
                 }
             }
+
             self.operations.push(operation);
         }
     }
@@ -172,6 +174,7 @@ fn get_operations(dir: impl AsRef<Path>) -> Result<Operations, OperationsError> 
                 .and_then(|filename| filename.to_str())
                 .ok_or_else(|| OperationsError::InvalidOperationName(path.to_owned()))?
                 .to_owned();
+
             operations.add_operation(details);
         }
     }

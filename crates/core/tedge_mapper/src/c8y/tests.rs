@@ -1765,6 +1765,204 @@ async fn translate_service_monitor_message_for_thin_edge_device() {
     );
 }
 
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+#[serial]
+async fn custom_operation_without_timeout_successful() {
+    // The test assures SM Mapper correctly receives custom operation on `c8y/s/ds`
+    // and executes the custom operation successfully, no timeout given here.
+    let broker = mqtt_tests::test_mqtt_broker();
+    let mut messages = broker.messages_published_on("c8y/s/us").await;
+    let cfg_dir = TempTedgeDir::new();
+
+    let cmd_file = cfg_dir.path().join("command");
+    //create custom operation file
+    create_custom_op_file(&cfg_dir, cmd_file.as_path(), None);
+    //create command
+    let content = r#"#!/usr/bin/bash    
+    for i in {1..2}
+    do
+        sleep 1
+    done
+    "#;
+    create_custom_cmd(&cmd_file.as_path(), content);
+
+    let (_tmp_dir, sm_mapper) = start_c8y_mapper(broker.port, &cfg_dir).await.unwrap();
+    publish_a_fake_jwt_token(broker).await;
+
+    // Prepare and publish a custom operation on `c8y/s/ds`.
+    let smartrest = r#"511,test-device,c8y_Command"#;
+    broker.publish("c8y/s/ds", smartrest).await.unwrap();
+
+    // // Expect custom operation exec status on c8y/s/us.
+    mqtt_tests::assert_received_all_expected(
+        &mut messages,
+        Duration::from_secs(10),
+        &["501,c8y_Command", "503,c8y_Command,\"\""],
+    )
+    .await;
+
+    sm_mapper.abort();
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+#[serial]
+async fn custom_operation_with_timeout_successful() {
+    // The test assures SM Mapper correctly receives custom operation on `c8y/s/ds`
+    // and executes the custom operation within the timeout period
+    let broker = mqtt_tests::test_mqtt_broker();
+    let mut messages = broker.messages_published_on("c8y/s/us").await;
+    let cfg_dir = TempTedgeDir::new();
+
+    let cmd_file = cfg_dir.path().join("command");
+    //create custom operation file
+    create_custom_op_file(&cfg_dir, cmd_file.as_path(), Some(4));
+    //create command
+    let content = r#"#!/usr/bin/bash    
+    for i in {1..2}
+    do
+        sleep 1
+    done
+    "#;
+    create_custom_cmd(&cmd_file.as_path(), content);
+
+    let (_tmp_dir, sm_mapper) = start_c8y_mapper(broker.port, &cfg_dir).await.unwrap();
+    publish_a_fake_jwt_token(broker).await;
+
+    // Prepare and publish a custom operation on `c8y/s/ds`.
+    let smartrest = r#"511,test-device,c8y_Command"#;
+    broker.publish("c8y/s/ds", smartrest).await.unwrap();
+
+    // // Expect custom operation exec status on c8y/s/us.
+    mqtt_tests::assert_received_all_expected(
+        &mut messages,
+        Duration::from_secs(10),
+        &["501,c8y_Command", "503,c8y_Command,\"\""],
+    )
+    .await;
+
+    sm_mapper.abort();
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+#[serial]
+async fn custom_operation_timeout_sigterm() {
+    // The test assures SM Mapper correctly receives custom operation on `c8y/s/ds`
+    // and executes the custom operation, it will timeout because it will not complete before given timeout
+    // sigterm is sent to stop the custom operation
+    let broker = mqtt_tests::test_mqtt_broker();
+    let mut messages = broker.messages_published_on("c8y/s/us").await;
+    let cfg_dir = TempTedgeDir::new();
+
+    let cmd_file = cfg_dir.path().join("command");
+    //create custom operation file
+    create_custom_op_file(&cfg_dir, cmd_file.as_path(), Some(1));
+    //create command
+    let content = r#"#!/usr/bin/bash    
+    for i in {1..50}
+    do
+        sleep 1
+    done
+    "#;
+    create_custom_cmd(&cmd_file.as_path(), content);
+
+    let (_tmp_dir, sm_mapper) = start_c8y_mapper(broker.port, &cfg_dir).await.unwrap();
+    publish_a_fake_jwt_token(broker).await;
+
+    // Prepare and publish a custom operation on `c8y/s/ds`.
+    let smartrest = r#"511,test-device,c8y_Command"#;
+    broker.publish("c8y/s/ds", smartrest).await.unwrap();
+
+    // // Expect custom operation exec status on c8y/s/us.
+    mqtt_tests::assert_received_all_expected(
+        &mut messages,
+        Duration::from_secs(10),
+        &[
+            "501,c8y_Command",
+            "502,c8y_Command,\"operation failed due to timeout\"",
+        ],
+    )
+    .await;
+
+    sm_mapper.abort();
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+#[serial]
+async fn custom_operation_timeout_sigkill() {
+    // The test assures SM Mapper correctly receives custom operation on `c8y/s/ds`
+    // and executes the custom operation, it will timeout because it will not complete before given timeout
+    // sigterm sent first, still the operation did not stop, so sigkill will be sent to stop the operation
+    let broker = mqtt_tests::test_mqtt_broker();
+    let mut messages = broker.messages_published_on("c8y/s/us").await;
+    let cfg_dir = TempTedgeDir::new();
+
+    let cmd_file = cfg_dir.path().join("command");
+    //create custom operation file
+    create_custom_op_file(&cfg_dir, cmd_file.as_path(), Some(1));
+    //create command
+    let content = r#"#!/usr/bin/bash    
+    handle_term() {
+        echo "caught the sigterm" > /tmp/test.txt
+        for i in {1..50}
+        do
+            sleep 1
+        done
+    }
+  
+    trap handle_term SIGTERM    
+    for i in {1..50}  
+    do
+        sleep 1
+    done
+    "#;
+    create_custom_cmd(&cmd_file.as_path(), content);
+
+    let (_tmp_dir, sm_mapper) = start_c8y_mapper(broker.port, &cfg_dir).await.unwrap();
+    publish_a_fake_jwt_token(broker).await;
+
+    // Prepare and publish a custom operation on `c8y/s/ds`.
+    let smartrest = r#"511,test-device,c8y_Command"#;
+    broker.publish("c8y/s/ds", smartrest).await.unwrap();
+
+    // // Expect custom operation exec status on c8y/s/us.
+    mqtt_tests::assert_received_all_expected(
+        &mut messages,
+        Duration::from_secs(10),
+        &[
+            "501,c8y_Command",
+            "502,c8y_Command,\"operation failed due to timeout\"",
+        ],
+    )
+    .await;
+
+    sm_mapper.abort();
+}
+
+fn create_custom_op_file(cfg_dir: &TempTedgeDir, cmd_file: &Path, timeout: Option<i64>) {
+    let custom_op_file = cfg_dir.dir("operations").dir("c8y").file("c8y_Command");
+    let mut custom_content = Map::new();
+    custom_content.insert("name".into(), Value::String("c8y_Command".into()));
+    custom_content.insert("topic".into(), Value::String("c8y/s/ds".into()));
+    custom_content.insert("on_message".into(), Value::String("511".into()));
+    if let Some(timeout) = timeout {
+        custom_content.insert("timeout".into(), Value::Integer(timeout));
+    }
+    custom_content.insert(
+        "command".into(),
+        Value::String(cmd_file.display().to_string()),
+    );
+
+    let mut map = Map::new();
+    map.insert("exec".into(), Value::Table(custom_content));
+    let toml_content = Value::Table(map);
+
+    custom_op_file.with_toml_content(toml_content);
+}
+
+fn create_custom_cmd(custom_cmd: &Path, content: &str) {
+    with_exec_permission(custom_cmd, content);
+}
+
 fn create_inventroy_json_file_with_content(cfg_dir: &TempTedgeDir, content: &str) {
     let file = cfg_dir.dir("device").file("inventory.json");
     file.with_raw_content(content);
@@ -1875,7 +2073,12 @@ async fn create_c8y_converter(
     let size_threshold = SizeThreshold(16 * 1024);
     let device_name = "test-device".into();
     let device_type = "test-device-type".into();
-    let operations = Operations::default();
+    let operations = Operations::try_new(format!(
+        "{}/operations/c8y",
+        ops_dir.path().display().to_string()
+    ))
+    .unwrap();
+
     let http_proxy = FakeC8YHttpProxy {};
     let service_type = "service".into();
 
