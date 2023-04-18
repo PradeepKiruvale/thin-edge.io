@@ -26,39 +26,43 @@ impl LoggingChild {
             Some(timeout) => {
                 tokio::select! {
                     _ = self.inner_child.wait() => {
-                        let outcome = self.inner_child.wait_with_output().await;
-                        if let Err(err) = LoggedCommand::log_outcome(&self.command_line, &outcome, logger).await {
-                            error!("Fail to log the command execution: {}", err);
-                        }
-                        outcome
+                        self.get_outcome(logger).await
                     }
                     _ = tokio::time::sleep(std::time::Duration::from_secs(timeout.try_into().unwrap())) => {
-                                // stop the child process by sending sigterm
-                                send_sig_term(&self.inner_child, timeout).await;
-                                // wait to gracefully stop, if not stopped then send sigkill
-                                tokio::time::sleep(std::time::Duration::from_secs(OPERATION_TIMEOUT)).await;
-                                self.inner_child.kill().await.expect("kill failed");
-
-                                let mut outcome = self.inner_child.wait_with_output().await;
-                                if let Err(err) = LoggedCommand::log_outcome(&self.command_line, &outcome, logger).await {
-                                    error!("Fail to log the command execution: {}", err);
-                                }
-                                // update the stderr message
-                                outcome.as_mut().unwrap().stderr.append(&mut "operation failed due to timeout".as_bytes().to_vec());
-                                outcome
-                            }
+                        self.timeout_operation(logger, timeout).await
+                    }
                 }
             }
-            None => {
-                let outcome = self.inner_child.wait_with_output().await;
-                if let Err(err) =
-                    LoggedCommand::log_outcome(&self.command_line, &outcome, logger).await
-                {
-                    error!("Fail to log the command execution: {}", err);
-                }
-                outcome
-            }
+            None => self.get_outcome(logger).await,
         }
+    }
+
+    async fn get_outcome(self, logger: &mut BufWriter<File>) -> Result<Output, std::io::Error> {
+        let outcome = self.inner_child.wait_with_output().await;
+        if let Err(err) = LoggedCommand::log_outcome(&self.command_line, &outcome, logger).await {
+            error!("Fail to log the command execution: {}", err);
+        }
+        outcome
+    }
+
+    async fn timeout_operation(
+        mut self,
+        logger: &mut BufWriter<File>,
+        timeout: usize,
+    ) -> Result<Output, std::io::Error> {
+        // stop the child process by sending sigterm
+        send_sig_term(&self.inner_child, timeout).await;
+        // wait to gracefully stop, if not stopped then send sigkill
+        tokio::time::sleep(std::time::Duration::from_secs(OPERATION_TIMEOUT)).await;
+        self.inner_child.kill().await?;
+        let mut outcome = self.get_outcome(logger).await;
+        // update the stderr message
+        outcome
+            .as_mut()
+            .unwrap()
+            .stderr
+            .append(&mut "operation failed due to timeout".as_bytes().to_vec());
+        outcome
     }
 }
 
