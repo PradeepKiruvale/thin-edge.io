@@ -47,7 +47,7 @@ impl Operation {
     }
 
     pub fn time_out(&self) -> Option<usize> {
-        self.exec().and_then(|exec| exec.timeout.clone())
+        self.exec().and_then(|exec| exec.timeout)
     }
 }
 

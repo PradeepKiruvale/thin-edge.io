@@ -806,7 +806,7 @@ async fn execute_operation(
 
                 // execute the command and wait until it finishes
                 // mqtt client publishes failed or successful depending on the exit code
-                if let Ok(output) = child_process.wait_with_output(logger, time_out).await {
+                if let Ok(output) = child_process.wait_with_output(logger, Some(time_out)).await {
                     match output.status.code() {
                         Some(0) => {
                             let sanitized_stdout =
