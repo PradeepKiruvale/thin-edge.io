@@ -10,6 +10,7 @@ use crate::smartrest::smartrest_serializer::SmartRestSetSupportedOperations;
 use serde::Deserialize;
 
 use super::error::SmartRestSerializerError;
+use tokio::time::Duration;
 
 /// Operations are derived by reading files subdirectories per cloud /etc/tedge/operations directory
 /// Each operation is a file name in one of the subdirectories
@@ -22,7 +23,7 @@ pub struct OnMessageExec {
     on_message: Option<String>,
     topic: Option<String>,
     user: Option<String>,
-    timeout: Option<usize>,
+    timeout: Option<Duration>,
 }
 
 #[derive(Debug, Clone, Deserialize, Eq, PartialEq)]
@@ -46,7 +47,7 @@ impl Operation {
         self.exec().and_then(|exec| exec.topic.clone())
     }
 
-    pub fn time_out(&self) -> Option<usize> {
+    pub fn time_out(&self) -> Option<Duration> {
         self.exec().and_then(|exec| exec.timeout)
     }
 }

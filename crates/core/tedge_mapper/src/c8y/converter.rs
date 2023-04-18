@@ -56,6 +56,7 @@ use tedge_config::get_tedge_config;
 use tedge_config::ConfigSettingAccessor;
 use tedge_config::LogPathSetting;
 use time::format_description::well_known::Rfc3339;
+use tokio::time::Duration;
 use tracing::debug;
 use tracing::info;
 use tracing::log::error;
@@ -764,7 +765,7 @@ async fn execute_operation(
     operation_name: &str,
     operation_logs: &OperationLogs,
     mqtt_publisher: &mpsc::UnboundedSender<Message>,
-    time_out: usize,
+    time_out: Duration,
 ) -> Result<(), CumulocityMapperError> {
     let command = command.to_owned();
     let payload = payload.to_string();

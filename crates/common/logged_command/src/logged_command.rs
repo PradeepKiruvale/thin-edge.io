@@ -2,13 +2,14 @@ use log::error;
 use std::ffi::OsStr;
 use std::process::Output;
 use std::process::Stdio;
+use std::time::Duration;
 use tokio::fs::File;
 use tokio::io::AsyncWriteExt;
 use tokio::io::BufWriter;
 use tokio::process::Child;
 use tokio::process::Command;
 
-const OPERATION_TIMEOUT: u64 = 10; // in seconds
+const OPERATION_TIMEOUT: Duration = tokio::time::Duration::from_secs(10); // in seconds
 
 #[derive(Debug)]
 pub struct LoggingChild {
@@ -20,7 +21,7 @@ impl LoggingChild {
     pub async fn wait_with_output(
         mut self,
         logger: &mut BufWriter<File>,
-        time_out: Option<usize>,
+        time_out: Option<Duration>,
     ) -> Result<Output, std::io::Error> {
         match time_out {
             Some(timeout) => {
@@ -28,7 +29,7 @@ impl LoggingChild {
                     _ = self.inner_child.wait() => {
                         self.get_outcome(logger).await
                     }
-                    _ = tokio::time::sleep(std::time::Duration::from_secs(timeout.try_into().unwrap())) => {
+                    _ = tokio::time::sleep(timeout) => {
                         self.timeout_operation(logger).await
                     }
                 }
@@ -52,7 +53,7 @@ impl LoggingChild {
         // stop the child process by sending sigterm
         send_sig_term(&self.inner_child).await;
         // wait to gracefully stop, if not stopped then send sigkill
-        tokio::time::sleep(std::time::Duration::from_secs(OPERATION_TIMEOUT)).await;
+        tokio::time::sleep(OPERATION_TIMEOUT).await;
         self.inner_child.kill().await?;
         let mut outcome = self.get_outcome(logger).await;
         // update the stderr message
