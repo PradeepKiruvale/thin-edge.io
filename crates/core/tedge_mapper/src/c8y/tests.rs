@@ -2080,6 +2080,7 @@ async fn start_c8y_mapper(
 async fn create_c8y_converter(
     ops_dir: &TempTedgeDir,
 ) -> (TempTedgeDir, CumulocityConverter<FakeC8YHttpProxy>) {
+    ops_dir.dir("operations").dir("c8y");
     let size_threshold = SizeThreshold(16 * 1024);
     let device_name = "test-device".into();
     let device_type = "test-device-type".into();
