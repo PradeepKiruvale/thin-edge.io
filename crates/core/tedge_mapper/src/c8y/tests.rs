@@ -2083,11 +2083,8 @@ async fn create_c8y_converter(
     let size_threshold = SizeThreshold(16 * 1024);
     let device_name = "test-device".into();
     let device_type = "test-device-type".into();
-    let operations = Operations::try_new(format!(
-        "{}/operations/c8y",
-        ops_dir.path().display()
-    ))
-    .unwrap();
+    let operations =
+        Operations::try_new(format!("{}/operations/c8y", ops_dir.path().display())).unwrap();
 
     let http_proxy = FakeC8YHttpProxy {};
     let service_type = "service".into();
