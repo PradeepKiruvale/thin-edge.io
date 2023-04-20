@@ -994,7 +994,6 @@ async fn forward_operation_request(
 ) -> Result<Vec<Message>, CumulocityMapperError> {
     if let Some(operation) = operations.matching_smartrest_template(template) {
         if let Some(command) = operation.command() {
-            dbg!(&command);
             execute_operation(
                 payload,
                 command.as_str(),

@@ -117,7 +117,7 @@ pub fn with_exec_permission(file_path: &Path, content: &str) {
         .mode(0o744)
         .create_new(true)
         .write(true)
-        .open(file_path.clone())
+        .open(file_path)
         .unwrap();
 
     file.write_all(content.as_bytes()).unwrap();

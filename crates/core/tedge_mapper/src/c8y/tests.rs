@@ -25,6 +25,8 @@ use mqtt_tests::test_mqtt_server::MqttProcessHandler;
 use mqtt_tests::with_timeout::WithTimeout;
 use serde_json::json;
 use serial_test::serial;
+use std::fs::File;
+use std::io::Read;
 use std::path::Path;
 use std::path::PathBuf;
 use std::time::Duration;
@@ -1902,13 +1904,12 @@ async fn custom_operation_timeout_sigkill() {
     //create command
     let content = r#"#!/usr/bin/bash    
     handle_term() {
-        echo "caught the sigterm" > /tmp/test.txt
+        echo "caught the sigterm" > /tmp/sigterm.txt
         for i in {1..50}
         do
             sleep 1
         done
-    }
-  
+    } 
     trap handle_term SIGTERM    
     for i in {1..50}  
     do
@@ -1934,6 +1935,14 @@ async fn custom_operation_timeout_sigkill() {
         ],
     )
     .await;
+
+    // assert the signterm is handled
+    let mut file = File::open(&Path::new("/tmp/sigterm.txt")).expect("Unable to open the file");
+    let mut contents = String::new();
+    file.read_to_string(&mut contents)
+        .expect("Unable to read the file");
+    assert_eq!(contents, "caught the sigterm\n");
+    std::fs::remove_file("/tmp/sigterm.txt").expect("File delete failed");
 
     sm_mapper.abort();
 }
