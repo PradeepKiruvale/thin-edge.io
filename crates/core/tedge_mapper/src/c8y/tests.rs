@@ -1786,7 +1786,7 @@ async fn custom_operation_without_timeout_successful() {
         sleep 1
     done
     "#;
-    create_custom_cmd(&cmd_file.as_path(), content);
+    create_custom_cmd(cmd_file.as_path(), content);
 
     let (_tmp_dir, sm_mapper) = start_c8y_mapper(broker.port, &cfg_dir).await.unwrap();
     publish_a_fake_jwt_token(broker).await;
@@ -1825,7 +1825,7 @@ async fn custom_operation_with_timeout_successful() {
         sleep 1
     done
     "#;
-    create_custom_cmd(&cmd_file.as_path(), content);
+    create_custom_cmd(cmd_file.as_path(), content);
 
     let (_tmp_dir, sm_mapper) = start_c8y_mapper(broker.port, &cfg_dir).await.unwrap();
     publish_a_fake_jwt_token(broker).await;
@@ -1865,7 +1865,7 @@ async fn custom_operation_timeout_sigterm() {
         sleep 1
     done
     "#;
-    create_custom_cmd(&cmd_file.as_path(), content);
+    create_custom_cmd(cmd_file.as_path(), content);
 
     let (_tmp_dir, sm_mapper) = start_c8y_mapper(broker.port, &cfg_dir).await.unwrap();
     publish_a_fake_jwt_token(broker).await;
@@ -1916,7 +1916,7 @@ async fn custom_operation_timeout_sigkill() {
         sleep 1
     done
     "#;
-    create_custom_cmd(&cmd_file.as_path(), content);
+    create_custom_cmd(cmd_file.as_path(), content);
 
     let (_tmp_dir, sm_mapper) = start_c8y_mapper(broker.port, &cfg_dir).await.unwrap();
     publish_a_fake_jwt_token(broker).await;
@@ -1937,11 +1937,12 @@ async fn custom_operation_timeout_sigkill() {
     .await;
 
     // assert the signterm is handled
-    let mut file = File::open(&Path::new("/tmp/sigterm.txt")).expect("Unable to open the file");
+    let mut file = File::open(Path::new("/tmp/sigterm.txt")).expect("Unable to open the file");
     let mut contents = String::new();
     file.read_to_string(&mut contents)
         .expect("Unable to read the file");
     assert_eq!(contents, "caught the sigterm\n");
+    // cleanup
     std::fs::remove_file("/tmp/sigterm.txt").expect("File delete failed");
 
     sm_mapper.abort();
@@ -2084,7 +2085,7 @@ async fn create_c8y_converter(
     let device_type = "test-device-type".into();
     let operations = Operations::try_new(format!(
         "{}/operations/c8y",
-        ops_dir.path().display().to_string()
+        ops_dir.path().display()
     ))
     .unwrap();
 

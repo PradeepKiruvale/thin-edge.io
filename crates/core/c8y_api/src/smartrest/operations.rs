@@ -49,7 +49,7 @@ impl Operation {
 
     pub fn time_out(&self) -> Option<Duration> {
         self.exec()
-            .and_then(|exec| exec.timeout.and_then(|t| Some(Duration::from_secs(t))))
+            .and_then(|exec| exec.timeout.map(|t| Duration::from_secs(t)))
     }
 }
 
