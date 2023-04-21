@@ -53,9 +53,16 @@ impl LoggingChild {
     ) -> Result<Output, std::io::Error> {
         // stop the child process by sending sigterm
         send_sig_term(&self.inner_child).await;
+
         // wait to gracefully stop, if not stopped then send sigkill
-        tokio::time::sleep(OPERATION_TIMEOUT).await;
-        self.inner_child.kill().await?;
+        tokio::select! {
+            _ = self.inner_child.wait() => {
+            }
+            _ = tokio::time::sleep(OPERATION_TIMEOUT) => {
+                self.inner_child.kill().await?;
+            }
+        }
+
         let mut outcome = self.get_outcome(logger).await;
         // update the stderr message
         outcome
