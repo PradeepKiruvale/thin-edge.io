@@ -837,6 +837,7 @@ async fn execute_operation(
                     }
                 }
             });
+
             Ok(())
         }
         Err(err) => Err(err),

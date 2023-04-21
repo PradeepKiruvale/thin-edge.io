@@ -10,7 +10,7 @@ use tokio::io::BufWriter;
 use tokio::process::Child;
 use tokio::process::Command;
 
-const OPERATION_TIMEOUT: Duration = tokio::time::Duration::from_secs(2);
+const OPERATION_TIMEOUT: Duration = tokio::time::Duration::from_secs(5);
 
 #[derive(Debug)]
 pub struct LoggingChild {

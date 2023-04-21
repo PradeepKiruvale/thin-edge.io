@@ -25,6 +25,7 @@ use mqtt_tests::test_mqtt_server::MqttProcessHandler;
 use mqtt_tests::with_timeout::WithTimeout;
 use serde_json::json;
 use serial_test::serial;
+use std::fs;
 use std::fs::File;
 use std::io::Read;
 use std::path::Path;
@@ -1785,6 +1786,7 @@ async fn custom_operation_without_timeout_successful() {
     do
         sleep 1
     done
+    echo "Executed successfully without timeout"
     "#;
     create_custom_cmd(cmd_file.as_path(), content);
 
@@ -1799,9 +1801,19 @@ async fn custom_operation_without_timeout_successful() {
     mqtt_tests::assert_received_all_expected(
         &mut messages,
         Duration::from_secs(10),
-        &["501,c8y_Command", "503,c8y_Command,\"\""],
+        &[
+            "501,c8y_Command",
+            "503,c8y_Command,\"Executed successfully without timeout\n\"",
+        ],
     )
     .await;
+
+    // assert the signterm is handled
+    assert_command_exec_log_content(
+        cfg_dir,
+        "exit status: 0",
+        "Executed successfully without timeout",
+    );
 
     sm_mapper.abort();
 }
@@ -1821,9 +1833,10 @@ async fn custom_operation_with_timeout_successful() {
     //create command
     let content = r#"#!/usr/bin/bash    
     for i in {1..2}
-    do
+    do     
         sleep 1
     done
+    echo "Successfully Executed"
     "#;
     create_custom_cmd(cmd_file.as_path(), content);
 
@@ -1838,9 +1851,15 @@ async fn custom_operation_with_timeout_successful() {
     mqtt_tests::assert_received_all_expected(
         &mut messages,
         Duration::from_secs(10),
-        &["501,c8y_Command", "503,c8y_Command,\"\""],
+        &[
+            "501,c8y_Command",
+            "503,c8y_Command,\"Successfully Executed\n\"",
+        ],
     )
     .await;
+
+    // assert the signterm is handled
+    assert_command_exec_log_content(cfg_dir, "exit status: 0", "Successfully Executed");
 
     sm_mapper.abort();
 }
@@ -1854,16 +1873,25 @@ async fn custom_operation_timeout_sigterm() {
     let broker = mqtt_tests::test_mqtt_broker();
     let mut messages = broker.messages_published_on("c8y/s/us").await;
     let cfg_dir = TempTedgeDir::new();
-
     let cmd_file = cfg_dir.path().join("command");
     //create custom operation file
     create_custom_op_file(&cfg_dir, cmd_file.as_path(), Some(1));
     //create command
     let content = r#"#!/usr/bin/bash    
-    for i in {1..50}
+    handle_term() {     
+        for i in {1..2}
+        do
+            echo "sigterm $i"
+            sleep 1
+        done
+        exit 124
+    } 
+    trap handle_term SIGTERM    
+    for i in {1..10}  
     do
+        echo "main $i"
         sleep 1
-    done
+    done    
     "#;
     create_custom_cmd(cmd_file.as_path(), content);
 
@@ -1885,6 +1913,9 @@ async fn custom_operation_timeout_sigterm() {
     )
     .await;
 
+    // assert the signterm is handled
+    assert_command_exec_log_content(cfg_dir, "exit status: 124", "sigterm 1");
+
     sm_mapper.abort();
 }
 
@@ -1903,16 +1934,18 @@ async fn custom_operation_timeout_sigkill() {
     create_custom_op_file(&cfg_dir, cmd_file.as_path(), Some(1));
     //create command
     let content = r#"#!/usr/bin/bash    
-    handle_term() {
-        echo "caught the sigterm" > /tmp/sigterm.txt
-        for i in {1..50}
+    handle_term() {     
+        for i in {1..50}        
         do
+            echo "sigterm $i"
             sleep 1
         done
+        exit 124
     } 
     trap handle_term SIGTERM    
     for i in {1..50}  
     do
+        echo "main $i"
         sleep 1
     done
     "#;
@@ -1937,17 +1970,23 @@ async fn custom_operation_timeout_sigkill() {
     .await;
 
     // assert the signterm is handled
-    let mut file = File::open(Path::new("/tmp/sigterm.txt")).expect("Unable to open the file");
-    let mut contents = String::new();
-    file.read_to_string(&mut contents)
-        .expect("Unable to read the file");
-    assert_eq!(contents, "caught the sigterm\n");
-    // cleanup
-    std::fs::remove_file("/tmp/sigterm.txt").expect("File delete failed");
+    assert_command_exec_log_content(cfg_dir, "exit status: unknown", "sigterm 5");
 
     sm_mapper.abort();
 }
 
+fn assert_command_exec_log_content(cfg_dir: TempTedgeDir, exit_status: &str, other_str: &str) {
+    let paths = fs::read_dir(cfg_dir.to_path_buf().join("tedge/agent")).unwrap();
+    for path in paths {
+        let mut file =
+            File::open(path.unwrap().path()).expect("Unable to open the command exec log file");
+        let mut contents = String::new();
+        file.read_to_string(&mut contents)
+            .expect("Unable to read the file");
+        assert!(contents.contains(exit_status));
+        assert!(contents.contains(other_str));
+    }
+}
 fn create_custom_op_file(cfg_dir: &TempTedgeDir, cmd_file: &Path, timeout: Option<i64>) {
     let custom_op_file = cfg_dir.dir("operations").dir("c8y").file("c8y_Command");
     let mut custom_content = Map::new();
@@ -2101,7 +2140,7 @@ async fn create_c8y_converter(
         device_type,
         operations,
         http_proxy,
-        tmp_dir.path().to_path_buf(),
+        ops_dir.path().to_path_buf(),
         ops_dir.path().to_path_buf(),
         mapper_config,
         mqtt_client.published,
