@@ -965,6 +965,8 @@ fn dummy_tedge_config_defaults() -> TEdgeConfigDefaults {
         default_firmware_child_update_timeout: Seconds(3600),
         default_service_type: String::from("service"),
         default_lock_files: Flag(true),
+        default_graceful_custom_operation_timeout: Seconds(3600),
+        default_forceful_custom_operation_timeout: Seconds(60),
     }
 }
 

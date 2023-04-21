@@ -10,8 +10,6 @@ use tokio::io::BufWriter;
 use tokio::process::Child;
 use tokio::process::Command;
 
-const OPERATION_TIMEOUT: Duration = tokio::time::Duration::from_secs(5);
-
 #[derive(Debug)]
 pub struct LoggingChild {
     command_line: String,
@@ -22,16 +20,17 @@ impl LoggingChild {
     pub async fn wait_with_output(
         mut self,
         logger: &mut BufWriter<File>,
-        time_out: Option<Duration>,
+        graceful_timeout: Option<Duration>,
+        forceful_timeout: Option<Duration>,
     ) -> Result<Output, std::io::Error> {
-        match time_out {
+        match graceful_timeout {
             Some(timeout) => {
                 tokio::select! {
                     _ = self.inner_child.wait() => {
                         self.get_outcome(logger).await
                     }
                     _ = tokio::time::sleep(timeout) => {
-                        self.timeout_operation(logger).await
+                        self.timeout_operation(logger, forceful_timeout).await
                     }
                 }
             }
@@ -50,26 +49,35 @@ impl LoggingChild {
     async fn timeout_operation(
         mut self,
         logger: &mut BufWriter<File>,
+        forceful_timeout: Option<Duration>,
     ) -> Result<Output, std::io::Error> {
         // stop the child process by sending sigterm
         send_sig_term(&self.inner_child).await;
 
         // wait to gracefully stop, if not stopped then send sigkill
-        tokio::select! {
-            _ = self.inner_child.wait() => {
-            }
-            _ = tokio::time::sleep(OPERATION_TIMEOUT) => {
-                self.inner_child.kill().await?;
+        if let Some(timeout) = forceful_timeout {
+            tokio::select! {
+                _ = self.inner_child.wait() => {
+                }
+                _ = tokio::time::sleep(timeout) => {
+                    self.inner_child.kill().await?;
+                }
             }
         }
 
-        let mut outcome = self.get_outcome(logger).await;
+        let mut outcome = self.inner_child.wait_with_output().await;
+
         // update the stderr message
         outcome
             .as_mut()
             .unwrap()
             .stderr
             .append(&mut "operation failed due to timeout".as_bytes().to_vec());
+
+        if let Err(err) = LoggedCommand::log_outcome(&self.command_line, &outcome, logger).await {
+            error!("Fail to log the command execution: {}", err);
+        }
+
         outcome
     }
 }

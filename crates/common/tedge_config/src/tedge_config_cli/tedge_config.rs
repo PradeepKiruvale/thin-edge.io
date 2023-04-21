@@ -1009,3 +1009,57 @@ impl ConfigSettingAccessor<ServiceTypeSetting> for TEdgeConfig {
         Ok(())
     }
 }
+
+impl ConfigSettingAccessor<CustomOperationGracefulTimeout> for TEdgeConfig {
+    fn query(&self, _setting: CustomOperationGracefulTimeout) -> ConfigSettingResult<Seconds> {
+        Ok(self.data.operation.graceful_timeout.map(Seconds).unwrap_or(
+            self.config_defaults
+                .default_graceful_custom_operation_timeout,
+        ))
+    }
+
+    fn update(
+        &mut self,
+        _setting: CustomOperationGracefulTimeout,
+        value: Seconds,
+    ) -> ConfigSettingResult<()> {
+        self.data.operation.graceful_timeout = Some(value.into());
+        Ok(())
+    }
+
+    fn unset(&mut self, _setting: CustomOperationGracefulTimeout) -> ConfigSettingResult<()> {
+        self.data.operation.graceful_timeout = Some(
+            self.config_defaults
+                .default_graceful_custom_operation_timeout
+                .into(),
+        );
+        Ok(())
+    }
+}
+
+impl ConfigSettingAccessor<CustomOperationForcefulTimeout> for TEdgeConfig {
+    fn query(&self, _setting: CustomOperationForcefulTimeout) -> ConfigSettingResult<Seconds> {
+        Ok(self.data.operation.forceful_timeout.map(Seconds).unwrap_or(
+            self.config_defaults
+                .default_forceful_custom_operation_timeout,
+        ))
+    }
+
+    fn update(
+        &mut self,
+        _setting: CustomOperationForcefulTimeout,
+        value: Seconds,
+    ) -> ConfigSettingResult<()> {
+        self.data.operation.forceful_timeout = Some(value.into());
+        Ok(())
+    }
+
+    fn unset(&mut self, _setting: CustomOperationForcefulTimeout) -> ConfigSettingResult<()> {
+        self.data.operation.forceful_timeout = Some(
+            self.config_defaults
+                .default_forceful_custom_operation_timeout
+                .into(),
+        );
+        Ok(())
+    }
+}

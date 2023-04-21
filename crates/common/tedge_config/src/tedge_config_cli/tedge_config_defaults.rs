@@ -20,6 +20,9 @@ const DEFAULT_SERVICE_TYPE: &str = "service";
 
 pub const DEFAULT_FILE_TRANSFER_DIR_NAME: &str = "file-transfer";
 
+const DEFAULT_CUSTOM_OPERATION_TIMEOUT_SEC: u64 = 3600;
+const DEFAULT_CUSTOM_OPERATION_KILL_TIMEOUT_SEC: u64 = 60;
+
 /// Stores default values for use by `TEdgeConfig` in case no configuration setting
 /// is available.
 ///
@@ -92,6 +95,12 @@ pub struct TEdgeConfigDefaults {
     pub default_service_type: String,
     /// Default lock files bool
     pub default_lock_files: Flag,
+
+    /// Default graceful custom operation timeout in seconds
+    pub default_graceful_custom_operation_timeout: Seconds,
+
+    /// Default forceful custom operation timeout in seconds
+    pub default_forceful_custom_operation_timeout: Seconds,
 }
 
 impl From<&TEdgeConfigLocation> for TEdgeConfigDefaults {
@@ -130,6 +139,12 @@ impl From<&TEdgeConfigLocation> for TEdgeConfigDefaults {
             ),
             default_service_type: DEFAULT_SERVICE_TYPE.into(),
             default_lock_files: Flag(true),
+            default_graceful_custom_operation_timeout: Seconds(
+                DEFAULT_CUSTOM_OPERATION_TIMEOUT_SEC,
+            ),
+            default_forceful_custom_operation_timeout: Seconds(
+                DEFAULT_CUSTOM_OPERATION_KILL_TIMEOUT_SEC,
+            ),
         }
     }
 }
@@ -168,6 +183,12 @@ fn test_from_tedge_config_location() {
             ),
             default_service_type: DEFAULT_SERVICE_TYPE.into(),
             default_lock_files: Flag(true),
+            default_graceful_custom_operation_timeout: Seconds(
+                DEFAULT_CUSTOM_OPERATION_TIMEOUT_SEC
+            ),
+            default_forceful_custom_operation_timeout: Seconds(
+                DEFAULT_CUSTOM_OPERATION_KILL_TIMEOUT_SEC,
+            ),
         }
     );
 }

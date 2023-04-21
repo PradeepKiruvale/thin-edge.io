@@ -51,6 +51,9 @@ pub struct TEdgeConfigDto {
 
     #[serde(default)]
     pub(crate) service: ServiceTypeConfigDto,
+
+    #[serde(default)]
+    pub(crate) operation: OperationDto,
 }
 
 /// Represents the device specific configurations defined in the [device]
@@ -252,6 +255,15 @@ pub(crate) struct MqttClientAuthConfig {
     /// Path to the client private key
     #[doku(example = "/path/to/client.key", as = "PathBuf")]
     pub key_file: Option<Utf8PathBuf>,
+}
+
+#[derive(Debug, Default, Deserialize, Serialize, Document)]
+pub struct OperationDto {
+    #[serde(rename = "graceful_timeout")]
+    pub(crate) graceful_timeout: Option<u64>,
+
+    #[serde(rename = "forceful_timeout")]
+    pub(crate) forceful_timeout: Option<u64>,
 }
 
 #[cfg(test)]

@@ -31,6 +31,7 @@ use std::io::Read;
 use std::path::Path;
 use std::path::PathBuf;
 use std::time::Duration;
+use tedge_test_utils::fs::with_exec_permission;
 use tedge_test_utils::fs::TempTedgeDir;
 use tokio::task::JoinHandle;
 
@@ -1809,11 +1810,18 @@ async fn custom_operation_without_timeout_successful() {
     .await;
 
     // assert the signterm is handled
-    assert_command_exec_log_content(
-        cfg_dir,
-        "exit status: 0",
-        "Executed successfully without timeout",
-    );
+    let expected_content = "command \"511,test-device,c8y_Command\"
+exit status: 0
+
+stdout <<EOF
+Executed successfully without timeout
+EOF
+
+stderr <<EOF
+EOF
+";
+
+    assert_command_exec_log_content(cfg_dir, expected_content);
 
     sm_mapper.abort();
 }
@@ -1859,8 +1867,18 @@ async fn custom_operation_with_timeout_successful() {
     .await;
 
     // assert the signterm is handled
-    assert_command_exec_log_content(cfg_dir, "exit status: 0", "Successfully Executed");
+    let expected_content = "command \"511,test-device,c8y_Command\"
+exit status: 0
 
+stdout <<EOF
+Successfully Executed
+EOF
+
+stderr <<EOF
+EOF
+";
+
+    assert_command_exec_log_content(cfg_dir, expected_content);
     sm_mapper.abort();
 }
 
@@ -1879,7 +1897,7 @@ async fn custom_operation_timeout_sigterm() {
     //create command
     let content = r#"#!/usr/bin/bash    
     handle_term() {     
-        for i in {1..2}
+        for i in {1..1}
         do
             echo "sigterm $i"
             sleep 1
@@ -1914,7 +1932,18 @@ async fn custom_operation_timeout_sigterm() {
     .await;
 
     // assert the signterm is handled
-    assert_command_exec_log_content(cfg_dir, "exit status: 124", "sigterm 1");
+    let expected_content = "command \"511,test-device,c8y_Command\"
+exit status: 124
+
+stdout <<EOF
+main 1
+sigterm 1
+EOF
+
+stderr <<EOF
+operation failed due to timeoutEOF";
+
+    assert_command_exec_log_content(cfg_dir, expected_content);
 
     sm_mapper.abort();
 }
@@ -1970,12 +1999,25 @@ async fn custom_operation_timeout_sigkill() {
     .await;
 
     // assert the signterm is handled
-    assert_command_exec_log_content(cfg_dir, "exit status: unknown", "sigterm 5");
+    let expected_content = "command \"511,test-device,c8y_Command\"
+exit status: unknown
+
+stdout <<EOF
+main 1
+sigterm 1
+sigterm 2
+EOF
+
+stderr <<EOF
+operation failed due to timeoutEOF
+";
+
+    assert_command_exec_log_content(cfg_dir, expected_content);
 
     sm_mapper.abort();
 }
 
-fn assert_command_exec_log_content(cfg_dir: TempTedgeDir, exit_status: &str, other_str: &str) {
+fn assert_command_exec_log_content(cfg_dir: TempTedgeDir, expected_contents: &str) {
     let paths = fs::read_dir(cfg_dir.to_path_buf().join("tedge/agent")).unwrap();
     for path in paths {
         let mut file =
@@ -1983,27 +2025,28 @@ fn assert_command_exec_log_content(cfg_dir: TempTedgeDir, exit_status: &str, oth
         let mut contents = String::new();
         file.read_to_string(&mut contents)
             .expect("Unable to read the file");
-        assert!(contents.contains(exit_status));
-        assert!(contents.contains(other_str));
+        dbg!(&contents);
+        dbg!(&expected_contents);
+        assert!(contents.contains(expected_contents));
     }
 }
 fn create_custom_op_file(cfg_dir: &TempTedgeDir, cmd_file: &Path, timeout: Option<i64>) {
     let custom_op_file = cfg_dir.dir("operations").dir("c8y").file("c8y_Command");
-    let mut custom_content = Map::new();
-    custom_content.insert("name".into(), Value::String("c8y_Command".into()));
-    custom_content.insert("topic".into(), Value::String("c8y/s/ds".into()));
-    custom_content.insert("on_message".into(), Value::String("511".into()));
+    let mut custom_content = toml::map::Map::new();
+    custom_content.insert("name".into(), toml::Value::String("c8y_Command".into()));
+    custom_content.insert("topic".into(), toml::Value::String("c8y/s/ds".into()));
+    custom_content.insert("on_message".into(), toml::Value::String("511".into()));
     if let Some(timeout) = timeout {
-        custom_content.insert("timeout".into(), Value::Integer(timeout));
+        custom_content.insert("timeout".into(), toml::Value::Integer(timeout));
     }
     custom_content.insert(
         "command".into(),
-        Value::String(cmd_file.display().to_string()),
+        toml::Value::String(cmd_file.display().to_string()),
     );
 
-    let mut map = Map::new();
-    map.insert("exec".into(), Value::Table(custom_content));
-    let toml_content = Value::Table(map);
+    let mut map = toml::map::Map::new();
+    map.insert("exec".into(), toml::Value::Table(custom_content));
+    let toml_content = toml::Value::Table(map);
 
     custom_op_file.with_toml_content(toml_content);
 }
@@ -2123,8 +2166,12 @@ async fn create_c8y_converter(
     let size_threshold = SizeThreshold(16 * 1024);
     let device_name = "test-device".into();
     let device_type = "test-device-type".into();
-    let operations =
-        Operations::try_new(format!("{}/operations/c8y", ops_dir.path().display())).unwrap();
+    let operations = Operations::try_new(
+        format!("{}/operations/c8y", ops_dir.path().display()),
+        Duration::from_secs(3),
+        Duration::from_secs(2),
+    )
+    .unwrap();
 
     let http_proxy = FakeC8YHttpProxy {};
     let service_type = "service".into();

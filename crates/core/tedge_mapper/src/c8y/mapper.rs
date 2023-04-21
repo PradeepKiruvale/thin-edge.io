@@ -1,5 +1,6 @@
 use std::path::Path;
 use std::path::PathBuf;
+use std::time::Duration;
 
 use crate::c8y::converter::CumulocityConverter;
 use crate::c8y::converter::CumulocityDeviceInfo;
@@ -20,6 +21,8 @@ use mqtt_channel::TopicFilter;
 use tedge_api::health::health_check_topics;
 use tedge_api::topic::ResponseTopic;
 use tedge_config::ConfigSettingAccessor;
+use tedge_config::CustomOperationForcefulTimeout;
+use tedge_config::CustomOperationGracefulTimeout;
 use tedge_config::DeviceIdSetting;
 use tedge_config::DeviceTypeSetting;
 use tedge_config::ServiceTypeSetting;
@@ -64,7 +67,11 @@ impl TEdgeComponent for CumulocityMapper {
     async fn init(&self, cfg_dir: &Path) -> Result<(), anyhow::Error> {
         info!("Initialize tedge mapper c8y");
         create_directories(cfg_dir)?;
-        let operations = Operations::try_new(format!("{}/operations/c8y", cfg_dir.display()))?;
+        let operations = Operations::try_new(
+            format!("{}/operations/c8y", cfg_dir.display()),
+            Duration::from_secs(0),
+            Duration::from_secs(0),
+        )?;
         self.init_session(CumulocityMapper::subscriptions(&operations)?)
             .await?;
         Ok(())
@@ -73,9 +80,19 @@ impl TEdgeComponent for CumulocityMapper {
     async fn start(&self, tedge_config: TEdgeConfig, cfg_dir: &Path) -> Result<(), anyhow::Error> {
         let size_threshold = SizeThreshold(MQTT_MESSAGE_SIZE_THRESHOLD);
         let config_dir = cfg_dir.display().to_string();
-
-        let operations = Operations::try_new(format!("{config_dir}/operations/c8y"))?;
-        let child_ops = Operations::get_child_ops(format!("{config_dir}/operations/c8y"))?;
+        let time_out = Duration::from_secs(tedge_config.query(CustomOperationGracefulTimeout)?.0);
+        let kill_time_out =
+            Duration::from_secs(tedge_config.query(CustomOperationForcefulTimeout)?.0);
+        let operations = Operations::try_new(
+            format!("{config_dir}/operations/c8y"),
+            time_out,
+            kill_time_out,
+        )?;
+        let child_ops = Operations::get_child_ops(
+            format!("{config_dir}/operations/c8y"),
+            time_out,
+            kill_time_out,
+        )?;
         let mut http_proxy = JwtAuthHttpProxy::try_new(&tedge_config).await?;
         http_proxy.init().await?;
         let device_name = tedge_config.query(DeviceIdSetting)?;

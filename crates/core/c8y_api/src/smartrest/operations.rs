@@ -10,20 +10,33 @@ use crate::smartrest::smartrest_serializer::SmartRestSetSupportedOperations;
 use serde::Deserialize;
 
 use super::error::SmartRestSerializerError;
-use tokio::time::Duration;
+use serde_with::serde_as;
+use serde_with::DurationSeconds;
+use std::time::Duration;
 
 /// Operations are derived by reading files subdirectories per cloud /etc/tedge/operations directory
 /// Each operation is a file name in one of the subdirectories
 /// The file name is the operation name
-
+#[serde_as]
 #[derive(Debug, Clone, Deserialize, Eq, PartialEq)]
 #[serde(rename_all = "snake_case")]
+
 pub struct OnMessageExec {
     command: Option<String>,
     on_message: Option<String>,
     topic: Option<String>,
     user: Option<String>,
-    timeout: Option<u64>,
+    #[serde(rename = "timeout")]
+    #[serde_as(as = "Option<DurationSeconds<u64>>")]
+    pub graceful_timeout: Option<Duration>,
+    #[serde_as(as = "Option<DurationSeconds<u64>>")]
+    pub forceful_timeout: Option<Duration>,
+}
+
+impl OnMessageExec {
+    pub fn set_time_out(&mut self, timeout: Duration) {
+        self.graceful_timeout = Some(timeout);
+    }
 }
 
 #[derive(Debug, Clone, Deserialize, Eq, PartialEq)]
@@ -39,6 +52,10 @@ impl Operation {
         self.exec.as_ref()
     }
 
+    pub fn exec_mut(&mut self) -> Option<&mut OnMessageExec> {
+        self.exec.as_mut()
+    }
+
     pub fn command(&self) -> Option<String> {
         self.exec().and_then(|exec| exec.command.clone())
     }
@@ -47,9 +64,12 @@ impl Operation {
         self.exec().and_then(|exec| exec.topic.clone())
     }
 
-    pub fn time_out(&self) -> Option<Duration> {
-        self.exec()
-            .and_then(|exec| exec.timeout.map(Duration::from_secs))
+    pub fn graceful_timeout(&self) -> Option<Duration> {
+        self.exec().and_then(|exec| exec.graceful_timeout)
+    }
+
+    pub fn forceful_timeout(&self) -> Option<Duration> {
+        self.exec().and_then(|exec| exec.forceful_timeout)
     }
 }
 
@@ -88,12 +108,18 @@ impl Operations {
         self.operations.retain(|x| x.name.ne(&op_name));
     }
 
-    pub fn try_new(dir: impl AsRef<Path>) -> Result<Self, OperationsError> {
-        get_operations(dir.as_ref())
+    pub fn try_new(
+        dir: impl AsRef<Path>,
+        default_time_out: Duration,
+        default_kill_timeout: Duration,
+    ) -> Result<Self, OperationsError> {
+        get_operations(dir.as_ref(), default_time_out, default_kill_timeout)
     }
 
     pub fn get_child_ops(
         ops_dir: impl AsRef<Path>,
+        default_time_out: Duration,
+        default_kill_timeout: Duration,
     ) -> Result<HashMap<String, Self>, OperationsError> {
         let mut child_ops: HashMap<String, Operations> = HashMap::new();
         let child_entries = fs::read_dir(&ops_dir)
@@ -106,7 +132,7 @@ impl Operations {
             .filter(|path| path.is_dir())
             .collect::<Vec<PathBuf>>();
         for cdir in child_entries {
-            let ops = Operations::try_new(&cdir)?;
+            let ops = Operations::try_new(&cdir, default_time_out, default_kill_timeout)?;
             if let Some(id) = cdir.file_name() {
                 if let Some(id_str) = id.to_str() {
                     child_ops.insert(id_str.to_string(), ops);
@@ -144,7 +170,11 @@ impl Operations {
     }
 }
 
-fn get_operations(dir: impl AsRef<Path>) -> Result<Operations, OperationsError> {
+fn get_operations(
+    dir: impl AsRef<Path>,
+    default_timeout: Duration,
+    default_kill_timeout: Duration,
+) -> Result<Operations, OperationsError> {
     let mut operations = Operations::default();
     let dir_entries = fs::read_dir(&dir)
         .map_err(|_| OperationsError::ReadDirError {
@@ -165,7 +195,6 @@ fn get_operations(dir: impl AsRef<Path>) -> Result<Operations, OperationsError> 
             let mut details = match fs::read(&path) {
                 Ok(bytes) => toml::from_slice::<Operation>(bytes.as_slice())
                     .map_err(|e| OperationsError::TomlError(path.to_path_buf(), e))?,
-
                 Err(err) => return Err(OperationsError::FromIo(err)),
             };
 
@@ -175,6 +204,16 @@ fn get_operations(dir: impl AsRef<Path>) -> Result<Operations, OperationsError> 
                 .ok_or_else(|| OperationsError::InvalidOperationName(path.to_owned()))?
                 .to_owned();
 
+            if details.graceful_timeout().is_none() {
+                details.exec_mut().map(|f| {
+                    f.graceful_timeout = Some(default_timeout);
+                    Some(())
+                });
+            }
+
+            if let Some(f) = details.exec_mut() {
+                f.forceful_timeout = Some(default_kill_timeout);
+            }
             operations.add_operation(details);
         }
     }
@@ -284,7 +323,12 @@ mod tests {
     fn get_operations_all(ops_count: usize) {
         let test_operations = TestOperations::builder().with_operations(ops_count).build();
 
-        let operations = get_operations(test_operations.temp_dir()).unwrap();
+        let operations = get_operations(
+            test_operations.temp_dir(),
+            Duration::from_secs(5),
+            Duration::from_secs(1),
+        )
+        .unwrap();
 
         assert_eq!(operations.operations.len(), ops_count);
     }

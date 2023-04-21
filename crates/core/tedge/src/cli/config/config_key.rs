@@ -76,6 +76,8 @@ impl ConfigKey {
             config_key!(FirmwareChildUpdateTimeoutSetting),
             config_key!(ServiceTypeSetting),
             config_key!(LockFilesSetting),
+            config_key!(CustomOperationGracefulTimeout),
+            config_key!(CustomOperationForcefulTimeout),
         ]
     }
 }

@@ -551,6 +551,31 @@ impl ConfigSetting for FirmwareChildUpdateTimeoutSetting {
     type Value = Seconds;
 }
 
+pub struct CustomOperationGracefulTimeout;
+
+impl ConfigSetting for CustomOperationGracefulTimeout {
+    const KEY: &'static str = "operation.customops.default_graceful_timeout";
+
+    const DESCRIPTION: &'static str = concat!(
+        "The timeout limit in seconds for custom operations to stop gracefully",
+        "Example: 3600"
+    );
+
+    type Value = Seconds;
+}
+pub struct CustomOperationForcefulTimeout;
+
+impl ConfigSetting for CustomOperationForcefulTimeout {
+    const KEY: &'static str = "operation.customops.default_forceful_timeout";
+
+    const DESCRIPTION: &'static str = concat!(
+        "The timeout limit in seconds for custom operations to be forcefully killed if not timedout",
+        "Example: 60"
+    );
+
+    type Value = Seconds;
+}
+
 pub struct ServiceTypeSetting;
 
 impl ConfigSetting for ServiceTypeSetting {

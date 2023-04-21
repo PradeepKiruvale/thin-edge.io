@@ -635,13 +635,15 @@ fn create_supported_operations(path: &Path) -> Result<Message, ConversionError> 
 
         Ok(Message::new(
             &Topic::new_unchecked(&stopic),
-            Operations::try_new(path)?.create_smartrest_ops_message()?,
+            Operations::try_new(path, Duration::from_secs(0), Duration::from_secs(0))?
+                .create_smartrest_ops_message()?,
         ))
     } else {
         // operations for parent
         Ok(Message::new(
             &Topic::new_unchecked(SMARTREST_PUBLISH_TOPIC),
-            Operations::try_new(path)?.create_smartrest_ops_message()?,
+            Operations::try_new(path, Duration::from_secs(0), Duration::from_secs(0))?
+                .create_smartrest_ops_message()?,
         ))
     }
 }
@@ -766,6 +768,7 @@ async fn execute_operation(
     operation_logs: &OperationLogs,
     mqtt_publisher: &mpsc::UnboundedSender<Message>,
     time_out: Option<Duration>,
+    kill_time_out: Option<Duration>,
 ) -> Result<(), CumulocityMapperError> {
     let command = command.to_owned();
     let payload = payload.to_string();
@@ -807,7 +810,10 @@ async fn execute_operation(
 
                 // execute the command and wait until it finishes
                 // mqtt client publishes failed or successful depending on the exit code
-                if let Ok(output) = child_process.wait_with_output(logger, time_out).await {
+                if let Ok(output) = child_process
+                    .wait_with_output(logger, time_out, kill_time_out)
+                    .await
+                {
                     match output.status.code() {
                         Some(0) => {
                             let sanitized_stdout =
@@ -891,7 +897,11 @@ fn register_child_device_supported_operations(
     // loop over all local child devices and update the operations
     for child_id in local_child_devices {
         // update the children cache with the operations supported
-        let ops = Operations::try_new(path_to_child_devices.join(&child_id))?;
+        let ops = Operations::try_new(
+            path_to_child_devices.join(&child_id),
+            Duration::from_secs(0),
+            Duration::from_secs(0),
+        )?;
         children.insert(child_id.clone(), ops.clone());
 
         let ops_msg = ops.create_smartrest_ops_message()?;
@@ -1001,7 +1011,8 @@ async fn forward_operation_request(
                 &operation.name,
                 operation_logs,
                 mqtt_publisher,
-                operation.time_out(),
+                operation.graceful_timeout(),
+                operation.forceful_timeout(),
             )
             .await?;
         }
@@ -1096,6 +1107,7 @@ mod tests {
             &operation_logs,
             &mqtt_client.published,
             None,
+            None,
         )
         .await
         .unwrap();
@@ -1105,6 +1117,7 @@ mod tests {
             "sleep_two",
             &operation_logs,
             &mqtt_client.published,
+            None,
             None,
         )
         .await
