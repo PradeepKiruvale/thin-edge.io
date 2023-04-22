@@ -4,6 +4,7 @@ use rumqttc::AsyncClient;
 use rumqttc::ConnectReturnCode;
 use rumqttc::Event;
 use rumqttc::Packet;
+use tracing::warn;
 
 /// Create a persistent session on the MQTT server `config.host`.
 ///
@@ -43,30 +44,37 @@ pub async fn init_session(config: &Config) -> Result<(), MqttError> {
             Err(err) => {
                 match err {
                     rumqttc::ConnectionError::ConnectionRefused(ConnectReturnCode::BadClientId) => {
-                        eprintln!("Couldn't connect to mqtt broker due to bad client id");
+                        warn!("Failed to initialize the session with MQTT Broker due to bad client id");
                     }
-                    rumqttc::ConnectionError::ConnectionRefused(ConnectReturnCode::BadUserNamePassword) => {
-                        eprintln!("Couldn't connect to mqtt broker due to bad user name and password");
+                    rumqttc::ConnectionError::ConnectionRefused(
+                        ConnectReturnCode::BadUserNamePassword,
+                    ) => {
+                        warn!(
+                            "Failed to initialize the session with MQTT Broker due to bad user name and password"
+                        );
                     }
-                    rumqttc::ConnectionError::ConnectionRefused(ConnectReturnCode::NotAuthorized) => {
-                        eprintln!("Couldn't connect to mqtt broker due to not auth");
+                    rumqttc::ConnectionError::ConnectionRefused(
+                        ConnectReturnCode::NotAuthorized,
+                    ) => {
+                        warn!("Failed to initialize the session with MQTT Broker due to not authorized");
                     }
-                    rumqttc::ConnectionError::ConnectionRefused(ConnectReturnCode::RefusedProtocolVersion) => {
-                        eprintln!("Couldn't connect to mqtt broker p version");
+                    rumqttc::ConnectionError::ConnectionRefused(
+                        ConnectReturnCode::RefusedProtocolVersion,
+                    ) => {
+                        warn!("Failed to initialize the session with MQTT Broker due to protocol version mismatch");
                     }
-                    rumqttc::ConnectionError::ConnectionRefused(ConnectReturnCode::ServiceUnavailable) => {
-                        eprintln!("Couldn't connect to mqtt broker due to no service");
+                    rumqttc::ConnectionError::ConnectionRefused(
+                        ConnectReturnCode::ServiceUnavailable,
+                    ) => {
+                        warn!("Failed to initialize the session with MQTT Broker due to service not available");
                     }
-                    rumqttc::ConnectionError::ConnectionRefused(ConnectReturnCode::Success) => {
-                        eprintln!("Couldn't connect to mqtt broker due to success");
+                    rumqttc::ConnectionError::ConnectionRefused(ConnectReturnCode::Success) => {}
+                    e => {
+                        warn!(
+                            "Failed to initialize the session with MQTT Broker due to {}",
+                            e
+                        );
                     }
-                    rumqttc::ConnectionError::MqttState(_) => {eprintln!("mqtt state");},
-                    rumqttc::ConnectionError::Timeout(_) => {eprintln!("time out");},
-                    rumqttc::ConnectionError::Tls(_) => {eprintln!("tls");},
-                    rumqttc::ConnectionError::Io(_) => {eprintln!("io");},
-                    rumqttc::ConnectionError::NotConnAck(_) => {eprintln!("not connack");},
-                    rumqttc::ConnectionError::RequestsDone => {eprintln!("req done");},
-                   
                 }
 
                 break;
