@@ -27,6 +27,7 @@ pub struct OnMessageExec {
     #[serde(rename = "timeout")]
     #[serde(default, deserialize_with = "to_duration")]
     pub graceful_timeout: Option<Duration>,
+    #[serde(default, deserialize_with = "to_duration")]
     pub forceful_timeout: Option<Duration>,
 }
 
