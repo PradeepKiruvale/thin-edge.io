@@ -80,18 +80,20 @@ impl TEdgeComponent for CumulocityMapper {
     async fn start(&self, tedge_config: TEdgeConfig, cfg_dir: &Path) -> Result<(), anyhow::Error> {
         let size_threshold = SizeThreshold(MQTT_MESSAGE_SIZE_THRESHOLD);
         let config_dir = cfg_dir.display().to_string();
-        let time_out = Duration::from_secs(tedge_config.query(CustomOperationGracefulTimeout)?.0);
-        let kill_time_out =
+        let default_graceful_timeout =
+            Duration::from_secs(tedge_config.query(CustomOperationGracefulTimeout)?.0);
+        let default_forceful_timeout =
             Duration::from_secs(tedge_config.query(CustomOperationForcefulTimeout)?.0);
+
         let operations = Operations::try_new(
             format!("{config_dir}/operations/c8y"),
-            time_out,
-            kill_time_out,
+            default_graceful_timeout,
+            default_forceful_timeout,
         )?;
         let child_ops = Operations::get_child_ops(
             format!("{config_dir}/operations/c8y"),
-            time_out,
-            kill_time_out,
+            default_graceful_timeout,
+            default_forceful_timeout,
         )?;
         let mut http_proxy = JwtAuthHttpProxy::try_new(&tedge_config).await?;
         http_proxy.init().await?;

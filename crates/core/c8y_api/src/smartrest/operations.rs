@@ -8,16 +8,14 @@ use crate::smartrest::error::OperationsError;
 use crate::smartrest::smartrest_serializer::SmartRestSerializer;
 use crate::smartrest::smartrest_serializer::SmartRestSetSupportedOperations;
 use serde::Deserialize;
+use serde::Deserializer;
 
 use super::error::SmartRestSerializerError;
-use serde_with::serde_as;
-use serde_with::DurationSeconds;
 use std::time::Duration;
 
 /// Operations are derived by reading files subdirectories per cloud /etc/tedge/operations directory
 /// Each operation is a file name in one of the subdirectories
 /// The file name is the operation name
-#[serde_as]
 #[derive(Debug, Clone, Deserialize, Eq, PartialEq)]
 #[serde(rename_all = "snake_case")]
 
@@ -27,10 +25,17 @@ pub struct OnMessageExec {
     topic: Option<String>,
     user: Option<String>,
     #[serde(rename = "timeout")]
-    #[serde_as(as = "Option<DurationSeconds<u64>>")]
+    #[serde(default, deserialize_with = "to_duration")]
     pub graceful_timeout: Option<Duration>,
-    #[serde_as(as = "Option<DurationSeconds<u64>>")]
     pub forceful_timeout: Option<Duration>,
+}
+
+fn to_duration<'de, D>(deserializer: D) -> Result<Option<Duration>, D::Error>
+where
+    D: Deserializer<'de>,
+{
+    let timeout = Deserialize::deserialize(deserializer)?;
+    Ok(Some(Duration::from_secs(timeout)))
 }
 
 impl OnMessageExec {
@@ -110,16 +115,20 @@ impl Operations {
 
     pub fn try_new(
         dir: impl AsRef<Path>,
-        default_time_out: Duration,
-        default_kill_timeout: Duration,
+        default_graceful_timeout: Duration,
+        default_forceful_timeout: Duration,
     ) -> Result<Self, OperationsError> {
-        get_operations(dir.as_ref(), default_time_out, default_kill_timeout)
+        get_operations(
+            dir.as_ref(),
+            default_graceful_timeout,
+            default_forceful_timeout,
+        )
     }
 
     pub fn get_child_ops(
         ops_dir: impl AsRef<Path>,
-        default_time_out: Duration,
-        default_kill_timeout: Duration,
+        default_graceful_timeout: Duration,
+        default_forceful_timeout: Duration,
     ) -> Result<HashMap<String, Self>, OperationsError> {
         let mut child_ops: HashMap<String, Operations> = HashMap::new();
         let child_entries = fs::read_dir(&ops_dir)
@@ -132,7 +141,8 @@ impl Operations {
             .filter(|path| path.is_dir())
             .collect::<Vec<PathBuf>>();
         for cdir in child_entries {
-            let ops = Operations::try_new(&cdir, default_time_out, default_kill_timeout)?;
+            let ops =
+                Operations::try_new(&cdir, default_graceful_timeout, default_forceful_timeout)?;
             if let Some(id) = cdir.file_name() {
                 if let Some(id_str) = id.to_str() {
                     child_ops.insert(id_str.to_string(), ops);
