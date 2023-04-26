@@ -78,7 +78,7 @@ impl TempTedgeDir {
 }
 
 impl TempTedgeFile {
-    pub fn with_raw_content(&self, content: &str) {
+    pub fn with_raw_content(self, content: &str) {
         let mut file = OpenOptions::new()
             .write(true)
             .create(false)
