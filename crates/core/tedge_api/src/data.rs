@@ -1,5 +1,7 @@
 //! The in-memory data model representing ThinEdge JSON.
 
+use std::collections::HashMap;
+
 use time::OffsetDateTime;
 
 /// In-memory representation of parsed ThinEdge JSON.
@@ -7,7 +9,7 @@ use time::OffsetDateTime;
 pub struct ThinEdgeJson {
     pub timestamp: Option<OffsetDateTime>,
     pub values: Vec<ThinEdgeValue>,
-    pub measurement_type: Option<String>,
+    pub other_fragments: Option<HashMap<String, String>>,
 }
 
 impl ThinEdgeJson {

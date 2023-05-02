@@ -7,14 +7,12 @@ use crate::measurement::MeasurementVisitor;
 pub struct MeasurementGroup {
     timestamp: Option<OffsetDateTime>,
     values: HashMap<String, Measurement>,
-    measurement_type: Option<String>,
 }
 
 impl MeasurementGroup {
     fn new() -> Self {
         Self {
             timestamp: None,
-            measurement_type: None,
             values: HashMap::new(),
         }
     }
@@ -144,11 +142,6 @@ impl MeasurementVisitor for MeasurementGrouper {
         Ok(())
     }
 
-    fn visit_type(&mut self, measurement_type: &str) -> Result<(), Self::Error> {
-        self.measurement_group.measurement_type = Some(measurement_type.into());
-        Ok(())
-    }
-
     fn visit_start_group(&mut self, group: &str) -> Result<(), Self::Error> {
         if self.group_state.in_group {
             Err(MeasurementGrouperError::UnexpectedStartOfGroup)
@@ -217,7 +210,6 @@ mod tests {
             type Error = TestError;
 
             fn visit_timestamp(&mut self, value: OffsetDateTime) -> Result<(), TestError>;
-            fn visit_type(&mut self, measurement_type: &str) -> Result<(), TestError>;
             fn visit_measurement(&mut self, name: &str, value: f64) -> Result<(), TestError>;
             fn visit_start_group(&mut self, group: &str) -> Result<(), TestError>;
             fn visit_end_group(&mut self) -> Result<(), TestError>;

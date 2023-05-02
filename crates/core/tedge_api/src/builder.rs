@@ -1,3 +1,5 @@
+use std::collections::HashMap;
+
 use time::OffsetDateTime;
 
 use crate::data::*;
@@ -7,13 +9,13 @@ use crate::measurement::*;
 #[derive(Default)]
 pub struct ThinEdgeJsonBuilder {
     timestamp: Option<OffsetDateTime>,
-    measurement_type: Option<String>,
+    other_fragments: Option<HashMap<String, String>>,
     inside_group: Option<MultiValueMeasurement>,
     measurements: Vec<ThinEdgeValue>,
 }
 
 impl ThinEdgeJsonBuilder {
-    pub fn done(mut self) -> Result<ThinEdgeJson, ThinEdgeJsonBuilderError> {
+    pub fn done(self) -> Result<ThinEdgeJson, ThinEdgeJsonBuilderError> {
         if self.inside_group.is_some() {
             return Err(ThinEdgeJsonBuilderError::UnexpectedOpenGroup);
         }
@@ -22,14 +24,10 @@ impl ThinEdgeJsonBuilder {
             return Err(ThinEdgeJsonBuilderError::EmptyThinEdgeJsonRoot);
         }
 
-        if self.measurement_type.is_none() {
-            self.measurement_type = Some("ThinEdgeMeasurement".to_string());
-        }
-
         Ok(ThinEdgeJson {
             timestamp: self.timestamp,
             values: self.measurements,
-            measurement_type: self.measurement_type,
+            other_fragments: self.other_fragments,
         })
     }
 }
@@ -44,17 +42,6 @@ impl MeasurementVisitor for ThinEdgeJsonBuilder {
                 Ok(())
             }
             Some(_) => Err(ThinEdgeJsonBuilderError::DuplicatedTimestamp),
-        }
-    }
-
-    fn visit_type(&mut self, value: &str) -> Result<(), Self::Error> {
-        dbg!(&value);
-        match self.measurement_type {
-            None => {
-                self.measurement_type = Some(value.into());
-                Ok(())
-            }
-            Some(_) => Err(ThinEdgeJsonBuilderError::DuplicatedType),
         }
     }
 
@@ -89,6 +76,13 @@ impl MeasurementVisitor for ThinEdgeJsonBuilder {
                 }
             }
             None => return Err(ThinEdgeJsonBuilderError::UnexpectedEndOfGroup),
+        }
+        Ok(())
+    }
+
+    fn visit_other_fragments(&mut self, name: &str, value: &str) -> Result<(), Self::Error> {
+        if let Some(fragments) = self.other_fragments.as_mut() {
+            fragments.insert(name.to_owned(), value.to_owned());
         }
         Ok(())
     }

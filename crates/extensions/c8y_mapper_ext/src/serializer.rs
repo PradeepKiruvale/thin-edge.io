@@ -83,7 +83,7 @@ impl C8yJsonSerializer {
         }
 
         if !self.type_present {
-            self.visit_type(self.default_type.to_owned().as_str())?;
+            self.visit_other_fragments("type", self.default_type.to_owned().as_str())?;
         }
 
         assert!(self.timestamp_present);
@@ -126,15 +126,17 @@ impl MeasurementVisitor for C8yJsonSerializer {
         Ok(())
     }
 
-    fn visit_type(&mut self, measurement_type: &str) -> Result<(), Self::Error> {
+    fn visit_other_fragments(&mut self, name: &str, value: &str) -> Result<(), Self::Error> {
         if self.is_within_group {
             return Err(MeasurementStreamError::UnexpectedType.into());
         }
 
-        self.json.write_key("type")?;
-        self.json.write_str(measurement_type)?;
+        if name.eq("type") {
+            self.json.write_key("type")?;
+            self.json.write_str(value)?;
 
-        self.type_present = true;
+            self.type_present = true;
+        }
         Ok(())
     }
 
@@ -222,11 +224,11 @@ mod tests {
         serializer.visit_measurement("lati", 2300.4)?;
         serializer.visit_end_group()?;
         serializer.visit_measurement("pressure", 255.2)?;
-
+        serializer.visit_other_fragments("type", "TestMeasurement")?;
         let output = serializer.into_string()?;
 
         let expected_output = json!({
-            "type": "ThinEdgeMeasurement",
+            "type": "TestMeasurement",
             "time": "2021-06-22T17:03:14.123456789+05:00",
             "temperature":{
                 "temperature":{

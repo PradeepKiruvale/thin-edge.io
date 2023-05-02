@@ -40,7 +40,7 @@ use time::OffsetDateTime;
 ///         }
 ///     }
 ///
-///      fn visit_type(&mut self, value: &str) -> Result<(), Self::Error> {
+///      fn visit_other_fragments(&mut self, name: &str, value: &str) -> Result<(), Self::Error> {
 ///        
 ///            if self.group.is_none() {
 ///                 Ok(println!("\"type\" = \"ThinEdgeMeasurement\""))
@@ -87,7 +87,9 @@ pub trait MeasurementVisitor {
     fn visit_measurement(&mut self, name: &str, value: f64) -> Result<(), Self::Error>;
 
     /// Set the type to the measurement, if not present in measurement then default to ThinedgeMeasurement.
-    fn visit_type(&mut self, value: &str) -> Result<(), Self::Error>;
+    fn visit_other_fragments(&mut self, _name: &str, _value: &str) -> Result<(), Self::Error> {
+        Ok(())
+    }
 
     /// Start to gather measurements for a group.
     fn visit_start_group(&mut self, group: &str) -> Result<(), Self::Error>;

@@ -9,8 +9,6 @@ pub struct ThinEdgeJsonSerializer {
     is_within_group: bool,
     default_timestamp: Option<OffsetDateTime>,
     timestamp_present: bool,
-    default_type: Option<String>,
-    type_present: bool,
 }
 
 #[derive(thiserror::Error, Debug)]
@@ -64,8 +62,6 @@ impl ThinEdgeJsonSerializer {
             is_within_group: false,
             default_timestamp,
             timestamp_present: false,
-            default_type: None,
-            type_present: false,
         }
     }
 
@@ -77,12 +73,6 @@ impl ThinEdgeJsonSerializer {
         if !self.timestamp_present {
             if let Some(default_timestamp) = self.default_timestamp {
                 self.visit_timestamp(default_timestamp)?;
-            }
-        }
-
-        if !self.type_present {
-            if let Some(default_type) = self.default_type.to_owned() {
-                self.visit_type(default_type.as_str())?;
             }
         }
 
@@ -121,16 +111,6 @@ impl MeasurementVisitor for ThinEdgeJsonSerializer {
                 .as_str(),
         )?;
         self.timestamp_present = true;
-        Ok(())
-    }
-
-    fn visit_type(&mut self, measurement_type: &str) -> Result<(), Self::Error> {
-        if self.is_within_group {
-            return Err(MeasurementStreamError::UnexpectedType.into());
-        }
-        self.json.write_key("type")?;
-        self.json.write_str(measurement_type)?;
-        self.type_present = true;
         Ok(())
     }
 
