@@ -211,6 +211,7 @@ mod tests {
         );
         Ok(())
     }
+
     #[test]
     fn serialize_multi_value_message() -> anyhow::Result<()> {
         let timestamp = datetime!(2021-06-22 17:03:14.123456789 +05:00);
@@ -258,6 +259,26 @@ mod tests {
             serde_json::from_str::<serde_json::Value>(&output)?,
             expected_output
         );
+
+        Ok(())
+    }
+
+    #[test]
+    fn type_inside_a_group_is_not_valid() -> anyhow::Result<()> {
+        let timestamp = datetime!(2021-06-22 17:03:14.123456789 +05:00);
+
+        let mut serializer = C8yJsonSerializer::new(timestamp, None);
+        serializer.visit_timestamp(timestamp)?;
+        serializer.visit_measurement("temperature", 25.5)?;
+        serializer.visit_start_group("location")?;
+        dbg!("b4 move on");
+        let err = serializer
+            .visit_other_fragments("type", "TestMeasurement")
+            .unwrap_err();
+
+        dbg!(&err);
+
+        assert_eq!(err.to_string(), "Unexpected type within a group");
 
         Ok(())
     }
