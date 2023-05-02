@@ -16,7 +16,7 @@ fn it_rejects_invalid_thin_edge_json() -> anyhow::Result<()> {
                 .map_err(Into::into)
                 .and_then(|_| builder.done().map_err(Into::into))
         };
-        dbg!(&res);
+
         assert!(res.is_err());
         let err_msg = res.unwrap_err().to_string();
 
