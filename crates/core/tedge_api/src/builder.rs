@@ -1,5 +1,3 @@
-use std::collections::HashMap;
-
 use time::OffsetDateTime;
 
 use crate::data::*;
@@ -11,7 +9,6 @@ pub struct ThinEdgeJsonBuilder {
     timestamp: Option<OffsetDateTime>,
     inside_group: Option<MultiValueMeasurement>,
     measurements: Vec<ThinEdgeValue>,
-    other_fragments: Option<HashMap<String, String>>,
 }
 
 impl ThinEdgeJsonBuilder {
@@ -27,7 +24,6 @@ impl ThinEdgeJsonBuilder {
         Ok(ThinEdgeJson {
             timestamp: self.timestamp,
             values: self.measurements,
-            other_fragments: self.other_fragments,
         })
     }
 }
@@ -79,13 +75,6 @@ impl MeasurementVisitor for ThinEdgeJsonBuilder {
         }
         Ok(())
     }
-
-    fn visit_other_fragments(&mut self, name: &str, value: &str) -> Result<(), Self::Error> {
-        if let Some(fragments) = self.other_fragments.as_mut() {
-            fragments.insert(name.to_owned(), value.to_owned());
-        }
-        Ok(())
-    }
 }
 
 #[derive(thiserror::Error, Debug)]
@@ -98,9 +87,6 @@ pub enum ThinEdgeJsonBuilderError {
 
     #[error("... time stamp within a group")]
     DuplicatedTimestamp,
-
-    #[error("... type within a group")]
-    DuplicatedType,
 
     #[error("Unexpected open group")]
     UnexpectedOpenGroup,

@@ -109,7 +109,7 @@ where
                         .visit_timestamp(timestamp)
                         .map_err(de::Error::custom)?;
                 }
-                _ => {
+                _key => {
                     let parser = ThinEdgeValueParser {
                         depth: 0,
                         key,

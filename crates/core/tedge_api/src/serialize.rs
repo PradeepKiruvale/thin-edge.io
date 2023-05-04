@@ -42,9 +42,6 @@ pub enum MeasurementStreamError {
 
     #[error("Unexpected start of group")]
     UnexpectedStartOfGroup,
-
-    #[error("Unexpected type within a group")]
-    UnexpectedType,
 }
 
 impl ThinEdgeJsonSerializer {

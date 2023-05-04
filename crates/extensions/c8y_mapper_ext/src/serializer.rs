@@ -20,9 +20,9 @@ pub enum C8yJsonSerializationError {
 
     #[error(transparent)]
     JsonWriterError(#[from] JsonWriterError),
-    
+
     #[error("Invalid measurement name: \"{name}\" is a reserved word.")]
-    InvalidMeasurementName{name: String}
+    InvalidMeasurementName { name: String },
 }
 
 #[allow(clippy::enum_variant_names)]
@@ -133,7 +133,7 @@ impl MeasurementVisitor for C8yJsonSerializer {
         if self.is_within_group {
             return Err(MeasurementStreamError::UnexpectedType.into());
         }
-
+        dbg!(&name);
         if name.eq("type") {
             self.json.write_key("type")?;
             self.json.write_str(value)?;
@@ -145,7 +145,10 @@ impl MeasurementVisitor for C8yJsonSerializer {
 
     fn visit_measurement(&mut self, key: &str, value: f64) -> Result<(), Self::Error> {
         if key.eq("type") {
-           return Err(C8yJsonSerializationError::InvalidMeasurementName { name: key.to_string() })        } else {
+            return Err(C8yJsonSerializationError::InvalidMeasurementName {
+                name: key.to_string(),
+            });
+        } else {
             self.json.write_key(key)?;
 
             if self.is_within_group {
