@@ -104,6 +104,37 @@ mod tests {
     }
 
     #[test]
+    fn check_type_translation() {
+        let single_value_thin_edge_json = r#"{
+                  "type": "test",
+                  "temperature": 23.0               
+               }"#;
+
+        let timestamp = datetime!(2021-04-08 0:00:0 +05:00);
+
+        let output =
+            from_thin_edge_json_with_timestamp(single_value_thin_edge_json, timestamp, None);
+
+        let expected_output = json!({
+            "time": timestamp
+                .format(&format_description::well_known::Rfc3339)
+                .unwrap()
+                .as_str(),
+            "temperature": {
+                "temperature": {
+                    "value": 23.0
+                }
+            },
+            "type": "test"
+        });
+
+        assert_json_eq!(
+            serde_json::from_str::<serde_json::Value>(output.unwrap().as_str()).unwrap(),
+            expected_output
+        );
+    }
+
+    #[test]
     fn check_thin_edge_translation_with_timestamp() {
         let single_value_thin_edge_json = r#"{
                   "time" : "2013-06-22T17:03:14.123+02:00",
