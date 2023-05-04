@@ -107,7 +107,7 @@ mod tests {
     fn check_type_translation() {
         let single_value_thin_edge_json = r#"{
                   "type": "test",
-                  "temperature": 23.0               
+                  "temperature": 23.0
                }"#;
 
         let timestamp = datetime!(2021-04-08 0:00:0 +05:00);
