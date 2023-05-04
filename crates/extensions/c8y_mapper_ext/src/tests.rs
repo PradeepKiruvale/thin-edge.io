@@ -1088,15 +1088,13 @@ async fn test_convert_measurement_with_custom_type() {
     let measurement_topic = "tedge/measurements";
     let small_measurement_payload = r#"{"type":"SmallType","temp": 120}"#;
 
-    dbg!(&small_measurement_payload);
-
     let small_measurement = Message::new(
         &Topic::new_unchecked(measurement_topic),
         small_measurement_payload,
     );
 
     let result = converter.convert(&small_measurement).await;
-    dbg!(&result[0].payload_str().unwrap());
+
     assert!(result[0]
         .payload_str()
         .unwrap()

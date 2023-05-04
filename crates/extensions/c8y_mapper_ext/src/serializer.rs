@@ -133,7 +133,7 @@ impl MeasurementVisitor for C8yJsonSerializer {
         if self.is_within_group {
             return Err(MeasurementStreamError::UnexpectedType.into());
         }
-        dbg!(&name);
+
         if name.eq("type") {
             self.json.write_key("type")?;
             self.json.write_str(value)?;
