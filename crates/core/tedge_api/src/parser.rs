@@ -92,12 +92,6 @@ where
             let key: Cow<str> = key;
 
             match key.as_ref() {
-                "type" => {
-                    let measurement_type_str: &str = map.next_value()?;
-                    self.visitor
-                        .visit_other_fragments("type", measurement_type_str)
-                        .map_err(de::Error::custom)?
-                }
                 "externalSource" => {
                     return Err(de::Error::custom(invalid_measurement_name(
                         "externalSource",
@@ -115,7 +109,7 @@ where
                         .visit_timestamp(timestamp)
                         .map_err(de::Error::custom)?;
                 }
-                _key => {
+                _ => {
                     let parser = ThinEdgeValueParser {
                         depth: 0,
                         key,
@@ -237,6 +231,17 @@ where
             .into();
 
         self.visit_f64(value)
+    }
+
+    fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
+    where
+        E: serde::de::Error,
+    {
+        self.visitor
+            .visit_other_fragments(self.key.as_ref(), value)
+            .map_err(de::Error::custom)?;
+
+        Ok(())
     }
 }
 
@@ -374,19 +379,14 @@ mod tests {
         let input = r#"{
             "time" : "2021-04-30T17:03:14.123+02:00",
             "pressure": 123.4,
-            "type": 456        
+            "type": 456       
         }"#;
 
         let mut builder = ThinEdgeJsonBuilder::default();
 
         let res = parse_str(input, &mut builder);
 
-        assert!(res.is_err());
-
-        assert_eq!(
-        res.unwrap_err().to_string(),
-        "Invalid JSON: invalid type: integer `456`, expected a borrowed string at line 4 column 23: `6        \n        }\n`",
-    );
+        assert!(res.is_ok());
 
         Ok(())
     }
