@@ -9,9 +9,9 @@ use crate::measurement::*;
 #[derive(Default)]
 pub struct ThinEdgeJsonBuilder {
     timestamp: Option<OffsetDateTime>,
-    other_fragments: Option<HashMap<String, String>>,
     inside_group: Option<MultiValueMeasurement>,
     measurements: Vec<ThinEdgeValue>,
+    other_fragments: Option<HashMap<String, String>>,
 }
 
 impl ThinEdgeJsonBuilder {
