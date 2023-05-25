@@ -31,6 +31,7 @@ async fn get_mqtt_actor(
     tedge_config: &TEdgeConfig,
 ) -> Result<MqttActorBuilder, anyhow::Error> {
     let mqtt_config = tedge_config.mqtt_config()?;
+    let mqtt_config = mqtt_config.with_credentials("c8y-mapper".into(), "c8ymapper123".into());
 
     Ok(MqttActorBuilder::new(
         mqtt_config.with_session_name(session_name),

@@ -119,12 +119,14 @@ impl C8yMqttJwtTokenRetriever {
         let topic = TopicFilter::new_unchecked("c8y/s/dat");
         let mqtt_config = mqtt_config
             .with_no_session() // Ignore any already published tokens, possibly stale.
-            .with_subscriptions(topic);
+            .with_subscriptions(topic)
+            .with_credentials("jwtrequest".to_string(), "jwtrequest123".to_string());
 
         C8yMqttJwtTokenRetriever { mqtt_config }
     }
 
     pub async fn get_jwt_token(&mut self) -> Result<SmartRestJwtResponse, JwtError> {
+        dbg!(&self.mqtt_config.rumqttc_options());
         let mut mqtt_con = Connection::new(&self.mqtt_config).await?;
 
         tokio::time::sleep(Duration::from_millis(20)).await;

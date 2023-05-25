@@ -43,7 +43,8 @@ impl TEdgeConfig {
 
             mqtt_config.with_client_auth(client_cert, client_key)?;
         }
-
+        let mut options = mqtt_config.rumqttc_options().unwrap();
+        options.set_credentials("jwtrequestor", "jwtrequest123");
         Ok(mqtt_config)
     }
 }

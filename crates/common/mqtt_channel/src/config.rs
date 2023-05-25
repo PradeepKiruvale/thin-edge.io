@@ -55,6 +55,15 @@ pub struct Config {
     ///
     /// Default: None
     pub initial_message: Option<InitMessageFn>,
+
+    /// with username password
+    pub credentials: Option<Credentials>,
+}
+
+#[derive(Debug, Clone)]
+pub struct Credentials {
+    pub user: String,
+    pub pass: String,
 }
 
 #[derive(Debug, Clone)]
@@ -148,6 +157,7 @@ impl Default for Config {
             max_packet_size: 1024 * 1024,
             last_will_message: None,
             initial_message: None,
+            credentials: None,
         }
     }
 }
@@ -201,6 +211,18 @@ impl Config {
     pub fn with_clean_session(self, flag: bool) -> Self {
         Self {
             clean_session: flag,
+            ..self
+        }
+    }
+
+     /// Set the creds
+     pub fn with_credentials(self, user:String, pass:String) -> Self {
+        let cred = Credentials{
+            user,
+            pass,
+        };
+        Self {
+            credentials: Some(cred),
             ..self
         }
     }
@@ -334,6 +356,10 @@ impl Config {
                 retain: lwp.retain,
             };
             mqtt_options.set_last_will(last_will_message);
+        }
+
+        if let Some(creds) = &self.credentials {
+            mqtt_options.set_credentials(creds.user.clone(), creds.pass.clone());
         }
 
         Ok(mqtt_options)
