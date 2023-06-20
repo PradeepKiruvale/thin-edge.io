@@ -29,7 +29,7 @@ use tedge_test_utils::fs::with_exec_permission;
 use tedge_test_utils::fs::TempTedgeDir;
 use tedge_timer_ext::Timeout;
 
-const TEST_TIMEOUT_MS: Duration = Duration::from_millis(5000);
+const TEST_TIMEOUT_MS: Duration = Duration::from_millis(10000);
 
 #[tokio::test]
 async fn mapper_publishes_init_messages_on_startup() {
@@ -38,6 +38,27 @@ async fn mapper_publishes_init_messages_on_startup() {
     let (mqtt, _http, _fs, _timer) = spawn_c8y_mapper_actor(&cfg_dir, true).await;
 
     let mut mqtt = mqtt.with_timeout(TEST_TIMEOUT_MS);
+
+    mqtt.send(
+        MqttMessage::new(
+            &Topic::new_unchecked("tedge/health/mosquitto-c8y-bridge"),
+            "1",
+        )
+        .with_retain(),
+    )
+    .await
+    .expect("Send failed");
+
+    // Simulate c8y_SoftwareUpdate SmartREST request
+    mqtt.send(
+        MqttMessage::new(
+            &Topic::new_unchecked("tedge/health/tedge-agent"),
+            "{\"status\":\"up\"}",
+        )
+        .with_retain(),
+    )
+    .await
+    .expect("Send failed");
 
     let version = env!("CARGO_PKG_VERSION");
     let default_fragment_content = json!({
@@ -49,6 +70,7 @@ async fn mapper_publishes_init_messages_on_startup() {
     })
     .to_string();
 
+    tokio::time::sleep(tokio::time::Duration::from_secs(2)).await;
     assert_received_contains_str(
         &mut mqtt,
         [
@@ -62,6 +84,7 @@ async fn mapper_publishes_init_messages_on_startup() {
                 &json!({"type":"test-device-type"}).to_string(),
             ),
             ("c8y/s/us", "500"),
+            ("c8y/s/us", "105"),
             ("tedge/commands/req/software/list", r#"{"id":"#),
         ],
     )
@@ -757,6 +780,7 @@ async fn mapper_publishes_supported_operations_for_child_device() {
 
     let (mqtt, _http, _fs, _timer) = spawn_c8y_mapper_actor(&cfg_dir, false).await;
     let mut mqtt = mqtt.with_timeout(TEST_TIMEOUT_MS);
+
     mqtt.skip(6).await; //Skip all init messages
 
     mqtt.send(MqttMessage::new(
@@ -1282,8 +1306,31 @@ async fn spawn_c8y_mapper_actor(
     let mut actor = c8y_mapper_builder.build();
     tokio::spawn(async move { actor.run().await });
 
+    let mut mqtt = mqtt_builder.build();
+
+    mqtt.send(
+        MqttMessage::new(
+            &Topic::new_unchecked("tedge/health/mosquitto-c8y-bridge"),
+            "1",
+        )
+        .with_retain(),
+    )
+    .await
+    .expect("Send failed");
+
+    // Simulate c8y_SoftwareUpdate SmartREST request
+    mqtt.send(
+        MqttMessage::new(
+            &Topic::new_unchecked("tedge/health/tedge-agent"),
+            "{\"status\":\"up\"}",
+        )
+        .with_retain(),
+    )
+    .await
+    .expect("Send failed");
+
     (
-        mqtt_builder.build(),
+        mqtt,
         c8y_proxy_builder.build(),
         fs_watcher_builder.build(),
         timer_builder.build(),

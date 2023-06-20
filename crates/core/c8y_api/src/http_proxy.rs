@@ -1,5 +1,6 @@
 use crate::smartrest::error::SmartRestDeserializerError;
 use crate::smartrest::smartrest_deserializer::SmartRestJwtResponse;
+use crate::utils::bridge::is_c8y_bridge_up;
 use mqtt_channel::Connection;
 use mqtt_channel::PubChannel;
 use mqtt_channel::StreamExt;
@@ -116,7 +117,8 @@ impl C8yMqttJwtTokenRetriever {
     }
 
     pub fn new(mqtt_config: mqtt_channel::Config) -> Self {
-        let topic = TopicFilter::new_unchecked("c8y/s/dat");
+        let mut topic = TopicFilter::new_unchecked("c8y/s/dat");
+        topic.add_unchecked("tedge/health/mosquitto-c8y-bridge");
         let mqtt_config = mqtt_config
             .with_no_session() // Ignore any already published tokens, possibly stale.
             .with_subscriptions(topic);
@@ -128,6 +130,15 @@ impl C8yMqttJwtTokenRetriever {
         let mut mqtt_con = Connection::new(&self.mqtt_config).await?;
 
         tokio::time::sleep(Duration::from_millis(20)).await;
+
+        // Wait till the bridge comes up
+        while let Some(msg) = mqtt_con.received.next().await {
+            dbg!(&msg.topic.name);
+            if is_c8y_bridge_up(&msg) {
+                break;
+            }
+        }
+
         for _ in 0..3 {
             mqtt_con
                 .published

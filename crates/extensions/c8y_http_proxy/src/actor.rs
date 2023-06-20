@@ -23,6 +23,7 @@ use c8y_api::OffsetDateTime;
 use download::Auth;
 use download::DownloadInfo;
 use download::Downloader;
+use http::status::StatusCode;
 use log::debug;
 use log::error;
 use log::info;
@@ -47,6 +48,7 @@ pub struct C8YHttpProxyActor {
     end_point: C8yEndPoint,
     child_devices: HashMap<String, String>,
     peers: C8YHttpProxyMessageBox,
+    token: String,
 }
 
 pub struct C8YHttpProxyMessageBox {
@@ -118,12 +120,14 @@ impl Actor for C8YHttpProxyActor {
 impl C8YHttpProxyActor {
     pub fn new(config: C8YHttpConfig, message_box: C8YHttpProxyMessageBox) -> Self {
         let unknown_internal_id = "";
+        let token = "".to_string();
         let end_point = C8yEndPoint::new(&config.c8y_host, &config.device_id, unknown_internal_id);
         let child_devices = HashMap::default();
         C8YHttpProxyActor {
             end_point,
             child_devices,
             peers: message_box,
+            token,
         }
     }
 
@@ -186,10 +190,7 @@ impl C8YHttpProxyActor {
         &mut self,
         device_id: Option<&str>,
     ) -> Result<String, C8YRestError> {
-        let url_get_id = self.end_point.get_url_for_get_id(device_id);
-
-        let request_internal_id = HttpRequestBuilder::get(url_get_id);
-        let res = self.execute(request_internal_id).await?;
+        let res = self.execute_retry_internal_id(device_id).await?;
         let res = res.error_for_status()?;
 
         let internal_id_response: InternalIdResponse = res.json().await?;
@@ -197,21 +198,36 @@ impl C8YHttpProxyActor {
         Ok(internal_id)
     }
 
-    async fn execute(
+    async fn execute_retry_internal_id(
         &mut self,
-        request_builder: HttpRequestBuilder,
+        device_id: Option<&str>,
     ) -> Result<HttpResult, C8YRestError> {
-        // Get a JWT token to authenticate the device
-        let request_builder = if let Ok(token) = self.peers.jwt.await_response(()).await? {
-            request_builder.bearer_auth(token)
-        } else {
-            return Err(C8YRestError::CustomError("JWT token not available".into()));
-        };
+        loop {
+            let url_get_id = self.end_point.get_url_for_get_id(device_id);
+            // Get a JWT token to authenticate the device
+            let request_internal_id_req = HttpRequestBuilder::get(url_get_id);
+            let request_internal_id_req =
+                request_internal_id_req.bearer_auth(self.get_jwt_token().await?);
 
-        // TODO Add timeout
-        // TODO Manage 403 errors
-        let request = request_builder.build()?;
-        Ok(self.peers.http.await_response(request).await?)
+            // TODO Add timeout
+            let request = request_internal_id_req.build()?;
+            let resp = self.peers.http.await_response(request).await?;
+            // Ok(self.peers.http.await_response(request).await?)
+            match resp {
+                Ok(response) => return Ok(Ok(response)),
+                Err(e) => match e {
+                    tedge_http_ext::HttpError::HttpStatusError(StatusCode::UNAUTHORIZED)
+                    | tedge_http_ext::HttpError::HttpStatusError(StatusCode::FORBIDDEN)
+                    | tedge_http_ext::HttpError::HttpStatusError(StatusCode::NOT_FOUND)
+                    | tedge_http_ext::HttpError::HttpStatusError(StatusCode::REQUEST_TIMEOUT) => {
+                        // reset jwt token, so that we can get a fresh one on next iteration.
+                        self.token = "".to_string();
+                        continue;
+                    }
+                    e => return Err(C8YRestError::FromHttpError(e)),
+                },
+            }
+        }
     }
 
     async fn create_event(
@@ -230,40 +246,88 @@ impl C8YHttpProxyActor {
         &mut self,
         software_list: C8yUpdateSoftwareListResponse,
     ) -> Result<Unit, C8YRestError> {
-        let url = self.end_point.get_url_for_sw_list();
-        let req_builder = HttpRequestBuilder::put(url)
-            .header("Accept", "application/json")
-            .header("Content-Type", "application/json")
-            .json(&software_list);
-        let http_result = self.execute(req_builder).await?;
-        let _ = http_result.error_for_status()?;
-        Ok(())
+        loop {
+            if self.end_point.c8y_internal_id.is_empty() {
+                self.try_get_and_set_internal_id().await?;
+            }
+            let url = self.end_point.get_url_for_sw_list();
+            let req_builder = HttpRequestBuilder::put(url)
+                .header("Accept", "application/json")
+                .header("Content-Type", "application/json")
+                .json(&software_list);
+            let request_builder = req_builder.bearer_auth(self.get_jwt_token().await?);
+
+            // TODO Add timeout
+            let request = request_builder.build()?;
+
+            let resp = self.peers.http.await_response(request).await?;
+
+            match resp {
+                Ok(response) => {
+                    let _ = response.error_for_status();
+                    return Ok(());
+                }
+                Err(e) => match e {
+                    tedge_http_ext::HttpError::HttpStatusError(StatusCode::UNAUTHORIZED)
+                    | tedge_http_ext::HttpError::HttpStatusError(StatusCode::FORBIDDEN)
+                    | tedge_http_ext::HttpError::HttpStatusError(StatusCode::NOT_FOUND)
+                    | tedge_http_ext::HttpError::HttpStatusError(StatusCode::REQUEST_TIMEOUT) => {
+                        self.token = "".to_string();
+                        self.end_point.c8y_internal_id = "".to_string();
+                        continue;
+                    }
+                    e => return Err(C8YRestError::FromHttpError(e)),
+                },
+            }
+        }
     }
 
     async fn upload_log_binary(
         &mut self,
         request: UploadLogBinary,
     ) -> Result<EventId, C8YRestError> {
-        let log_file_event = self
-            .create_event_request(request.log_type, None, None, request.child_device_id)
-            .await?;
+        loop {
+            let log_file_event = self
+                .create_event_request(
+                    request.log_type.clone(),
+                    None,
+                    None,
+                    request.child_device_id.clone(),
+                )
+                .await?;
 
-        let event_response_id = self.send_event_internal(log_file_event).await?;
+            let event_response_id = self.send_event_internal(log_file_event).await?;
 
-        let binary_upload_event_url = self
-            .end_point
-            .get_url_for_event_binary_upload(&event_response_id);
+            let binary_upload_event_url = self
+                .end_point
+                .get_url_for_event_binary_upload(&event_response_id);
 
-        let req_builder = HttpRequestBuilder::post(binary_upload_event_url.clone())
-            .header("Accept", "application/json")
-            .header("Content-Type", "text/plain")
-            .body(request.log_content);
-        let http_result = self.execute(req_builder).await?.unwrap();
+            let req_builder = HttpRequestBuilder::post(binary_upload_event_url.clone())
+                .header("Accept", "application/json")
+                .header("Content-Type", "text/plain")
+                .body(request.log_content.clone())
+                .bearer_auth(self.get_jwt_token().await?);
 
-        if !http_result.status().is_success() {
-            Err(C8YRestError::CustomError("Upload failed".into()))
-        } else {
-            Ok(binary_upload_event_url)
+            let request = req_builder.build()?;
+            let resp = self.peers.http.await_response(request).await?;
+            match resp {
+                Ok(response) => {
+                    if response.status().is_success() {
+                        return Ok(binary_upload_event_url);
+                    }
+                }
+                Err(e) => match e {
+                    tedge_http_ext::HttpError::HttpStatusError(StatusCode::UNAUTHORIZED)
+                    | tedge_http_ext::HttpError::HttpStatusError(StatusCode::FORBIDDEN)
+                    | tedge_http_ext::HttpError::HttpStatusError(StatusCode::NOT_FOUND)
+                    | tedge_http_ext::HttpError::HttpStatusError(StatusCode::REQUEST_TIMEOUT) => {
+                        // reset jwt token, so that we can get a fresh one on next iteration.
+                        self.token = "".to_string();
+                        continue;
+                    }
+                    e => return Err(C8YRestError::CustomError(e.to_string().into())),
+                },
+            }
         }
     }
 
@@ -271,40 +335,69 @@ impl C8YHttpProxyActor {
         &mut self,
         request: UploadConfigFile,
     ) -> Result<EventId, C8YRestError> {
-        // read the config file contents
-        let config_content = std::fs::read_to_string(request.config_path)
-            .map_err(<std::io::Error as Into<SMCumulocityMapperError>>::into)?;
+        loop {
+            // read the config file contents
+            let config_content = std::fs::read_to_string(request.config_path.clone())
+                .map_err(<std::io::Error as Into<SMCumulocityMapperError>>::into)?;
 
-        let config_file_event = self
-            .create_event_request(request.config_type, None, None, request.child_device_id)
-            .await?;
+            let config_file_event = self
+                .create_event_request(
+                    request.config_type.clone(),
+                    None,
+                    None,
+                    request.child_device_id.clone(),
+                )
+                .await?;
 
-        debug!(target: self.name(), "Creating config event: {:?}", config_file_event);
-        let event_response_id = self.send_event_internal(config_file_event).await?;
-        debug!(target: self.name(), "Config event created with id: {:?}", event_response_id);
+            debug!(target: self.name(), "Creating config event: {:?}", config_file_event);
+            let event_response_id = self.send_event_internal(config_file_event).await?;
+            debug!(target: self.name(), "Config event created with id: {:?}", event_response_id);
 
-        let binary_upload_event_url = self
-            .end_point
-            .get_url_for_event_binary_upload(&event_response_id);
-        let req_builder = HttpRequestBuilder::post(binary_upload_event_url.clone())
-            .header("Accept", "application/json")
-            .header("Content-Type", "text/plain")
-            .body(config_content.to_string());
-        debug!(target: self.name(), "Uploading config file to URL: {}", binary_upload_event_url);
-        let http_result = self.execute(req_builder).await?.unwrap();
+            let binary_upload_event_url = self
+                .end_point
+                .get_url_for_event_binary_upload(&event_response_id);
+            let req_builder = HttpRequestBuilder::post(binary_upload_event_url.clone())
+                .header("Accept", "application/json")
+                .header("Content-Type", "text/plain")
+                .body(config_content.to_string())
+                .bearer_auth(self.get_jwt_token().await?);
 
-        if !http_result.status().is_success() {
-            Err(C8YRestError::CustomError("Upload failed".into()))
-        } else {
-            Ok(binary_upload_event_url)
+            debug!(target: self.name(), "Uploading config file to URL: {}", binary_upload_event_url);
+            let request = req_builder.build()?;
+            let resp = self.peers.http.await_response(request).await?;
+            match resp {
+                Ok(response) => {
+                    if response.status().is_success() {
+                        return Ok(binary_upload_event_url);
+                    }
+                }
+                Err(e) => match e {
+                    tedge_http_ext::HttpError::HttpStatusError(StatusCode::UNAUTHORIZED)
+                    | tedge_http_ext::HttpError::HttpStatusError(StatusCode::FORBIDDEN)
+                    | tedge_http_ext::HttpError::HttpStatusError(StatusCode::NOT_FOUND)
+                    | tedge_http_ext::HttpError::HttpStatusError(StatusCode::REQUEST_TIMEOUT) => {
+                        // reset jwt token, so that we can get a fresh one on next iteration.
+                        self.token = "".to_string();
+                        continue;
+                    }
+                    e => return Err(C8YRestError::CustomError(e.to_string().into())),
+                },
+            }
         }
     }
 
     async fn get_jwt_token(&mut self) -> Result<String, C8YRestError> {
-        if let Ok(token) = self.peers.jwt.await_response(()).await? {
-            Ok(token)
+        if self.token.is_empty() {
+            if let Ok(token) = self.peers.jwt.await_response(()).await? {
+                self.token = token.clone();
+                dbg!("fresh token.............");
+                Ok(token)
+            } else {
+                Err(C8YRestError::CustomError("JWT token not available".into()))
+            }
         } else {
-            Err(C8YRestError::CustomError("JWT token not available".into()))
+            dbg!("cached token..............");
+            Ok(self.token.clone())
         }
     }
 
@@ -357,15 +450,35 @@ impl C8YHttpProxyActor {
         &mut self,
         c8y_event: C8yCreateEvent,
     ) -> Result<EventId, C8YRestError> {
-        let create_event_url = self.end_point.get_url_for_create_event();
+        loop {
+            let create_event_url = self.end_point.get_url_for_create_event();
 
-        let req_builder = HttpRequestBuilder::post(create_event_url)
-            .header("Accept", "application/json")
-            .header("Content-Type", "application/json")
-            .json(&c8y_event);
-        let http_result = self.execute(req_builder).await?;
-        let http_response = http_result.error_for_status()?;
-        let event_response: C8yEventResponse = http_response.json().await?;
-        Ok(event_response.id)
+            let req_builder = HttpRequestBuilder::post(create_event_url)
+                .header("Accept", "application/json")
+                .header("Content-Type", "application/json")
+                .json(&c8y_event)
+                .bearer_auth(self.get_jwt_token().await?);
+
+            let request = req_builder.build()?;
+            let resp = self.peers.http.await_response(request).await?;
+            match resp {
+                Ok(response) => {
+                    let event_response: C8yEventResponse = response.json().await?;
+                    return Ok(event_response.id);
+                }
+
+                Err(e) => match e {
+                    tedge_http_ext::HttpError::HttpStatusError(StatusCode::UNAUTHORIZED)
+                    | tedge_http_ext::HttpError::HttpStatusError(StatusCode::FORBIDDEN)
+                    | tedge_http_ext::HttpError::HttpStatusError(StatusCode::NOT_FOUND)
+                    | tedge_http_ext::HttpError::HttpStatusError(StatusCode::REQUEST_TIMEOUT) => {
+                        // reset jwt token, so that we can get a fresh one on next iteration.
+                        self.token = "".to_string();
+                        continue;
+                    }
+                    e => return Err(C8YRestError::CustomError(e.to_string().into())),
+                },
+            }
+        }
     }
 }

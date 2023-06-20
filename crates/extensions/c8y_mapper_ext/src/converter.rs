@@ -1282,6 +1282,7 @@ mod tests {
             &Topic::new_unchecked("tedge/measurements/child2"),
             in_payload,
         );
+
         let out_second_messages = converter.convert(&in_second_message).await;
         let expected_second_smart_rest_message = Message::new(
             &Topic::new_unchecked("c8y/s/us"),

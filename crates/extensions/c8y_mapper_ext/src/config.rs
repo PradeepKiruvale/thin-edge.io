@@ -93,6 +93,14 @@ impl C8yMapperConfig {
 
         Ok(topic_filter)
     }
+
+    pub fn init_subscriptions() -> Result<TopicFilter, C8yMapperConfigError> {
+        let topic_filter: TopicFilter = vec!["tedge/health/+"]
+            .try_into()
+            .expect("topics that mapper should subscribe to");
+
+        Ok(topic_filter)
+    }
 }
 
 #[derive(Debug, thiserror::Error)]

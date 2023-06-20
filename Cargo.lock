@@ -647,6 +647,7 @@ dependencies = [
  "async-trait",
  "c8y_api",
  "download",
+ "http",
  "log",
  "mqtt_channel",
  "tedge_actors",

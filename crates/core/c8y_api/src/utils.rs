@@ -15,6 +15,31 @@ pub mod bridge {
     }
 }
 
+pub mod tedge_agent {
+    use mqtt_channel::Message;
+
+    pub const TEDGE_AGENT_HEALTH_TOPIC: &str = "tedge/health/tedge-agent";
+    const TEDGE_HEALTH_UP_PAYLOAD: &str = r#""status":"up""#;
+    const TEDGE_HEALTH_DOWN_PAYLOAD: &str = r#""status":"down""#;
+
+    pub fn tedge_agent_status(message: &Message) -> bool {
+        if message.topic.name.eq(TEDGE_AGENT_HEALTH_TOPIC) {
+            match message.payload_str() {
+                Ok(payload) => {
+                    dbg!(&message.topic.name);
+                    let res = payload.contains(TEDGE_HEALTH_UP_PAYLOAD)
+                        || payload.contains(TEDGE_HEALTH_DOWN_PAYLOAD);
+                    dbg!(&res);
+                    res
+                }
+                Err(_err) => false,
+            }
+        } else {
+            false
+        }
+    }
+}
+
 pub mod child_device {
     use crate::smartrest::topic::SMARTREST_PUBLISH_TOPIC;
     use mqtt_channel::Message;
