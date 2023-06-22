@@ -29,7 +29,7 @@ use tedge_test_utils::fs::with_exec_permission;
 use tedge_test_utils::fs::TempTedgeDir;
 use tedge_timer_ext::Timeout;
 
-const TEST_TIMEOUT_MS: Duration = Duration::from_millis(10000);
+const TEST_TIMEOUT_MS: Duration = Duration::from_millis(5000);
 
 #[tokio::test]
 async fn mapper_publishes_init_messages_on_startup() {
@@ -70,7 +70,6 @@ async fn mapper_publishes_init_messages_on_startup() {
     })
     .to_string();
 
-    tokio::time::sleep(tokio::time::Duration::from_secs(2)).await;
     assert_received_contains_str(
         &mut mqtt,
         [
