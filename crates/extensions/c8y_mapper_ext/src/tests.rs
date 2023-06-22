@@ -39,27 +39,6 @@ async fn mapper_publishes_init_messages_on_startup() {
 
     let mut mqtt = mqtt.with_timeout(TEST_TIMEOUT_MS);
 
-    mqtt.send(
-        MqttMessage::new(
-            &Topic::new_unchecked("tedge/health/mosquitto-c8y-bridge"),
-            "1",
-        )
-        .with_retain(),
-    )
-    .await
-    .expect("Send failed");
-
-    // Simulate c8y_SoftwareUpdate SmartREST request
-    mqtt.send(
-        MqttMessage::new(
-            &Topic::new_unchecked("tedge/health/tedge-agent"),
-            "{\"status\":\"up\"}",
-        )
-        .with_retain(),
-    )
-    .await
-    .expect("Send failed");
-
     let version = env!("CARGO_PKG_VERSION");
     let default_fragment_content = json!({
         "c8y_Agent": {
@@ -1296,6 +1275,7 @@ async fn spawn_c8y_mapper_actor(
     let c8y_mapper_builder = C8yMapperBuilder::try_new(
         config,
         &mut mqtt_builder,
+        // &mut health_mqtt_builder,
         &mut c8y_proxy_builder,
         &mut timer_builder,
         &mut fs_watcher_builder,
@@ -1303,6 +1283,7 @@ async fn spawn_c8y_mapper_actor(
     .unwrap();
 
     let mut actor = c8y_mapper_builder.build();
+
     tokio::spawn(async move { actor.run().await });
 
     let mut mqtt = mqtt_builder.build();

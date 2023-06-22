@@ -50,6 +50,7 @@ type C8yMapperOutput = MqttMessage;
 pub struct C8yMapperActor {
     converter: CumulocityConverter,
     messages: SimpleMessageBox<C8yMapperInput, C8yMapperOutput>,
+    pub health_messages: SimpleMessageBox<MqttMessage, MqttMessage>,
     mqtt_publisher: LoggingSender<MqttMessage>,
     timer_sender: LoggingSender<SyncStart>,
 }
@@ -90,29 +91,25 @@ async fn send_init_messages(actor: &mut C8yMapperActor) -> Result<(), RuntimeErr
     let mut received_agent_status = false;
     let mut received_bridge_status = false;
 
-    while let Some(event) = actor.messages.recv().await {
-        match event {
-            C8yMapperInput::MqttMessage(message) => {
-                check_status_and_send_init_messages(
-                    actor,
-                    &message,
-                    &mut received_agent_status,
-                    &mut received_bridge_status,
-                )
-                .await?;
-                if received_agent_status && received_bridge_status {
-                    break;
-                }
-            }
-            _ => {}
+    while let Some(message) = actor.health_messages.recv().await {
+        check_status_and_send_init_messages(
+            actor,
+            &message,
+            &mut received_agent_status,
+            &mut received_bridge_status,
+        )
+        .await?;
+        if received_agent_status && received_bridge_status {
+            break;
         }
     }
+
     Ok(())
 }
 
 async fn check_status_and_send_init_messages(
     actor: &mut C8yMapperActor,
-    message: &Message,
+    message: &MqttMessage,
     received_agent_status: &mut bool,
     received_bridge_status: &mut bool,
 ) -> Result<(), RuntimeError> {
@@ -143,12 +140,14 @@ impl C8yMapperActor {
     pub fn new(
         converter: CumulocityConverter,
         messages: SimpleMessageBox<C8yMapperInput, C8yMapperOutput>,
+        health_messages: SimpleMessageBox<MqttMessage, MqttMessage>,
         mqtt_publisher: LoggingSender<MqttMessage>,
         timer_sender: LoggingSender<SyncStart>,
     ) -> Self {
         Self {
             converter,
             messages,
+            health_messages,
             mqtt_publisher,
             timer_sender,
         }
@@ -217,6 +216,7 @@ impl C8yMapperActor {
 pub struct C8yMapperBuilder {
     config: C8yMapperConfig,
     box_builder: SimpleMessageBoxBuilder<C8yMapperInput, C8yMapperOutput>,
+    health_box_builder: SimpleMessageBoxBuilder<MqttMessage, MqttMessage>,
     mqtt_publisher: DynSender<MqttMessage>,
     http_proxy: C8YHttpProxy,
     timer_sender: DynSender<SyncStart>,
@@ -233,10 +233,16 @@ impl C8yMapperBuilder {
         Self::init(&config)?;
 
         let box_builder = SimpleMessageBoxBuilder::new("CumulocityMapper", 16);
+        let health_box_builder = SimpleMessageBoxBuilder::new("CumulocityMapper-Init", 16);
 
         let mqtt_publisher = mqtt.connect_consumer(
             C8yMapperConfig::subscriptions(&config.config_dir).unwrap(),
             adapt(&box_builder.get_sender()),
+        );
+
+        let _init_mqtt_publisher = mqtt.connect_consumer(
+            C8yMapperConfig::init_subscriptions().unwrap(),
+            health_box_builder.get_sender(),
         );
 
         let http_proxy = C8YHttpProxy::new("C8yMapper => C8YHttpProxy", http);
@@ -246,6 +252,7 @@ impl C8yMapperBuilder {
         Ok(Self {
             config,
             box_builder,
+            health_box_builder,
             mqtt_publisher,
             http_proxy,
             timer_sender,
@@ -260,6 +267,10 @@ impl C8yMapperBuilder {
         // Create directory for device custom fragments
         create_directory_with_defaults(config.config_dir.join("device"))?;
         Ok(())
+    }
+
+    pub fn get_health_builder(self) -> SimpleMessageBoxBuilder<MqttMessage, MqttMessage> {
+        self.health_box_builder
     }
 }
 
@@ -283,9 +294,12 @@ impl Builder<C8yMapperActor> for C8yMapperBuilder {
 
         let message_box = self.box_builder.build();
 
+        let init_message_box = self.health_box_builder.build();
+
         Ok(C8yMapperActor::new(
             converter,
             message_box,
+            init_message_box,
             mqtt_publisher,
             timer_sender,
         ))

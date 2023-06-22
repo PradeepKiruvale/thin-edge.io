@@ -391,6 +391,7 @@ impl C8YHttpProxyActor {
                     | tedge_http_ext::HttpError::HttpStatusError(StatusCode::REQUEST_TIMEOUT) => {
                         // reset jwt token, so that we can get a fresh one on next iteration.
                         self.token = "".to_string();
+                        self.end_point.c8y_internal_id = "".to_string();
                         tokio::time::sleep(tokio::time::Duration::from_secs(sleep)).await;
                         // Increase the sleep in exponential
                         sleep *= 2;
