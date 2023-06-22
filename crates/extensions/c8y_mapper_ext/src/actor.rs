@@ -107,8 +107,6 @@ async fn send_init_messages(actor: &mut C8yMapperActor) -> Result<(), RuntimeErr
             _ => {}
         }
     }
-
-    dbg!("done with initialization");
     Ok(())
 }
 
@@ -125,8 +123,6 @@ async fn check_status_and_send_init_messages(
                 .topic
                 .eq(&Topic::new_unchecked("tedge/commands/req/software/list"))
             {
-                dbg!(&init_message.topic.name);
-                dbg!(&init_message.payload_str().unwrap());
                 let _ = actor.mqtt_publisher.send(init_message.clone()).await?;
                 *received_agent_status = true;
             }
@@ -135,9 +131,6 @@ async fn check_status_and_send_init_messages(
         let init_messages = actor.converter.init_messages();
         for init_message in init_messages.into_iter() {
             if init_message.topic.name.contains("c8y/") {
-                dbg!(&init_message.topic.name);
-                dbg!(&init_message.payload_str().unwrap());
-
                 let _ = actor.mqtt_publisher.send(init_message.clone()).await?;
             }
         }

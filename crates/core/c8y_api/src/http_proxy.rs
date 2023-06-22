@@ -133,7 +133,6 @@ impl C8yMqttJwtTokenRetriever {
 
         // Wait till the bridge comes up
         while let Some(msg) = mqtt_con.received.next().await {
-            dbg!(&msg.topic.name);
             if is_c8y_bridge_up(&msg) {
                 break;
             }

@@ -390,13 +390,11 @@ impl C8YHttpProxyActor {
         if self.token.is_empty() {
             if let Ok(token) = self.peers.jwt.await_response(()).await? {
                 self.token = token.clone();
-                dbg!("fresh token.............");
                 Ok(token)
             } else {
                 Err(C8YRestError::CustomError("JWT token not available".into()))
             }
         } else {
-            dbg!("cached token..............");
             Ok(self.token.clone())
         }
     }
