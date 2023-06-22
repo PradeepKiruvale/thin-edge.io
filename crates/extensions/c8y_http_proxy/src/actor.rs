@@ -202,6 +202,7 @@ impl C8YHttpProxyActor {
         &mut self,
         device_id: Option<&str>,
     ) -> Result<HttpResult, C8YRestError> {
+        let mut sleep = 1;
         loop {
             let url_get_id = self.end_point.get_url_for_get_id(device_id);
             // Get a JWT token to authenticate the device
@@ -212,7 +213,7 @@ impl C8YHttpProxyActor {
             // TODO Add timeout
             let request = request_internal_id_req.build()?;
             let resp = self.peers.http.await_response(request).await?;
-            // Ok(self.peers.http.await_response(request).await?)
+
             match resp {
                 Ok(response) => return Ok(Ok(response)),
                 Err(e) => match e {
@@ -222,6 +223,9 @@ impl C8YHttpProxyActor {
                     | tedge_http_ext::HttpError::HttpStatusError(StatusCode::REQUEST_TIMEOUT) => {
                         // reset jwt token, so that we can get a fresh one on next iteration.
                         self.token = "".to_string();
+                        tokio::time::sleep(tokio::time::Duration::from_secs(sleep)).await;
+                        // Increase the sleep in exponential
+                        sleep *= 2;
                         continue;
                     }
                     e => return Err(C8YRestError::FromHttpError(e)),
@@ -246,6 +250,7 @@ impl C8YHttpProxyActor {
         &mut self,
         software_list: C8yUpdateSoftwareListResponse,
     ) -> Result<Unit, C8YRestError> {
+        let mut sleep = 1;
         loop {
             if self.end_point.c8y_internal_id.is_empty() {
                 self.try_get_and_set_internal_id().await?;
@@ -274,6 +279,9 @@ impl C8YHttpProxyActor {
                     | tedge_http_ext::HttpError::HttpStatusError(StatusCode::REQUEST_TIMEOUT) => {
                         self.token = "".to_string();
                         self.end_point.c8y_internal_id = "".to_string();
+                        tokio::time::sleep(tokio::time::Duration::from_secs(sleep)).await;
+                        // Increase the sleep in exponential
+                        sleep *= 2;
                         continue;
                     }
                     e => return Err(C8YRestError::FromHttpError(e)),
@@ -286,6 +294,7 @@ impl C8YHttpProxyActor {
         &mut self,
         request: UploadLogBinary,
     ) -> Result<EventId, C8YRestError> {
+        let mut sleep = 1;
         loop {
             let log_file_event = self
                 .create_event_request(
@@ -323,6 +332,9 @@ impl C8YHttpProxyActor {
                     | tedge_http_ext::HttpError::HttpStatusError(StatusCode::REQUEST_TIMEOUT) => {
                         // reset jwt token, so that we can get a fresh one on next iteration.
                         self.token = "".to_string();
+                        tokio::time::sleep(tokio::time::Duration::from_secs(sleep)).await;
+                        // Increase the sleep in exponential
+                        sleep *= 2;
                         continue;
                     }
                     e => return Err(C8YRestError::CustomError(e.to_string().into())),
@@ -335,6 +347,7 @@ impl C8YHttpProxyActor {
         &mut self,
         request: UploadConfigFile,
     ) -> Result<EventId, C8YRestError> {
+        let mut sleep = 1;
         loop {
             // read the config file contents
             let config_content = std::fs::read_to_string(request.config_path.clone())
@@ -378,6 +391,9 @@ impl C8YHttpProxyActor {
                     | tedge_http_ext::HttpError::HttpStatusError(StatusCode::REQUEST_TIMEOUT) => {
                         // reset jwt token, so that we can get a fresh one on next iteration.
                         self.token = "".to_string();
+                        tokio::time::sleep(tokio::time::Duration::from_secs(sleep)).await;
+                        // Increase the sleep in exponential
+                        sleep *= 2;
                         continue;
                     }
                     e => return Err(C8YRestError::CustomError(e.to_string().into())),
@@ -448,6 +464,7 @@ impl C8YHttpProxyActor {
         &mut self,
         c8y_event: C8yCreateEvent,
     ) -> Result<EventId, C8YRestError> {
+        let mut sleep = 1;
         loop {
             let create_event_url = self.end_point.get_url_for_create_event();
 
@@ -472,6 +489,9 @@ impl C8YHttpProxyActor {
                     | tedge_http_ext::HttpError::HttpStatusError(StatusCode::REQUEST_TIMEOUT) => {
                         // reset jwt token, so that we can get a fresh one on next iteration.
                         self.token = "".to_string();
+                        tokio::time::sleep(tokio::time::Duration::from_secs(sleep)).await;
+                        // Increase the sleep in exponential
+                        sleep *= 2;
                         continue;
                     }
                     e => return Err(C8YRestError::CustomError(e.to_string().into())),
