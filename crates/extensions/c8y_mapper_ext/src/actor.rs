@@ -4,7 +4,7 @@ use super::dynamic_discovery::process_inotify_events;
 use crate::converter::Converter;
 use async_trait::async_trait;
 use c8y_api::smartrest::topic::SMARTREST_PUBLISH_TOPIC;
-use c8y_api::utils::bridge::is_c8y_bridge_up;
+use c8y_api::utils::bridge::is_c8y_bridge_established;
 use c8y_api::utils::tedge_agent::tedge_agent_status;
 use c8y_http_proxy::handle::C8YHttpProxy;
 use c8y_http_proxy::messages::C8YRestRequest;
@@ -50,7 +50,6 @@ type C8yMapperOutput = MqttMessage;
 pub struct C8yMapperActor {
     converter: CumulocityConverter,
     messages: SimpleMessageBox<C8yMapperInput, C8yMapperOutput>,
-    pub health_messages: SimpleMessageBox<MqttMessage, MqttMessage>,
     mqtt_publisher: LoggingSender<MqttMessage>,
     timer_sender: LoggingSender<SyncStart>,
 }
@@ -62,9 +61,7 @@ impl Actor for C8yMapperActor {
     }
 
     async fn run(&mut self) -> Result<(), RuntimeError> {
-        // Send the init messages
-        send_init_messages(&mut self).await?;
-
+        let mut init_done = false;
         // Start the sync phase
         self.timer_sender
             .send(SyncStart::new(SYNC_WINDOW, ()))
@@ -73,6 +70,13 @@ impl Actor for C8yMapperActor {
         while let Some(event) = self.messages.recv().await {
             match event {
                 C8yMapperInput::MqttMessage(message) => {
+                    // Send the init messages
+                    if !init_done {
+                        if is_agent_or_bridge_health_status(&message) {
+                            send_init_messages(&mut self, &message, &mut init_done).await?;
+                            continue;
+                        }
+                    }
                     self.process_mqtt_message(message).await?;
                 }
                 C8yMapperInput::FsWatchEvent(event) => {
@@ -87,21 +91,29 @@ impl Actor for C8yMapperActor {
     }
 }
 
-async fn send_init_messages(actor: &mut C8yMapperActor) -> Result<(), RuntimeError> {
+fn is_agent_or_bridge_health_status(message: &MqttMessage) -> bool {
+    let topic_name = message.topic.name.clone();
+    topic_name.eq("tedge/health/tedge-agent") || topic_name.eq("tedge/health/mosquitto-c8y-bridge")
+}
+
+async fn send_init_messages(
+    actor: &mut C8yMapperActor,
+    message: &MqttMessage,
+    init_done: &mut bool,
+) -> Result<(), RuntimeError> {
     let mut received_agent_status = false;
     let mut received_bridge_status = false;
 
-    while let Some(message) = actor.health_messages.recv().await {
-        check_status_and_send_init_messages(
-            actor,
-            &message,
-            &mut received_agent_status,
-            &mut received_bridge_status,
-        )
-        .await?;
-        if received_agent_status && received_bridge_status {
-            break;
-        }
+    check_status_and_send_init_messages(
+        actor,
+        &message,
+        &mut received_agent_status,
+        &mut received_bridge_status,
+    )
+    .await?;
+    if received_agent_status && received_bridge_status {
+        dbg!("init done");
+        *init_done = true;
     }
 
     Ok(())
@@ -124,7 +136,7 @@ async fn check_status_and_send_init_messages(
                 *received_agent_status = true;
             }
         }
-    } else if is_c8y_bridge_up(&message) {
+    } else if is_c8y_bridge_established(&message) {
         let init_messages = actor.converter.init_messages();
         for init_message in init_messages.into_iter() {
             if init_message.topic.name.contains("c8y/") {
@@ -140,14 +152,12 @@ impl C8yMapperActor {
     pub fn new(
         converter: CumulocityConverter,
         messages: SimpleMessageBox<C8yMapperInput, C8yMapperOutput>,
-        health_messages: SimpleMessageBox<MqttMessage, MqttMessage>,
         mqtt_publisher: LoggingSender<MqttMessage>,
         timer_sender: LoggingSender<SyncStart>,
     ) -> Self {
         Self {
             converter,
             messages,
-            health_messages,
             mqtt_publisher,
             timer_sender,
         }
@@ -159,7 +169,6 @@ impl C8yMapperActor {
         for converted_message in converted_messages.into_iter() {
             let _ = self.mqtt_publisher.send(converted_message).await;
         }
-
         Ok(())
     }
 
@@ -216,7 +225,6 @@ impl C8yMapperActor {
 pub struct C8yMapperBuilder {
     config: C8yMapperConfig,
     box_builder: SimpleMessageBoxBuilder<C8yMapperInput, C8yMapperOutput>,
-    health_box_builder: SimpleMessageBoxBuilder<MqttMessage, MqttMessage>,
     mqtt_publisher: DynSender<MqttMessage>,
     http_proxy: C8YHttpProxy,
     timer_sender: DynSender<SyncStart>,
@@ -233,16 +241,10 @@ impl C8yMapperBuilder {
         Self::init(&config)?;
 
         let box_builder = SimpleMessageBoxBuilder::new("CumulocityMapper", 16);
-        let health_box_builder = SimpleMessageBoxBuilder::new("CumulocityMapper-Init", 16);
 
         let mqtt_publisher = mqtt.connect_consumer(
             C8yMapperConfig::subscriptions(&config.config_dir).unwrap(),
             adapt(&box_builder.get_sender()),
-        );
-
-        let _init_mqtt_publisher = mqtt.connect_consumer(
-            C8yMapperConfig::init_subscriptions().unwrap(),
-            health_box_builder.get_sender(),
         );
 
         let http_proxy = C8YHttpProxy::new("C8yMapper => C8YHttpProxy", http);
@@ -252,7 +254,6 @@ impl C8yMapperBuilder {
         Ok(Self {
             config,
             box_builder,
-            health_box_builder,
             mqtt_publisher,
             http_proxy,
             timer_sender,
@@ -267,10 +268,6 @@ impl C8yMapperBuilder {
         // Create directory for device custom fragments
         create_directory_with_defaults(config.config_dir.join("device"))?;
         Ok(())
-    }
-
-    pub fn get_health_builder(self) -> SimpleMessageBoxBuilder<MqttMessage, MqttMessage> {
-        self.health_box_builder
     }
 }
 
@@ -294,12 +291,9 @@ impl Builder<C8yMapperActor> for C8yMapperBuilder {
 
         let message_box = self.box_builder.build();
 
-        let init_message_box = self.health_box_builder.build();
-
         Ok(C8yMapperActor::new(
             converter,
             message_box,
-            init_message_box,
             mqtt_publisher,
             timer_sender,
         ))

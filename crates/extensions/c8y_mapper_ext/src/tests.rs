@@ -1275,7 +1275,6 @@ async fn spawn_c8y_mapper_actor(
     let c8y_mapper_builder = C8yMapperBuilder::try_new(
         config,
         &mut mqtt_builder,
-        // &mut health_mqtt_builder,
         &mut c8y_proxy_builder,
         &mut timer_builder,
         &mut fs_watcher_builder,

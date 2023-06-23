@@ -4,11 +4,22 @@ pub mod bridge {
 
     pub const C8Y_BRIDGE_HEALTH_TOPIC: &str = "tedge/health/mosquitto-c8y-bridge";
     const C8Y_BRIDGE_UP_PAYLOAD: &str = "1";
+    const C8Y_BRIDGE_DOWN_PAYLOAD: &str = "0";
 
     pub fn is_c8y_bridge_up(message: &Message) -> bool {
         match message.payload_str() {
             Ok(payload) => {
                 message.topic.name == C8Y_BRIDGE_HEALTH_TOPIC && payload == C8Y_BRIDGE_UP_PAYLOAD
+            }
+            Err(_err) => false,
+        }
+    }
+
+    pub fn is_c8y_bridge_established(message: &Message) -> bool {
+        match message.payload_str() {
+            Ok(payload) => {
+                message.topic.name == C8Y_BRIDGE_HEALTH_TOPIC
+                    && (payload == C8Y_BRIDGE_UP_PAYLOAD || payload == C8Y_BRIDGE_DOWN_PAYLOAD)
             }
             Err(_err) => false,
         }
@@ -26,11 +37,8 @@ pub mod tedge_agent {
         if message.topic.name.eq(TEDGE_AGENT_HEALTH_TOPIC) {
             match message.payload_str() {
                 Ok(payload) => {
-                    dbg!(&message.topic.name);
-                    let res = payload.contains(TEDGE_HEALTH_UP_PAYLOAD)
-                        || payload.contains(TEDGE_HEALTH_DOWN_PAYLOAD);
-                    dbg!(&res);
-                    res
+                    payload.contains(TEDGE_HEALTH_UP_PAYLOAD)
+                        || payload.contains(TEDGE_HEALTH_DOWN_PAYLOAD)
                 }
                 Err(_err) => false,
             }
