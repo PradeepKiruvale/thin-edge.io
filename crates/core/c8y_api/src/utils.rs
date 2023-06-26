@@ -4,6 +4,7 @@ pub mod bridge {
 
     pub const C8Y_BRIDGE_HEALTH_TOPIC: &str = "tedge/health/mosquitto-c8y-bridge";
     const C8Y_BRIDGE_UP_PAYLOAD: &str = "1";
+    const C8Y_BRIDGE_DOWN_PAYLOAD: &str = "0";
 
     pub fn is_c8y_bridge_up(message: &Message) -> bool {
         match message.payload_str() {
@@ -11,6 +12,38 @@ pub mod bridge {
                 message.topic.name == C8Y_BRIDGE_HEALTH_TOPIC && payload == C8Y_BRIDGE_UP_PAYLOAD
             }
             Err(_err) => false,
+        }
+    }
+
+    pub fn is_c8y_bridge_established(message: &Message) -> bool {
+        match message.payload_str() {
+            Ok(payload) => {
+                message.topic.name == C8Y_BRIDGE_HEALTH_TOPIC
+                    && (payload == C8Y_BRIDGE_UP_PAYLOAD || payload == C8Y_BRIDGE_DOWN_PAYLOAD)
+            }
+            Err(_err) => false,
+        }
+    }
+}
+
+pub mod tedge_agent {
+    use mqtt_channel::Message;
+
+    pub const TEDGE_AGENT_HEALTH_TOPIC: &str = "tedge/health/tedge-agent";
+    const TEDGE_HEALTH_UP_PAYLOAD: &str = r#""status":"up""#;
+    const TEDGE_HEALTH_DOWN_PAYLOAD: &str = r#""status":"down""#;
+
+    pub fn check_tedge_agent_status(message: &Message) -> bool {
+        if message.topic.name.eq(TEDGE_AGENT_HEALTH_TOPIC) {
+            match message.payload_str() {
+                Ok(payload) => {
+                    payload.contains(TEDGE_HEALTH_UP_PAYLOAD)
+                        || payload.contains(TEDGE_HEALTH_DOWN_PAYLOAD)
+                }
+                Err(_err) => false,
+            }
+        } else {
+            false
         }
     }
 }

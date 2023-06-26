@@ -4,6 +4,7 @@ use super::dynamic_discovery::process_inotify_events;
 use crate::converter::Converter;
 use async_trait::async_trait;
 use c8y_api::smartrest::topic::SMARTREST_PUBLISH_TOPIC;
+use c8y_api::utils::tedge_agent::check_tedge_agent_status;
 use c8y_http_proxy::handle::C8YHttpProxy;
 use c8y_http_proxy::messages::C8YRestRequest;
 use c8y_http_proxy::messages::C8YRestResult;
@@ -50,6 +51,8 @@ pub struct C8yMapperActor {
     messages: SimpleMessageBox<C8yMapperInput, C8yMapperOutput>,
     mqtt_publisher: LoggingSender<MqttMessage>,
     timer_sender: LoggingSender<SyncStart>,
+    ops_dir: PathBuf,
+    tedge_agent_status: bool,
 }
 
 #[async_trait]
@@ -92,16 +95,28 @@ impl C8yMapperActor {
         messages: SimpleMessageBox<C8yMapperInput, C8yMapperOutput>,
         mqtt_publisher: LoggingSender<MqttMessage>,
         timer_sender: LoggingSender<SyncStart>,
+        ops_dir: PathBuf,
     ) -> Self {
         Self {
             converter,
             messages,
             mqtt_publisher,
             timer_sender,
+            ops_dir,
+            tedge_agent_status: false,
         }
     }
 
     async fn process_mqtt_message(&mut self, message: MqttMessage) -> Result<(), RuntimeError> {
+        // Send the init messages
+        if !self.tedge_agent_status && is_agent_health_status(&message) {
+            if check_tedge_agent_status(&message) {
+                self.tedge_agent_status = true;
+                self.create_tedge_agent_supported_ops().await?;
+                self.send_out_sw_list_request_to_agent().await?;
+            }
+        }
+
         let converted_messages = self.converter.convert(&message).await;
 
         for converted_message in converted_messages.into_iter() {
@@ -159,6 +174,26 @@ impl C8yMapperActor {
 
         Ok(())
     }
+
+    async fn send_out_sw_list_request_to_agent(&mut self) -> Result<(), RuntimeError> {
+        let _ = self
+            .mqtt_publisher
+            .send(self.converter.get_software_list_message())
+            .await?;
+
+        Ok(())
+    }
+
+    async fn create_tedge_agent_supported_ops(&mut self) -> Result<(), RuntimeError> {
+        create_file_with_defaults(self.ops_dir.join("c8y_SoftwareUpdate"), None)?;
+        create_file_with_defaults(self.ops_dir.join("c8y_Restart"), None)?;
+        Ok(())
+    }
+}
+
+fn is_agent_health_status(message: &MqttMessage) -> bool {
+    let topic_name = message.topic.name.clone();
+    topic_name.eq("tedge/health/tedge-agent")
 }
 
 pub struct C8yMapperBuilder {
@@ -201,8 +236,6 @@ impl C8yMapperBuilder {
     fn init(config: &C8yMapperConfig) -> Result<(), FileError> {
         // Create c8y operations directory
         create_directory_with_defaults(config.ops_dir.clone())?;
-        create_file_with_defaults(config.ops_dir.join("c8y_SoftwareUpdate"), None)?;
-        create_file_with_defaults(config.ops_dir.join("c8y_Restart"), None)?;
         // Create directory for device custom fragments
         create_directory_with_defaults(config.config_dir.join("device"))?;
         Ok(())
@@ -221,6 +254,7 @@ impl Builder<C8yMapperActor> for C8yMapperBuilder {
     fn try_build(self) -> Result<C8yMapperActor, Self::Error> {
         let mqtt_publisher = LoggingSender::new("C8yMapper => Mqtt".into(), self.mqtt_publisher);
         let timer_sender = LoggingSender::new("C8yMapper => Timer".into(), self.timer_sender);
+        let ops_dir = self.config.ops_dir.clone();
 
         let converter =
             CumulocityConverter::new(self.config, mqtt_publisher.clone(), self.http_proxy)
@@ -233,6 +267,7 @@ impl Builder<C8yMapperActor> for C8yMapperBuilder {
             message_box,
             mqtt_publisher,
             timer_sender,
+            ops_dir,
         ))
     }
 }

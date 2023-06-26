@@ -138,6 +138,16 @@ pub trait Converter: Send + Sync {
         }
     }
 
+    fn get_software_list_message(&mut self) -> Message {
+        match create_get_software_list_message() {
+            Ok(messages) => messages,
+            Err(error) => {
+                error!("Mapping error: {}", error);
+                Message::new(&self.get_mapper_config().errors_topic, error.to_string())
+            }
+        }
+    }
+
     /// This function will be the called after a brief period(sync window) after the converter starts converting messages.
     /// This gives the converter an opportunity to process the messages received during the sync window and
     /// produce any additional messages as "sync messages" as a result of this processing.
@@ -734,14 +744,12 @@ impl Converter for CumulocityConverter {
         ));
 
         let pending_operations_message = self.wrap_error(create_get_pending_operations_message());
-        let software_list_message = self.wrap_error(create_get_software_list_message());
 
         Ok(vec![
             inventory_fragments_message,
             supported_operations_message,
             device_data_message,
             pending_operations_message,
-            software_list_message,
             cloud_child_devices_message,
         ])
     }

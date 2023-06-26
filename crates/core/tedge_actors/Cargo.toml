@@ -18,6 +18,7 @@ test-helpers = []
 async-trait = "0.1"
 futures = { version = "0.3" }
 log = "0.4"
+tedge_utils = { path = "../../common/tedge_utils" }
 thiserror = "1.0"
 tokio = { version = "1.23", default_features = false, features = [
     "sync",
