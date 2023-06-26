@@ -5,7 +5,7 @@ use crate::converter::Converter;
 use async_trait::async_trait;
 use c8y_api::smartrest::topic::SMARTREST_PUBLISH_TOPIC;
 use c8y_api::utils::bridge::is_c8y_bridge_established;
-use c8y_api::utils::tedge_agent::tedge_agent_status;
+use c8y_api::utils::tedge_agent::check_tedge_agent_status;
 use c8y_http_proxy::handle::C8YHttpProxy;
 use c8y_http_proxy::messages::C8YRestRequest;
 use c8y_http_proxy::messages::C8YRestResult;
@@ -47,11 +47,17 @@ pub type SyncComplete = Timeout<()>;
 fan_in_message_type!(C8yMapperInput[MqttMessage, FsWatchEvent, SyncComplete] : Debug);
 type C8yMapperOutput = MqttMessage;
 
+pub struct ConnectionStatus {
+    c8y_bridge_status: bool,
+    tedge_agent_status: bool,
+}
+
 pub struct C8yMapperActor {
     converter: CumulocityConverter,
     messages: SimpleMessageBox<C8yMapperInput, C8yMapperOutput>,
     mqtt_publisher: LoggingSender<MqttMessage>,
     timer_sender: LoggingSender<SyncStart>,
+    connection_status: ConnectionStatus,
 }
 
 #[async_trait]
@@ -61,8 +67,8 @@ impl Actor for C8yMapperActor {
     }
 
     async fn run(&mut self) -> Result<(), RuntimeError> {
-        let mut init_done = false;
         // Start the sync phase
+
         self.timer_sender
             .send(SyncStart::new(SYNC_WINDOW, ()))
             .await?;
@@ -70,13 +76,6 @@ impl Actor for C8yMapperActor {
         while let Some(event) = self.messages.recv().await {
             match event {
                 C8yMapperInput::MqttMessage(message) => {
-                    // Send the init messages
-                    if !init_done {
-                        if is_agent_or_bridge_health_status(&message) {
-                            send_init_messages(&mut self, &message, &mut init_done).await?;
-                            continue;
-                        }
-                    }
                     self.process_mqtt_message(message).await?;
                 }
                 C8yMapperInput::FsWatchEvent(event) => {
@@ -91,63 +90,6 @@ impl Actor for C8yMapperActor {
     }
 }
 
-fn is_agent_or_bridge_health_status(message: &MqttMessage) -> bool {
-    let topic_name = message.topic.name.clone();
-    topic_name.eq("tedge/health/tedge-agent") || topic_name.eq("tedge/health/mosquitto-c8y-bridge")
-}
-
-async fn send_init_messages(
-    actor: &mut C8yMapperActor,
-    message: &MqttMessage,
-    init_done: &mut bool,
-) -> Result<(), RuntimeError> {
-    let mut received_agent_status = false;
-    let mut received_bridge_status = false;
-
-    check_status_and_send_init_messages(
-        actor,
-        &message,
-        &mut received_agent_status,
-        &mut received_bridge_status,
-    )
-    .await?;
-    if received_agent_status && received_bridge_status {
-        dbg!("init done");
-        *init_done = true;
-    }
-
-    Ok(())
-}
-
-async fn check_status_and_send_init_messages(
-    actor: &mut C8yMapperActor,
-    message: &MqttMessage,
-    received_agent_status: &mut bool,
-    received_bridge_status: &mut bool,
-) -> Result<(), RuntimeError> {
-    if tedge_agent_status(&message) {
-        let init_messages = actor.converter.init_messages();
-        for init_message in init_messages.into_iter() {
-            if init_message
-                .topic
-                .eq(&Topic::new_unchecked("tedge/commands/req/software/list"))
-            {
-                let _ = actor.mqtt_publisher.send(init_message.clone()).await?;
-                *received_agent_status = true;
-            }
-        }
-    } else if is_c8y_bridge_established(&message) {
-        let init_messages = actor.converter.init_messages();
-        for init_message in init_messages.into_iter() {
-            if init_message.topic.name.contains("c8y/") {
-                let _ = actor.mqtt_publisher.send(init_message.clone()).await?;
-            }
-        }
-        *received_bridge_status = true;
-    }
-    Ok(())
-}
-
 impl C8yMapperActor {
     pub fn new(
         converter: CumulocityConverter,
@@ -160,12 +102,21 @@ impl C8yMapperActor {
             messages,
             mqtt_publisher,
             timer_sender,
+            connection_status: ConnectionStatus {
+                c8y_bridge_status: false,
+                tedge_agent_status: false,
+            },
         }
     }
 
     async fn process_mqtt_message(&mut self, message: MqttMessage) -> Result<(), RuntimeError> {
+        // Send the init messages
+        if !self.is_init_successful() {
+            if is_agent_or_bridge_health_status(&message) {
+                self.send_init_messages(&message).await?;
+            }
+        }
         let converted_messages = self.converter.convert(&message).await;
-
         for converted_message in converted_messages.into_iter() {
             let _ = self.mqtt_publisher.send(converted_message).await;
         }
@@ -220,6 +171,50 @@ impl C8yMapperActor {
 
         Ok(())
     }
+
+    async fn send_init_messages(&mut self, message: &MqttMessage) -> Result<(), RuntimeError> {
+        if check_tedge_agent_status(&message) {
+            self.send_out_sw_list_request_to_agent().await?
+        } else if is_c8y_bridge_established(&message) {
+            self.send_out_c8y_init_messages().await?
+        }
+        Ok(())
+    }
+
+    async fn send_out_sw_list_request_to_agent(&mut self) -> Result<(), RuntimeError> {
+        let init_messages = self.converter.init_messages();
+        for init_message in init_messages.into_iter() {
+            if init_message
+                .topic
+                .eq(&Topic::new_unchecked("tedge/commands/req/software/list"))
+            {
+                let _ = self.mqtt_publisher.send(init_message.clone()).await?;
+                self.connection_status.tedge_agent_status = true;
+            }
+        }
+
+        Ok(())
+    }
+
+    async fn send_out_c8y_init_messages(&mut self) -> Result<(), RuntimeError> {
+        let init_messages = self.converter.init_messages();
+        for init_message in init_messages.into_iter() {
+            if init_message.topic.name.contains("c8y/") {
+                let _ = self.mqtt_publisher.send(init_message.clone()).await?;
+            }
+        }
+        self.connection_status.c8y_bridge_status = true;
+        Ok(())
+    }
+
+    fn is_init_successful(&self) -> bool {
+        self.connection_status.c8y_bridge_status && self.connection_status.tedge_agent_status
+    }
+}
+
+fn is_agent_or_bridge_health_status(message: &MqttMessage) -> bool {
+    let topic_name = message.topic.name.clone();
+    topic_name.eq("tedge/health/tedge-agent") || topic_name.eq("tedge/health/mosquitto-c8y-bridge")
 }
 
 pub struct C8yMapperBuilder {

@@ -24,6 +24,7 @@ use download::Auth;
 use download::DownloadInfo;
 use download::Downloader;
 use http::status::StatusCode;
+use http::HeaderValue;
 use log::debug;
 use log::error;
 use log::info;
@@ -48,7 +49,7 @@ pub struct C8YHttpProxyActor {
     end_point: C8yEndPoint,
     child_devices: HashMap<String, String>,
     peers: C8YHttpProxyMessageBox,
-    token: String,
+    token: Option<String>,
 }
 
 pub struct C8YHttpProxyMessageBox {
@@ -120,7 +121,7 @@ impl Actor for C8YHttpProxyActor {
 impl C8YHttpProxyActor {
     pub fn new(config: C8YHttpConfig, message_box: C8YHttpProxyMessageBox) -> Self {
         let unknown_internal_id = "";
-        let token = "".to_string();
+        let token = None;
         let end_point = C8yEndPoint::new(&config.c8y_host, &config.device_id, unknown_internal_id);
         let child_devices = HashMap::default();
         C8YHttpProxyActor {
@@ -203,29 +204,34 @@ impl C8YHttpProxyActor {
         device_id: Option<&str>,
     ) -> Result<HttpResult, C8YRestError> {
         let mut sleep = 1;
-        loop {
-            let url_get_id = self.end_point.get_url_for_get_id(device_id);
-            // Get a JWT token to authenticate the device
-            let request_internal_id_req = HttpRequestBuilder::get(url_get_id);
-            let request_internal_id_req =
-                request_internal_id_req.bearer_auth(self.get_jwt_token().await?);
 
-            // TODO Add timeout
-            let request = request_internal_id_req.build()?;
+        loop {
+            // Build request
+            let url_get_id = self.end_point.get_url_for_get_id(device_id);
+            let request = HttpRequestBuilder::get(url_get_id);
+
+            let request = request.bearer_auth(self.get_jwt_token().await?);
+
+            let mut request = request.build()?;
+
+            //let parts = request.into_parts();
+            // let parts_clone = parts.clone();
+
+            // Call request
             let resp = self.peers.http.await_response(request).await?;
 
             match resp {
                 Ok(response) => return Ok(Ok(response)),
                 Err(e) => match e {
                     tedge_http_ext::HttpError::HttpStatusError(StatusCode::UNAUTHORIZED)
-                    | tedge_http_ext::HttpError::HttpStatusError(StatusCode::FORBIDDEN)
-                    | tedge_http_ext::HttpError::HttpStatusError(StatusCode::NOT_FOUND)
-                    | tedge_http_ext::HttpError::HttpStatusError(StatusCode::REQUEST_TIMEOUT) => {
+                    | tedge_http_ext::HttpError::HttpStatusError(StatusCode::FORBIDDEN) // Try only once after fresh JWT token
+                    | tedge_http_ext::HttpError::HttpStatusError(StatusCode::NOT_FOUND) // Try only once with new internal ID
+                    | tedge_http_ext::HttpError::HttpStatusError(StatusCode::REQUEST_TIMEOUT) => { // This can be expo backoff
                         // reset jwt token, so that we can get a fresh one on next iteration.
-                        self.token = "".to_string();
-                        tokio::time::sleep(tokio::time::Duration::from_secs(sleep)).await;
+                        self.token = None;
+                       // tokio::time::sleep(tokio::time::Duration::from_secs(sleep)).await;
                         // Increase the sleep in exponential
-                        sleep *= 2;
+                        //sleep *= 2;
                         continue;
                     }
                     e => return Err(C8YRestError::FromHttpError(e)),
@@ -277,7 +283,7 @@ impl C8YHttpProxyActor {
                     | tedge_http_ext::HttpError::HttpStatusError(StatusCode::FORBIDDEN)
                     | tedge_http_ext::HttpError::HttpStatusError(StatusCode::NOT_FOUND)
                     | tedge_http_ext::HttpError::HttpStatusError(StatusCode::REQUEST_TIMEOUT) => {
-                        self.token = "".to_string();
+                        self.token = None;
                         self.end_point.c8y_internal_id = "".to_string();
                         tokio::time::sleep(tokio::time::Duration::from_secs(sleep)).await;
                         // Increase the sleep in exponential
@@ -331,7 +337,7 @@ impl C8YHttpProxyActor {
                     | tedge_http_ext::HttpError::HttpStatusError(StatusCode::NOT_FOUND)
                     | tedge_http_ext::HttpError::HttpStatusError(StatusCode::REQUEST_TIMEOUT) => {
                         // reset jwt token, so that we can get a fresh one on next iteration.
-                        self.token = "".to_string();
+                        self.token = None;
                         tokio::time::sleep(tokio::time::Duration::from_secs(sleep)).await;
                         // Increase the sleep in exponential
                         sleep *= 2;
@@ -390,7 +396,7 @@ impl C8YHttpProxyActor {
                     | tedge_http_ext::HttpError::HttpStatusError(StatusCode::NOT_FOUND)
                     | tedge_http_ext::HttpError::HttpStatusError(StatusCode::REQUEST_TIMEOUT) => {
                         // reset jwt token, so that we can get a fresh one on next iteration.
-                        self.token = "".to_string();
+                        self.token = None;
                         self.end_point.c8y_internal_id = "".to_string();
                         tokio::time::sleep(tokio::time::Duration::from_secs(sleep)).await;
                         // Increase the sleep in exponential
@@ -404,15 +410,15 @@ impl C8YHttpProxyActor {
     }
 
     async fn get_jwt_token(&mut self) -> Result<String, C8YRestError> {
-        if self.token.is_empty() {
+        if self.token.is_none() {
             if let Ok(token) = self.peers.jwt.await_response(()).await? {
-                self.token = token.clone();
+                self.token = Some(token.clone());
                 Ok(token)
             } else {
                 Err(C8YRestError::CustomError("JWT token not available".into()))
             }
         } else {
-            Ok(self.token.clone())
+            Ok(self.token.clone().unwrap_or_default())
         }
     }
 
@@ -489,7 +495,7 @@ impl C8YHttpProxyActor {
                     | tedge_http_ext::HttpError::HttpStatusError(StatusCode::NOT_FOUND)
                     | tedge_http_ext::HttpError::HttpStatusError(StatusCode::REQUEST_TIMEOUT) => {
                         // reset jwt token, so that we can get a fresh one on next iteration.
-                        self.token = "".to_string();
+                        self.token = None;
                         tokio::time::sleep(tokio::time::Duration::from_secs(sleep)).await;
                         // Increase the sleep in exponential
                         sleep *= 2;
