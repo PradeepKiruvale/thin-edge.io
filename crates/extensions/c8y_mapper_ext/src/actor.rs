@@ -1,10 +1,10 @@
 use super::config::C8yMapperConfig;
 use super::converter::CumulocityConverter;
 use super::dynamic_discovery::process_inotify_events;
+use crate::agent_status::check_tedge_agent_status;
 use crate::converter::Converter;
 use async_trait::async_trait;
 use c8y_api::smartrest::topic::SMARTREST_PUBLISH_TOPIC;
-use c8y_api::utils::tedge_agent::check_tedge_agent_status;
 use c8y_http_proxy::handle::C8YHttpProxy;
 use c8y_http_proxy::messages::C8YRestRequest;
 use c8y_http_proxy::messages::C8YRestResult;
@@ -185,8 +185,10 @@ impl C8yMapperActor {
     }
 
     async fn create_tedge_agent_supported_ops(&mut self) -> Result<(), RuntimeError> {
-        create_file_with_defaults(self.ops_dir.join("c8y_SoftwareUpdate"), None)?;
-        create_file_with_defaults(self.ops_dir.join("c8y_Restart"), None)?;
+        create_file_with_defaults(self.ops_dir.join("c8y_SoftwareUpdate"), None)
+            .map_err(|e| RuntimeError::ActorError(Box::new(e)))?;
+        create_file_with_defaults(self.ops_dir.join("c8y_Restart"), None)
+            .map_err(|e| RuntimeError::ActorError(Box::new(e)))?;
         Ok(())
     }
 }

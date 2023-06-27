@@ -140,7 +140,7 @@ pub trait Converter: Send + Sync {
 
     fn get_software_list_message(&mut self) -> Message {
         match create_get_software_list_message() {
-            Ok(messages) => messages,
+            Ok(message) => message,
             Err(error) => {
                 error!("Mapping error: {}", error);
                 Message::new(&self.get_mapper_config().errors_topic, error.to_string())

@@ -780,7 +780,7 @@ async fn mapper_dynamically_updates_supported_operations_for_tedge_device() {
 
     let (mqtt, _http, mut fs, _timer) = spawn_c8y_mapper_actor(&cfg_dir, false).await;
     let mut mqtt = mqtt.with_timeout(TEST_TIMEOUT_MS);
-    // Simulate c8y_SoftwareUpdate SmartREST request
+    // Simulate tedge-agent health status message
     mqtt.send(
         MqttMessage::new(
             &Topic::new_unchecked("tedge/health/tedge-agent"),

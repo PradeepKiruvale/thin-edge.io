@@ -1,4 +1,5 @@
 pub mod actor;
+pub mod agent_status;
 pub mod alarm_converter;
 pub mod config;
 pub mod converter;

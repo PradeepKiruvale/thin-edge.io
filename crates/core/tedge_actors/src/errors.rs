@@ -1,4 +1,3 @@
-use tedge_utils::file::FileError;
 use thiserror::Error;
 use tokio::task::JoinError;
 
@@ -40,9 +39,6 @@ pub enum RuntimeError {
 
     #[error(transparent)]
     LinkError(#[from] LinkError),
-
-    #[error(transparent)]
-    FileError(#[from] FileError),
 }
 
 impl<T> From<Box<T>> for RuntimeError
