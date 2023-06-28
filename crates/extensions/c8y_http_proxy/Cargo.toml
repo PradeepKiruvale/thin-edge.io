@@ -10,6 +10,7 @@ homepage = { workspace = true }
 repository = { workspace = true }
 
 [dependencies]
+async-recursion = "1.0.3"
 async-trait = "0.1"
 c8y_api = { path = "../../core/c8y_api" }
 download = { path = "../../common/download" }
