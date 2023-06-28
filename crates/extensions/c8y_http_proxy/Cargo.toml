@@ -13,7 +13,6 @@ repository = { workspace = true }
 async-trait = "0.1"
 c8y_api = { path = "../../core/c8y_api" }
 download = { path = "../../common/download" }
-exponential-backoff = "1.2.0"
 futures-util = "0.3"
 http = "0.2"
 hyper = { version = "0.14", default_features = false, features = ["client", "http1", "http2", "tcp"] }

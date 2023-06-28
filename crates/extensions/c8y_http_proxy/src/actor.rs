@@ -23,7 +23,6 @@ use c8y_api::OffsetDateTime;
 use download::Auth;
 use download::DownloadInfo;
 use download::Downloader;
-use exponential_backoff::Backoff;
 use http::status::StatusCode;
 use http::HeaderMap;
 use http::Uri;
@@ -46,7 +45,6 @@ use tedge_http_ext::HttpRequest;
 use tedge_http_ext::HttpRequestBuilder;
 use tedge_http_ext::HttpResponseExt;
 use tedge_http_ext::HttpResult;
-use tokio::time::sleep;
 
 const RETRY_TIMEOUT_SECS: u64 = 20;
 
@@ -217,42 +215,32 @@ impl C8YHttpProxyActor {
         let uri = parts.uri.clone();
 
         let body_string = get_body_string(&mut body).await;
-        let backoff = get_backoff();
 
-        for duration in &backoff {
-            let request = self
-                .build_request_using_parts(uri.clone(), headers.clone(), body_string.clone().into())
-                .await?;
-            dbg!(&request);
-            // Call request
-            let resp = self.peers.http.await_response(request).await?;
+        let request = self
+            .build_request_using_parts(uri.clone(), headers.clone(), body_string.clone().into())
+            .await?;
+        dbg!(&request);
+        // Call request
+        let resp = self.peers.http.await_response(request).await?;
 
-            match resp {
-                Ok(response) => return Ok(Ok(response)),
-                Err(e) => match e {
-                    tedge_http_ext::HttpError::HttpStatusError(StatusCode::UNAUTHORIZED)
-                    | tedge_http_ext::HttpError::HttpStatusError(StatusCode::FORBIDDEN) => {
-                        self.token = None;
-                        return Ok(self
-                            .retry_once_with_fresh_jwt_token(
-                                uri.clone(),
-                                headers.clone(),
-                                body_string.clone().into(),
-                            )
-                            .await?);
-                    }
-                    tedge_http_ext::HttpError::HttpStatusError(StatusCode::REQUEST_TIMEOUT) => {
-                        sleep(duration).await;
-                        continue;
-                    }
+        match resp {
+            Ok(response) => return Ok(Ok(response)),
+            Err(e) => match e {
+                tedge_http_ext::HttpError::HttpStatusError(StatusCode::UNAUTHORIZED)
+                | tedge_http_ext::HttpError::HttpStatusError(StatusCode::FORBIDDEN) => {
+                    self.token = None;
+                    return Ok(self
+                        .retry_once_with_fresh_jwt_token(
+                            uri.clone(),
+                            headers.clone(),
+                            body_string.clone().into(),
+                        )
+                        .await?);
+                }
 
-                    e => return Err(C8YRestError::FromHttpError(e)),
-                },
-            }
+                e => return Err(C8YRestError::FromHttpError(e)),
+            },
         }
-        Err(C8YRestError::FromHttpError(
-            tedge_http_ext::HttpError::HttpStatusError(StatusCode::REQUEST_TIMEOUT),
-        ))
     }
 
     async fn build_request_using_parts(
@@ -446,13 +434,6 @@ impl C8YHttpProxyActor {
         let event_response: C8yEventResponse = http_response.json().await?;
         Ok(event_response.id)
     }
-}
-
-fn get_backoff() -> Backoff {
-    let retries = 10;
-    let min = Duration::from_millis(400);
-    let max = Duration::from_secs(360);
-    Backoff::new(retries, min, max)
 }
 
 async fn get_body_string(body: &mut Body) -> String {
