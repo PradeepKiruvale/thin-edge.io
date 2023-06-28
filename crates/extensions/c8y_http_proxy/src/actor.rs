@@ -23,13 +23,12 @@ use c8y_api::OffsetDateTime;
 use download::Auth;
 use download::DownloadInfo;
 use download::Downloader;
+use exponential_backoff::Backoff;
 use http::status::StatusCode;
 use http::HeaderMap;
 use http::Uri;
 use hyper::body::Body;
 use hyper::body::HttpBody;
-use hyper::server::conn::Http;
-use async_recursion::async_recursion;
 use log::debug;
 use log::error;
 use log::info;
@@ -47,6 +46,7 @@ use tedge_http_ext::HttpRequest;
 use tedge_http_ext::HttpRequestBuilder;
 use tedge_http_ext::HttpResponseExt;
 use tedge_http_ext::HttpResult;
+use tokio::time::sleep;
 
 const RETRY_TIMEOUT_SECS: u64 = 20;
 
@@ -55,11 +55,6 @@ pub struct C8YHttpProxyActor {
     child_devices: HashMap<String, String>,
     peers: C8YHttpProxyMessageBox,
     token: Option<String>,
-}
-
-enum HttpReqType {
-    Event,
-    List,
 }
 
 pub struct C8YHttpProxyMessageBox {
@@ -204,81 +199,60 @@ impl C8YHttpProxyActor {
         let url_get_id = self.end_point.get_url_for_get_id(device_id);
         let request_internal_id = HttpRequestBuilder::get(url_get_id);
 
-        let res = self
-            .execute_retry(request_internal_id, HttpReqType::Event, None)
-            .await?;
+        let res = self.execute_retry(request_internal_id).await?;
         let res = res.error_for_status()?;
 
         let internal_id_response: InternalIdResponse = res.json().await?;
         let internal_id = internal_id_response.id();
         Ok(internal_id)
     }
-  
+
     async fn execute_retry(
         &mut self,
         request: HttpRequestBuilder,
-        req_type: HttpReqType,
-        child_id: Option<String>,
     ) -> Result<HttpResult, C8YRestError> {
         let request = request.build()?;
         let (parts, mut body) = request.into_parts();
         let headers = parts.headers.clone();
         let uri = parts.uri.clone();
 
-        
-        let data = body.data().await;
-        let data = match data {
-            Some(res) => match res {
-                Ok(bytes) => bytes.to_vec(),
-                Err(_e) => vec![],
-            },
-            None => vec![],
-        };
-        // read body contents
-        let body:C8yCreateEvent = serde_json::from_slice(&data).unwrap();
-        let body_string = String::from_utf8(data).unwrap();
+        let body_string = get_body_string(&mut body).await;
+        let backoff = get_backoff();
 
-        let request = self
-            .build_request_using_parts(uri.clone(), headers.clone(), body_string.clone().into())
-            .await?;
-        dbg!(&request);
-        // Call request
-        let resp = self.peers.http.await_response(request).await?;
+        for duration in &backoff {
+            let request = self
+                .build_request_using_parts(uri.clone(), headers.clone(), body_string.clone().into())
+                .await?;
+            dbg!(&request);
+            // Call request
+            let resp = self.peers.http.await_response(request).await?;
 
-        match resp {
-            Ok(response) => return Ok(Ok(response)),
-            Err(e) => match e {
-                tedge_http_ext::HttpError::HttpStatusError(StatusCode::UNAUTHORIZED)
-                | tedge_http_ext::HttpError::HttpStatusError(StatusCode::FORBIDDEN) => {
-                    self.token = None;
-                    Ok(self
-                        .retry_once_with_fresh_jwt_token(
-                            uri.clone(),
-                            headers.clone(),
-                            body_string.clone().into(),
-                        )
-                        .await?)
-                } // Try only once after fresh JWT token
-                // tedge_http_ext::HttpError::HttpStatusError(StatusCode::NOT_FOUND) => {
-                //     self.end_point.c8y_internal_id = "".to_string();
-                //     Ok(self
-                //         .retry_once_with_fresh_internal_id(
-                //             uri.clone(),
-                //             headers.clone(),
-                //             body_string.clone(),
-                //             child_id,
-                //         )
-                //         .await?)
-                // } // Try only once with new internal ID
-                tedge_http_ext::HttpError::HttpStatusError(StatusCode::REQUEST_TIMEOUT) => {
-                    // This can be expo backoff
-                    // reset jwt token, so that we can get a fresh one on next iteration.
-                    return Err(C8YRestError::FromHttpError(e));
-                }
+            match resp {
+                Ok(response) => return Ok(Ok(response)),
+                Err(e) => match e {
+                    tedge_http_ext::HttpError::HttpStatusError(StatusCode::UNAUTHORIZED)
+                    | tedge_http_ext::HttpError::HttpStatusError(StatusCode::FORBIDDEN) => {
+                        self.token = None;
+                        return Ok(self
+                            .retry_once_with_fresh_jwt_token(
+                                uri.clone(),
+                                headers.clone(),
+                                body_string.clone().into(),
+                            )
+                            .await?);
+                    }
+                    tedge_http_ext::HttpError::HttpStatusError(StatusCode::REQUEST_TIMEOUT) => {
+                        sleep(duration).await;
+                        continue;
+                    }
 
-                e => return Err(C8YRestError::FromHttpError(e)),
-            },
+                    e => return Err(C8YRestError::FromHttpError(e)),
+                },
+            }
         }
+        Err(C8YRestError::FromHttpError(
+            tedge_http_ext::HttpError::HttpStatusError(StatusCode::REQUEST_TIMEOUT),
+        ))
     }
 
     async fn build_request_using_parts(
@@ -310,24 +284,6 @@ impl C8YHttpProxyActor {
         Ok(self.peers.http.await_response(request).await?)
     }
 
-    // async fn retry_once_with_fresh_internal_id(
-    //     &mut self,
-    //     uri: Uri,
-    //     headers: HeaderMap,
-    //     body: String,
-    //     child_id: Option<String>,
-    // ) -> Result<HttpResult, C8YRestError> {
-    //     // update internal ID
-    //     let id = self
-    //         .get_c8y_internal_child_id(child_id.unwrap_or_default())
-    //         .await?;
-    //     self.token = None;
-    //     let body:C8yCreateEvent = serde_json::from_str(&body). 
-
-    //     let request = self.build_request_using_parts(uri, headers, body).await?;
-    //     Ok(self.peers.http.await_response(request).await?)
-    // }
-
     async fn create_event(
         &mut self,
         mut c8y_event: C8yCreateEvent,
@@ -349,9 +305,7 @@ impl C8YHttpProxyActor {
             .header("Accept", "application/json")
             .header("Content-Type", "application/json")
             .json(&software_list);
-        let http_result = self
-            .execute_retry(req_builder, HttpReqType::List, None)
-            .await?;
+        let http_result = self.execute_retry(req_builder).await?;
         let _ = http_result.error_for_status()?;
         Ok(())
     }
@@ -375,10 +329,7 @@ impl C8YHttpProxyActor {
             .header("Accept", "application/json")
             .header("Content-Type", "text/plain")
             .body(request.log_content);
-        let http_result = self
-            .execute_retry(req_builder, HttpReqType::Event, child_id)
-            .await?
-            .unwrap();
+        let http_result = self.execute_retry(req_builder).await?.unwrap();
 
         if !http_result.status().is_success() {
             Err(C8YRestError::CustomError("Upload failed".into()))
@@ -413,10 +364,7 @@ impl C8YHttpProxyActor {
             .header("Content-Type", "text/plain")
             .body(config_content.to_string());
         debug!(target: self.name(), "Uploading config file to URL: {}", binary_upload_event_url);
-        let http_result = self
-            .execute_retry(req_builder, HttpReqType::Event, child_id)
-            .await?
-            .unwrap();
+        let http_result = self.execute_retry(req_builder).await?.unwrap();
 
         if !http_result.status().is_success() {
             Err(C8YRestError::CustomError("Upload failed".into()))
@@ -493,11 +441,29 @@ impl C8YHttpProxyActor {
             .header("Accept", "application/json")
             .header("Content-Type", "application/json")
             .json(&c8y_event);
-        let http_result = self
-            .execute_retry(req_builder, HttpReqType::Event, None)
-            .await?;
+        let http_result = self.execute_retry(req_builder).await?;
         let http_response = http_result.error_for_status()?;
         let event_response: C8yEventResponse = http_response.json().await?;
         Ok(event_response.id)
     }
+}
+
+fn get_backoff() -> Backoff {
+    let retries = 10;
+    let min = Duration::from_millis(400);
+    let max = Duration::from_secs(360);
+    Backoff::new(retries, min, max)
+}
+
+async fn get_body_string(body: &mut Body) -> String {
+    let data = body.data().await;
+    let data = match data {
+        Some(res) => match res {
+            Ok(bytes) => bytes.to_vec(),
+            Err(_e) => vec![],
+        },
+        None => vec![],
+    };
+    // read body contents
+    String::from_utf8(data).unwrap()
 }

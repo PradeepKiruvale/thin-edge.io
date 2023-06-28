@@ -229,17 +229,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "async-recursion"
-version = "1.0.4"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "0e97ce7de6cf12de5d7226c73f5ba9811622f4db3a5b91b55c53e987e5f91cba"
-dependencies = [
- "proc-macro2 1.0.59",
- "quote 1.0.28",
- "syn 2.0.18",
-]
-
-[[package]]
 name = "async-trait"
 version = "0.1.68"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -655,10 +644,10 @@ dependencies = [
 name = "c8y_http_proxy"
 version = "0.11.0"
 dependencies = [
- "async-recursion",
  "async-trait",
  "c8y_api",
  "download",
+ "exponential-backoff",
  "futures-util",
  "http",
  "hyper",
@@ -1272,6 +1261,15 @@ name = "event-listener"
 version = "2.5.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "0206175f82b8d6bf6652ff7d71a1e27fd2e4efde587fd368662814d6ec1d9ce0"
+
+[[package]]
+name = "exponential-backoff"
+version = "1.2.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "47f78d87d930eee4b5686a2ab032de499c72bd1e954b84262bb03492a0f932cd"
+dependencies = [
+ "rand",
+]
 
 [[package]]
 name = "fastrand"
