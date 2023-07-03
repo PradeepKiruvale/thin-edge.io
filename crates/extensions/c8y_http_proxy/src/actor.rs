@@ -25,6 +25,7 @@ use download::DownloadInfo;
 use download::Downloader;
 use http::status::StatusCode;
 use http::HeaderMap;
+use http::Method;
 use http::Uri;
 use hyper::body::Body;
 use hyper::body::HttpBody;
@@ -170,7 +171,6 @@ impl C8YHttpProxyActor {
     }
 
     async fn try_get_and_set_internal_id(&mut self) -> Result<(), C8YRestError> {
-        dbg!("get internal id..............");
         let internal_id = self.try_get_internal_id(None).await?;
         self.end_point.set_c8y_internal_id(internal_id);
         Ok(())
@@ -213,62 +213,81 @@ impl C8YHttpProxyActor {
         let (parts, mut body) = request.into_parts();
         let headers = parts.headers.clone();
         let uri = parts.uri.clone();
+        let method = parts.method.clone();
 
         let body_string = get_body_string(&mut body).await;
 
         let request = self
-            .build_request_using_parts(uri.clone(), headers.clone(), body_string.clone().into())
+            .build_request_using_parts(
+                method.clone(),
+                uri.clone(),
+                headers.clone(),
+                body_string.clone().into(),
+            )
             .await?;
-        dbg!(&request);
+
         // Call request
         let resp = self.peers.http.await_response(request).await?;
 
         match resp {
-            Ok(response) => return Ok(Ok(response)),
-            Err(e) => match e {
-                tedge_http_ext::HttpError::HttpStatusError(StatusCode::UNAUTHORIZED)
-                | tedge_http_ext::HttpError::HttpStatusError(StatusCode::FORBIDDEN) => {
+            Ok(response) => match response.status() {
+                StatusCode::OK => {
+                    Ok(Ok(response))
+                }
+                StatusCode::UNAUTHORIZED | StatusCode::FORBIDDEN => {
                     self.token = None;
-                    return Ok(self
+                    Ok(self
                         .retry_once_with_fresh_jwt_token(
+                            method.clone(),
                             uri.clone(),
                             headers.clone(),
                             body_string.clone().into(),
                         )
-                        .await?);
+                        .await?)
                 }
-
-                e => return Err(C8YRestError::FromHttpError(e)),
+                code => {
+                    Err(C8YRestError::FromHttpError(
+                        tedge_http_ext::HttpError::HttpStatusError(code),
+                    ))
+                }
             },
+            Err(e) => Err(C8YRestError::FromHttpError(e)),
         }
     }
 
     async fn build_request_using_parts(
         &mut self,
+        method: Method,
         uri: Uri,
         headers: HeaderMap,
         body: Body,
     ) -> Result<HttpRequest, C8YRestError> {
-        let req_uri = HttpRequestBuilder::get(uri);
+        let req_uri = match method {
+            Method::GET => HttpRequestBuilder::get(uri),
+            Method::POST => HttpRequestBuilder::post(uri),
+            Method::PUT => HttpRequestBuilder::put(uri),
+            _ => todo!(),
+        };
+        // let req_uri = HttpRequestBuilder::post(uri);
         let mut request: HttpRequestBuilder =
             req_uri.bearer_auth(self.get_jwt_token().await?).body(body);
-        dbg!("after jwt token");
         for (k, v) in headers {
             request = request.header(k.unwrap(), v);
         }
-        dbg!("after request header build");
         let request = request.build()?;
-        dbg!(&request);
         Ok(request)
     }
 
     async fn retry_once_with_fresh_jwt_token(
         &mut self,
+        method: Method,
         uri: Uri,
         headers: HeaderMap,
         body: Body,
     ) -> Result<HttpResult, C8YRestError> {
-        let request = self.build_request_using_parts(uri, headers, body).await?;
+        let request = self
+            .build_request_using_parts(method, uri, headers, body)
+            .await?;
         Ok(self.peers.http.await_response(request).await?)
     }
 
@@ -445,6 +464,11 @@ async fn get_body_string(body: &mut Body) -> String {
         },
         None => vec![],
     };
+
     // read body contents
-    String::from_utf8(data).unwrap()
+    if data.is_empty() {
+        "".to_string()
+    } else {
+        String::from_utf8(data).unwrap()
+    }
 }
