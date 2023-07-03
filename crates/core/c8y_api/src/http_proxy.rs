@@ -56,6 +56,7 @@ impl C8yEndPoint {
     }
 
     pub fn get_url_for_get_id(&self, device_id: Option<&str>) -> String {
+        dbg!(device_id);
         let mut url_get_id = self.get_base_url();
         url_get_id.push_str("/identity/externalIds/c8y_Serial/");
         url_get_id.push_str(device_id.unwrap_or(&self.device_id));

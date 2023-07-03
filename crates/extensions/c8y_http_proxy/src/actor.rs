@@ -11,6 +11,7 @@ use crate::messages::Unit;
 use crate::messages::UploadConfigFile;
 use crate::messages::UploadLogBinary;
 use crate::C8YHttpConfig;
+use async_recursion::async_recursion;
 use async_trait::async_trait;
 use c8y_api::http_proxy::C8yEndPoint;
 use c8y_api::json_c8y::C8yCreateEvent;
@@ -24,15 +25,16 @@ use download::Auth;
 use download::DownloadInfo;
 use download::Downloader;
 use http::status::StatusCode;
+use http::uri::{Builder, Uri};
 use http::HeaderMap;
 use http::Method;
-use http::Uri;
 use hyper::body::Body;
 use hyper::body::HttpBody;
 use log::debug;
 use log::error;
 use log::info;
 use std::collections::HashMap;
+use std::path::PathBuf;
 use std::time::Duration;
 use tedge_actors::fan_in_message_type;
 use tedge_actors::Actor;
@@ -49,11 +51,17 @@ use tedge_http_ext::HttpResult;
 
 const RETRY_TIMEOUT_SECS: u64 = 20;
 
+pub enum InternalIDUsage {
+    URL,
+    BODY,
+}
+
 pub struct C8YHttpProxyActor {
     end_point: C8yEndPoint,
     child_devices: HashMap<String, String>,
     peers: C8YHttpProxyMessageBox,
     token: Option<String>,
+    id_usage: InternalIDUsage,
 }
 
 pub struct C8YHttpProxyMessageBox {
@@ -132,6 +140,7 @@ impl C8YHttpProxyActor {
             child_devices,
             peers: message_box,
             token: None,
+            id_usage: InternalIDUsage::URL,
         }
     }
 
@@ -194,10 +203,12 @@ impl C8YHttpProxyActor {
         &mut self,
         device_id: Option<&str>,
     ) -> Result<String, C8YRestError> {
+        dbg!(&self.end_point.device_id);
         let url_get_id = self.end_point.get_url_for_get_id(device_id);
+        dbg!(&url_get_id);
         let request_internal_id = HttpRequestBuilder::get(url_get_id);
 
-        let res = self.execute_retry(request_internal_id).await?;
+        let res = self.execute_retry(request_internal_id, None).await?;
         let res = res.error_for_status()?;
 
         let internal_id_response: InternalIdResponse = res.json().await?;
@@ -205,9 +216,11 @@ impl C8YHttpProxyActor {
         Ok(internal_id)
     }
 
+    #[async_recursion]
     async fn execute_retry(
         &mut self,
         request: HttpRequestBuilder,
+        child_id: Option<String>,
     ) -> Result<HttpResult, C8YRestError> {
         let request = request.build()?;
         let (parts, mut body) = request.into_parts();
@@ -231,9 +244,7 @@ impl C8YHttpProxyActor {
 
         match resp {
             Ok(response) => match response.status() {
-                StatusCode::OK => {
-                    Ok(Ok(response))
-                }
+                StatusCode::OK => Ok(Ok(response)),
                 StatusCode::UNAUTHORIZED | StatusCode::FORBIDDEN => {
                     self.token = None;
                     Ok(self
@@ -245,11 +256,22 @@ impl C8YHttpProxyActor {
                         )
                         .await?)
                 }
-                code => {
-                    Err(C8YRestError::FromHttpError(
-                        tedge_http_ext::HttpError::HttpStatusError(code),
-                    ))
-                }
+                StatusCode::NOT_FOUND => {
+                    dbg!("internal id not found");
+                    self.end_point.c8y_internal_id = "".to_string();
+                    Ok(self
+                        .retry_once_with_fresh_internal_id(
+                            method.clone(),
+                            uri.clone(),
+                            headers.clone(),
+                            body_string.clone(),
+                            child_id,
+                        )
+                        .await?)
+                } // Try only once with new internal ID
+                code => Err(C8YRestError::FromHttpError(
+                    tedge_http_ext::HttpError::HttpStatusError(code),
+                )),
             },
             Err(e) => Err(C8YRestError::FromHttpError(e)),
         }
@@ -291,6 +313,58 @@ impl C8YHttpProxyActor {
         Ok(self.peers.http.await_response(request).await?)
     }
 
+    async fn retry_once_with_fresh_internal_id(
+        &mut self,
+        method: Method,
+        uri: Uri,
+        headers: HeaderMap,
+        body: String,
+        child_id: Option<String>,
+    ) -> Result<HttpResult, C8YRestError> {
+        // update internal ID
+        dbg!("getting new id");
+        let id = match child_id {
+            Some(cid) => self.get_c8y_internal_child_id(cid).await?,
+            None => {
+                self.try_get_and_set_internal_id().await?;
+                self.end_point.device_id.clone()
+            }
+        };
+
+        dbg!("uri is ....>", &uri);
+        let request = match self.id_usage {
+            InternalIDUsage::BODY => {
+                let mut event: C8yCreateEvent = serde_json::from_str(&body).unwrap();
+                event.source = Some(C8yManagedObject { id });
+                let body = serde_json::to_string(&event).unwrap();
+                dbg!("its in the body");
+                self.build_request_using_parts(method, uri, headers, body.into())
+                    .await?
+            }
+            InternalIDUsage::URL => {
+                let mut components: Vec<&str> = uri.path().split("/").collect();
+                components.pop();
+                components.push(&id);
+                let mut path = PathBuf::new();
+
+                for component in components {
+                    path.push(component);
+                }
+                let builder = Builder::new();
+                let uri = builder
+                    .scheme(uri.scheme().unwrap().as_str())
+                    .authority(uri.authority().unwrap().as_str())
+                    .path_and_query(format!("/{}", path.as_path().display()))
+                    .build();
+                dbg!("uri is ....>", &uri);
+                self.build_request_using_parts(method, uri.unwrap(), headers, body.into())
+                    .await?
+            }
+        };
+        dbg!("retrying with fresh internal id");
+        Ok(self.peers.http.await_response(request).await?)
+    }
+
     async fn create_event(
         &mut self,
         mut c8y_event: C8yCreateEvent,
@@ -312,7 +386,8 @@ impl C8YHttpProxyActor {
             .header("Accept", "application/json")
             .header("Content-Type", "application/json")
             .json(&software_list);
-        let http_result = self.execute_retry(req_builder).await?;
+        self.id_usage = InternalIDUsage::URL;
+        let http_result = self.execute_retry(req_builder, None).await?;
         let _ = http_result.error_for_status()?;
         Ok(())
     }
@@ -336,7 +411,7 @@ impl C8YHttpProxyActor {
             .header("Accept", "application/json")
             .header("Content-Type", "text/plain")
             .body(request.log_content);
-        let http_result = self.execute_retry(req_builder).await?.unwrap();
+        let http_result = self.execute_retry(req_builder, child_id).await?.unwrap();
 
         if !http_result.status().is_success() {
             Err(C8YRestError::CustomError("Upload failed".into()))
@@ -371,7 +446,7 @@ impl C8YHttpProxyActor {
             .header("Content-Type", "text/plain")
             .body(config_content.to_string());
         debug!(target: self.name(), "Uploading config file to URL: {}", binary_upload_event_url);
-        let http_result = self.execute_retry(req_builder).await?.unwrap();
+        let http_result = self.execute_retry(req_builder, None).await?.unwrap();
 
         if !http_result.status().is_success() {
             Err(C8YRestError::CustomError("Upload failed".into()))
@@ -443,12 +518,13 @@ impl C8YHttpProxyActor {
         c8y_event: C8yCreateEvent,
     ) -> Result<EventId, C8YRestError> {
         let create_event_url = self.end_point.get_url_for_create_event();
+        self.id_usage = InternalIDUsage::BODY;
 
         let req_builder = HttpRequestBuilder::post(create_event_url)
             .header("Accept", "application/json")
             .header("Content-Type", "application/json")
             .json(&c8y_event);
-        let http_result = self.execute_retry(req_builder).await?;
+        let http_result = self.execute_retry(req_builder, None).await?;
         let http_response = http_result.error_for_status()?;
         let event_response: C8yEventResponse = http_response.json().await?;
         Ok(event_response.id)
