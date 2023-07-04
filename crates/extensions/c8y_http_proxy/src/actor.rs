@@ -546,7 +546,7 @@ async fn get_body_string(body: &mut Body) -> Result<String, C8YRestError> {
         Ok(String::from_utf8(data).map_err(|e| {
             C8YRestError::CustomError(format!(
                 "Failed to covert to string from utf8 due to {}",
-                e.to_string()
+                e
             ))
         })?)
     }
@@ -559,14 +559,14 @@ fn update_body_with_new_internal_id(
     let mut event: C8yCreateEvent = serde_json::from_str(&req_parts.body).map_err(|e| {
         C8YRestError::CustomError(format!(
             "Failed to deserialize Event due to {}",
-            e.to_string()
+            e
         ))
     })?;
     event.source = Some(C8yManagedObject { id: internal_id });
     let body: String = serde_json::to_string(&event).map_err(|e| {
         C8YRestError::CustomError(format!(
             "Failed to serialize event to string, due to {}",
-            e.to_string()
+            e
         ))
     })?;
 
@@ -622,7 +622,7 @@ fn update_url_with_fresh_internal_id(
                 "Failed to update the Uri {} with fresh internal id {} due to {}",
                 req_parts.uri,
                 internal_id,
-                e.to_string()
+                e
             )))
         })?;
 
