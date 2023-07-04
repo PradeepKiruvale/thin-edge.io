@@ -248,7 +248,9 @@ impl C8YHttpProxyActor {
             parts.headers,
         );
 
-        let request = self.build_request_using_parts(&req_parts).await?;
+        let request = self
+            .build_request_using_parts_and_fresh_jwt_token(&req_parts)
+            .await?;
         // Call request
         let resp = self.peers.http.await_response(request).await?;
 
@@ -282,7 +284,9 @@ impl C8YHttpProxyActor {
             parts.headers,
         );
 
-        let request = self.build_request_using_parts(&req_components).await?;
+        let request = self
+            .build_request_using_parts_and_fresh_jwt_token(&req_components)
+            .await?;
         // Call request
         let resp = self.peers.http.await_response(request).await?;
 
@@ -306,7 +310,7 @@ impl C8YHttpProxyActor {
         }
     }
 
-    async fn build_request_using_parts(
+    async fn build_request_using_parts_and_fresh_jwt_token(
         &mut self,
         http_parts: &HttpRequestParts,
     ) -> Result<HttpRequest, C8YRestError> {
@@ -338,7 +342,9 @@ impl C8YHttpProxyActor {
         &mut self,
         req_parts: &HttpRequestParts,
     ) -> Result<HttpResult, C8YRestError> {
-        let request = self.build_request_using_parts(req_parts).await?;
+        let request = self
+            .build_request_using_parts_and_fresh_jwt_token(req_parts)
+            .await?;
         Ok(self.peers.http.await_response(request).await?)
     }
 
@@ -357,17 +363,15 @@ impl C8YHttpProxyActor {
 
         let request = match self.id_usage {
             InternalIDUsage::Body => {
-                self.build_request_using_parts(&update_body_with_new_internal_id(
-                    internal_id,
-                    req_parts,
-                )?)
+                self.build_request_using_parts_and_fresh_jwt_token(
+                    &update_body_with_new_internal_id(internal_id, req_parts)?,
+                )
                 .await?
             }
             InternalIDUsage::Url => {
-                self.build_request_using_parts(&update_url_with_fresh_internal_id(
-                    internal_id,
-                    req_parts,
-                )?)
+                self.build_request_using_parts_and_fresh_jwt_token(
+                    &update_url_with_fresh_internal_id(internal_id, req_parts)?,
+                )
                 .await?
             }
         };
