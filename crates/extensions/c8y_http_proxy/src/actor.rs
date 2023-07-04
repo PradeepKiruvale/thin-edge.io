@@ -210,9 +210,8 @@ impl C8YHttpProxyActor {
         &mut self,
         device_id: Option<&str>,
     ) -> Result<String, C8YRestError> {
-        dbg!(&self.end_point.device_id);
         let url_get_id = self.end_point.get_url_for_get_id(device_id);
-        dbg!(&url_get_id);
+
         let request_internal_id = HttpRequestBuilder::get(url_get_id);
 
         let res = self.execute_retry(request_internal_id, None).await?;
@@ -229,17 +228,15 @@ impl C8YHttpProxyActor {
     ) -> Result<HttpResult, C8YRestError> {
         let url_get_id = self.end_point.get_url_for_get_id(device_id);
         let request = HttpRequestBuilder::get(url_get_id).build()?;
-
         let (parts, mut body) = request.into_parts();
-        let req_components = HttpRequestParts {
+        let req_parts = HttpRequestParts {
             method: parts.method,
             uri: parts.uri,
-            body: get_body_string(&mut body).await,
+            body: get_body_string(&mut body).await?,
             headers: parts.headers,
         };
 
-        let request = self.build_request_using_parts(&req_components).await?;
-
+        let request = self.build_request_using_parts(&req_parts).await?;
         // Call request
         let resp = self.peers.http.await_response(request).await?;
 
@@ -248,9 +245,7 @@ impl C8YHttpProxyActor {
                 StatusCode::OK => Ok(Ok(response)),
                 StatusCode::UNAUTHORIZED | StatusCode::FORBIDDEN => {
                     self.token = None;
-                    Ok(self
-                        .retry_once_with_fresh_jwt_token(&req_components)
-                        .await?)
+                    Ok(self.retry_once_with_fresh_jwt_token(&req_parts).await?)
                 }
                 code => Err(C8YRestError::FromHttpError(
                     tedge_http_ext::HttpError::HttpStatusError(code),
@@ -267,17 +262,15 @@ impl C8YHttpProxyActor {
         child_id: Option<String>,
     ) -> Result<HttpResult, C8YRestError> {
         let request = request.build()?;
-
         let (parts, mut body) = request.into_parts();
         let req_components = HttpRequestParts {
             method: parts.method,
             uri: parts.uri,
-            body: get_body_string(&mut body).await,
+            body: get_body_string(&mut body).await?,
             headers: parts.headers,
         };
 
         let request = self.build_request_using_parts(&req_components).await?;
-
         // Call request
         let resp = self.peers.http.await_response(request).await?;
 
@@ -290,13 +283,9 @@ impl C8YHttpProxyActor {
                         .retry_once_with_fresh_jwt_token(&req_components)
                         .await?)
                 }
-                StatusCode::NOT_FOUND => {
-                    dbg!("internal id not found");
-                    self.end_point.c8y_internal_id = "".to_string();
-                    Ok(self
-                        .retry_once_with_fresh_internal_id(&req_components, child_id)
-                        .await?)
-                } // Try only once with new internal ID
+                StatusCode::NOT_FOUND => Ok(self
+                    .retry_once_with_fresh_internal_id(&req_components, child_id)
+                    .await?),
                 code => Err(C8YRestError::FromHttpError(
                     tedge_http_ext::HttpError::HttpStatusError(code),
                 )),
@@ -309,18 +298,25 @@ impl C8YHttpProxyActor {
         &mut self,
         http_parts: &HttpRequestParts,
     ) -> Result<HttpRequest, C8YRestError> {
-        let req_uri = match http_parts.method {
+        let req_uri = match http_parts.method.clone() {
             Method::GET => HttpRequestBuilder::get(http_parts.uri.clone()),
             Method::POST => HttpRequestBuilder::post(http_parts.uri.clone()),
             Method::PUT => HttpRequestBuilder::put(http_parts.uri.clone()),
-            _ => todo!(),
+            method => {
+                return Err(C8YRestError::CustomError(format!(
+                    "HTTPRequestBuilder method {} not supported",
+                    method
+                )))
+            }
         };
-        // let req_uri = HttpRequestBuilder::post(uri);
+
         let mut request: HttpRequestBuilder = req_uri
             .bearer_auth(self.get_jwt_token().await?)
             .body(http_parts.body.clone());
         for (k, v) in http_parts.headers.clone() {
-            request = request.header(k.unwrap(), v);
+            if let Some(key) = k {
+                request = request.header(key, v);
+            }
         }
         let request = request.build()?;
         Ok(request)
@@ -340,48 +336,30 @@ impl C8YHttpProxyActor {
         child_id: Option<String>,
     ) -> Result<HttpResult, C8YRestError> {
         // update internal ID
-        dbg!("getting new id");
+
         let response = self.exec_to_get_internal_id(child_id.as_deref()).await?;
-        dbg!(&response);
+
         let res = response.error_for_status()?;
 
         let internal_id_response: InternalIdResponse = res.json().await?;
         let internal_id = internal_id_response.id();
-        dbg!("uri is ....>", &req_parts.uri);
+
         let request = match self.id_usage {
             InternalIDUsage::Body => {
-                let mut event: C8yCreateEvent = serde_json::from_str(&req_parts.body).unwrap();
-                event.source = Some(C8yManagedObject { id: internal_id });
-                let body = serde_json::to_string(&event).unwrap();
-                let req_parts = HttpRequestParts {
-                    method: req_parts.method.clone(),
-                    uri: req_parts.uri.clone(),
-                    body,
-                    headers: req_parts.headers.clone(),
-                };
-                dbg!("its in the body");
-                self.build_request_using_parts(&req_parts).await?
+                self.build_request_using_parts(&update_body_with_new_internal_id(
+                    internal_id,
+                    req_parts,
+                )?)
+                .await?
             }
             InternalIDUsage::Url => {
-                let mut components: Vec<&str> = req_parts.uri.path().split('/').collect();
-                components.pop();
-                components.push(&internal_id);
-                let mut path = PathBuf::new();
-
-                for component in components {
-                    path.push(component);
-                }
-                let builder = Builder::new();
-                let uri = builder
-                    .scheme(req_parts.uri.scheme().unwrap().as_str())
-                    .authority(req_parts.uri.authority().unwrap().as_str())
-                    .path_and_query(format!("/{}", path.as_path().display()))
-                    .build();
-                dbg!("uri is ....>", &uri);
-                self.build_request_using_parts(req_parts).await?
+                self.build_request_using_parts(&update_url_with_fresh_internal_id(
+                    internal_id,
+                    req_parts,
+                )?)
+                .await?
             }
         };
-        dbg!("retrying with fresh internal id");
         Ok(self.peers.http.await_response(request).await?)
     }
 
@@ -431,7 +409,7 @@ impl C8YHttpProxyActor {
             .header("Accept", "application/json")
             .header("Content-Type", "text/plain")
             .body(request.log_content);
-        let http_result = self.execute_retry(req_builder, child_id).await?.unwrap();
+        let http_result = self.execute_retry(req_builder, child_id).await??;
 
         if !http_result.status().is_success() {
             Err(C8YRestError::CustomError("Upload failed".into()))
@@ -466,7 +444,7 @@ impl C8YHttpProxyActor {
             .header("Content-Type", "text/plain")
             .body(config_content.to_string());
         debug!(target: self.name(), "Uploading config file to URL: {}", binary_upload_event_url);
-        let http_result = self.execute_retry(req_builder, None).await?.unwrap();
+        let http_result = self.execute_retry(req_builder, None).await??;
 
         if !http_result.status().is_success() {
             Err(C8YRestError::CustomError("Upload failed".into()))
@@ -551,7 +529,7 @@ impl C8YHttpProxyActor {
     }
 }
 
-async fn get_body_string(body: &mut Body) -> String {
+async fn get_body_string(body: &mut Body) -> Result<String, C8YRestError> {
     let data = body.data().await;
     let data = match data {
         Some(res) => match res {
@@ -563,8 +541,95 @@ async fn get_body_string(body: &mut Body) -> String {
 
     // read body contents
     if data.is_empty() {
-        "".to_string()
+        Ok("".to_string())
     } else {
-        String::from_utf8(data).unwrap()
+        Ok(String::from_utf8(data).map_err(|e| {
+            C8YRestError::CustomError(format!(
+                "Failed to covert to string from utf8 due to {}",
+                e.to_string()
+            ))
+        })?)
     }
+}
+
+fn update_body_with_new_internal_id(
+    internal_id: String,
+    req_parts: &HttpRequestParts,
+) -> Result<HttpRequestParts, C8YRestError> {
+    let mut event: C8yCreateEvent = serde_json::from_str(&req_parts.body).map_err(|e| {
+        C8YRestError::CustomError(format!(
+            "Failed to deserialize Event due to {}",
+            e.to_string()
+        ))
+    })?;
+    event.source = Some(C8yManagedObject { id: internal_id });
+    let body: String = serde_json::to_string(&event).map_err(|e| {
+        C8YRestError::CustomError(format!(
+            "Failed to serialize event to string, due to {}",
+            e.to_string()
+        ))
+    })?;
+
+    Ok(HttpRequestParts {
+        method: req_parts.method.clone(),
+        uri: req_parts.uri.clone(),
+        body,
+        headers: req_parts.headers.clone(),
+    })
+}
+
+fn update_url_with_fresh_internal_id(
+    internal_id: String,
+    req_parts: &HttpRequestParts,
+) -> Result<HttpRequestParts, C8YRestError> {
+    let mut components: Vec<&str> = req_parts.uri.path().split('/').collect();
+    components.pop();
+    components.push(&internal_id);
+    let mut path = PathBuf::new();
+
+    for component in components {
+        path.push(component);
+    }
+    let builder = Builder::new();
+
+    let scheme = match req_parts.uri.scheme_str() {
+        Some(scheme) => scheme,
+        None => {
+            return Err(C8YRestError::CustomError(format!(
+                "Scheme not found in the uri {}",
+                req_parts.uri
+            )))
+        }
+    };
+
+    let authority = match req_parts.uri.authority() {
+        Some(authority) => authority.as_str(),
+        None => {
+            return Err(C8YRestError::CustomError(format!(
+                "No authority found in the uri {}",
+                req_parts.uri
+            )))
+        }
+    };
+
+    let uri = builder
+        .scheme(scheme)
+        .authority(authority)
+        .path_and_query(format!("/{}", path.as_path().display()))
+        .build()
+        .map_err(|e| {
+            Err(C8YRestError::CustomError(format!(
+                "Failed to update the Uri {} with fresh internal id {} due to {}",
+                req_parts.uri,
+                internal_id,
+                e.to_string()
+            )))
+        })?;
+
+    Ok(HttpRequestParts {
+        method: req_parts.method.clone(),
+        uri,
+        body: req_parts.body.clone(),
+        headers: req_parts.headers.clone(),
+    })
 }

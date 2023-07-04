@@ -173,7 +173,6 @@ async fn retry_once_with_fresh_internal_id() {
             .unwrap();
     });
 
-    dbg!("upload request is being processed");
     // then the upload request received by c8y is related to the internal id
     c8y.assert_recv(Some(
         HttpRequestBuilder::post(format!("https://{c8y_host}/event/events/"))
@@ -185,8 +184,6 @@ async fn retry_once_with_fresh_internal_id() {
     ))
     .await;
 
-    dbg!("assert events");
-
     // Cumulocity returns the internal device id, after retrying with the fresh jwt token
     let c8y_response = HttpResponseBuilder::new()
         .status(404)
@@ -195,19 +192,6 @@ async fn retry_once_with_fresh_internal_id() {
         .unwrap();
     c8y.send(Ok(c8y_response)).await.unwrap();
 
-    dbg!("after sending the 404");
-
-    // c8y.assert_recv(Some(
-    //     HttpRequestBuilder::get(format!(
-    //         "https://{c8y_host}/identity/externalIds/c8y_Serial/{device_id}"
-    //     ))
-    //     .bearer_auth(token)
-    //     .build()
-    //     .unwrap(),
-    // ))
-    // .await;
-
-    // dbg!("after asserting first internal id");
     // Cumulocity returns the internal device id, after retrying with the fresh jwt token
     let c8y_response = HttpResponseBuilder::new()
         .status(200)
@@ -216,7 +200,6 @@ async fn retry_once_with_fresh_internal_id() {
         .unwrap();
     c8y.send(Ok(c8y_response)).await.unwrap();
 
-    dbg!("after sending second internal id");
     c8y.assert_recv(Some(
         HttpRequestBuilder::get(format!(
             "https://{c8y_host}/identity/externalIds/c8y_Serial/{device_id}"
@@ -226,7 +209,7 @@ async fn retry_once_with_fresh_internal_id() {
         .unwrap(),
     ))
     .await;
-    dbg!("after asserting second internal id");
+
     // then the upload request received by c8y is related to the internal id
     c8y.assert_recv(Some(
         HttpRequestBuilder::post(format!("https://{c8y_host}/event/events/"))
@@ -276,7 +259,6 @@ async fn retry_softwarelist_once_with_fresh_internal_id() {
         proxy.send_software_list_http(c8y_software_list).await
     });
 
-    dbg!("upload request is being processed");
     // then the upload request received by c8y is related to the internal id
     c8y.assert_recv(Some(
         HttpRequestBuilder::put(format!(
@@ -291,8 +273,6 @@ async fn retry_softwarelist_once_with_fresh_internal_id() {
     ))
     .await;
 
-    dbg!("assert events");
-
     // Cumulocity returns the internal device id, after retrying with the fresh jwt token
     let c8y_response = HttpResponseBuilder::new()
         .status(404)
@@ -301,19 +281,6 @@ async fn retry_softwarelist_once_with_fresh_internal_id() {
         .unwrap();
     c8y.send(Ok(c8y_response)).await.unwrap();
 
-    dbg!("after sending the 404");
-
-    // c8y.assert_recv(Some(
-    //     HttpRequestBuilder::get(format!(
-    //         "https://{c8y_host}/identity/externalIds/c8y_Serial/{device_id}"
-    //     ))
-    //     .bearer_auth(token)
-    //     .build()
-    //     .unwrap(),
-    // ))
-    // .await;
-
-    // dbg!("after asserting first internal id");
     // Cumulocity returns the internal device id, after retrying with the fresh jwt token
     let c8y_response = HttpResponseBuilder::new()
         .status(200)
@@ -322,7 +289,6 @@ async fn retry_softwarelist_once_with_fresh_internal_id() {
         .unwrap();
     c8y.send(Ok(c8y_response)).await.unwrap();
 
-    dbg!("after sending second internal id");
     c8y.assert_recv(Some(
         HttpRequestBuilder::get(format!(
             "https://{c8y_host}/identity/externalIds/c8y_Serial/{device_id}"
@@ -332,7 +298,7 @@ async fn retry_softwarelist_once_with_fresh_internal_id() {
         .unwrap(),
     ))
     .await;
-    dbg!("after asserting second internal id");
+
     let c8y_software_list = C8yUpdateSoftwareListResponse::create_empty_list();
     // then the upload request received by c8y is related to the internal id
     c8y.assert_recv(Some(
