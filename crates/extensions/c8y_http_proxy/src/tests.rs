@@ -86,7 +86,7 @@ async fn retry_internal_id_on_expired_jwt() {
     .unwrap();
     c8y.assert_recv(Some(init_request)).await;
 
-    // Cumulocity returns the authorization error 401
+    // Cumulocity returns unauthorized error (401), because the jwt token has expired
     let c8y_response = HttpResponseBuilder::new()
         .status(401)
         .json(&InternalIdResponse::new(device_id, external_id))
@@ -94,7 +94,7 @@ async fn retry_internal_id_on_expired_jwt() {
         .unwrap();
     c8y.send(Ok(c8y_response)).await.unwrap();
 
-    // Cumulocity returns the internal device id, after retrying with the fresh jwt token
+    // Mapper retries to get the internal device id, after getting a fresh jwt token
     let c8y_response = HttpResponseBuilder::new()
         .status(200)
         .json(&InternalIdResponse::new(device_id, external_id))
@@ -135,7 +135,7 @@ async fn retry_internal_id_on_expired_jwt() {
 }
 
 #[tokio::test]
-async fn retry_once_with_fresh_internal_id() {
+async fn retry_c8y_interaction_with_fresh_internal_id() {
     let c8y_host = "c8y.tenant.io";
     let device_id = "device-001";
     let token = "JWT token";
@@ -155,7 +155,7 @@ async fn retry_once_with_fresh_internal_id() {
     .unwrap();
     c8y.assert_recv(Some(init_request)).await;
 
-    // Cumulocity returns the internal device id, after retrying with the fresh jwt token
+    // Cumulocity returns the internal device id
     let c8y_response = HttpResponseBuilder::new()
         .status(200)
         .json(&InternalIdResponse::new(device_id, external_id))
@@ -184,7 +184,7 @@ async fn retry_once_with_fresh_internal_id() {
     ))
     .await;
 
-    // Cumulocity returns the internal device id, after retrying with the fresh jwt token
+    // Creating the event over http failed due to the device is NOT_FOUND
     let c8y_response = HttpResponseBuilder::new()
         .status(404)
         .json(&InternalIdResponse::new(device_id, external_id))
@@ -192,7 +192,7 @@ async fn retry_once_with_fresh_internal_id() {
         .unwrap();
     c8y.send(Ok(c8y_response)).await.unwrap();
 
-    // Cumulocity returns the internal device id, after retrying with the fresh jwt token
+    // Mapper retries the call with internal id
     let c8y_response = HttpResponseBuilder::new()
         .status(200)
         .json(&InternalIdResponse::new(device_id, external_id))
@@ -200,6 +200,7 @@ async fn retry_once_with_fresh_internal_id() {
         .unwrap();
     c8y.send(Ok(c8y_response)).await.unwrap();
 
+    // Now there is a request to get the internal id
     c8y.assert_recv(Some(
         HttpRequestBuilder::get(format!(
             "https://{c8y_host}/identity/externalIds/c8y_Serial/{device_id}"
@@ -223,7 +224,7 @@ async fn retry_once_with_fresh_internal_id() {
 }
 
 #[tokio::test]
-async fn retry_softwarelist_once_with_fresh_internal_id() {
+async fn retry_software_list_once_with_fresh_internal_id() {
     let c8y_host = "c8y.tenant.io";
     let device_id = "device-001";
     let token = "JWT token";
@@ -273,7 +274,7 @@ async fn retry_softwarelist_once_with_fresh_internal_id() {
     ))
     .await;
 
-    // Cumulocity returns the internal device id, after retrying with the fresh jwt token
+    // The software list upload fails because the device identified with internal id not found
     let c8y_response = HttpResponseBuilder::new()
         .status(404)
         .json(&InternalIdResponse::new(device_id, external_id))
@@ -289,6 +290,7 @@ async fn retry_softwarelist_once_with_fresh_internal_id() {
         .unwrap();
     c8y.send(Ok(c8y_response)).await.unwrap();
 
+    // Now the mapper gets a new internal id for the specific device id
     c8y.assert_recv(Some(
         HttpRequestBuilder::get(format!(
             "https://{c8y_host}/identity/externalIds/c8y_Serial/{device_id}"
