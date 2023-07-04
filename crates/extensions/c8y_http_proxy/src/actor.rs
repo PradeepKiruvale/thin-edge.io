@@ -11,7 +11,6 @@ use crate::messages::Unit;
 use crate::messages::UploadConfigFile;
 use crate::messages::UploadLogBinary;
 use crate::C8YHttpConfig;
-use async_recursion::async_recursion;
 use async_trait::async_trait;
 use c8y_api::http_proxy::C8yEndPoint;
 use c8y_api::json_c8y::C8yCreateEvent;
@@ -25,7 +24,8 @@ use download::Auth;
 use download::DownloadInfo;
 use download::Downloader;
 use http::status::StatusCode;
-use http::uri::{Builder, Uri};
+use http::uri::Builder;
+use http::uri::Uri;
 use http::HeaderMap;
 use http::Method;
 use hyper::body::Body;
@@ -52,8 +52,8 @@ use tedge_http_ext::HttpResult;
 const RETRY_TIMEOUT_SECS: u64 = 20;
 
 pub enum InternalIDUsage {
-    URL,
-    BODY,
+    Url,
+    Body,
 }
 
 pub struct C8YHttpProxyActor {
@@ -140,7 +140,7 @@ impl C8YHttpProxyActor {
             child_devices,
             peers: message_box,
             token: None,
-            id_usage: InternalIDUsage::URL,
+            id_usage: InternalIDUsage::Url,
         }
     }
 
@@ -216,7 +216,55 @@ impl C8YHttpProxyActor {
         Ok(internal_id)
     }
 
-    #[async_recursion]
+    async fn exec_to_get_internal_id(
+        &mut self,
+        device_id: Option<&str>,
+    ) -> Result<HttpResult, C8YRestError> {
+        let url_get_id = self.end_point.get_url_for_get_id(device_id);
+        let request = HttpRequestBuilder::get(url_get_id).build()?;
+
+        let (parts, mut body) = request.into_parts();
+        let headers = parts.headers.clone();
+        let uri = parts.uri.clone();
+        let method = parts.method.clone();
+
+        let body_string = get_body_string(&mut body).await;
+
+        let request = self
+            .build_request_using_parts(
+                method.clone(),
+                uri.clone(),
+                headers.clone(),
+                body_string.clone().into(),
+            )
+            .await?;
+
+        // Call request
+        let resp = self.peers.http.await_response(request).await?;
+
+        match resp {
+            Ok(response) => match response.status() {
+                StatusCode::OK => Ok(Ok(response)),
+                StatusCode::UNAUTHORIZED | StatusCode::FORBIDDEN => {
+                    self.token = None;
+                    Ok(self
+                        .retry_once_with_fresh_jwt_token(
+                            method.clone(),
+                            uri.clone(),
+                            headers.clone(),
+                            body_string.clone().into(),
+                        )
+                        .await?)
+                }
+                code => Err(C8YRestError::FromHttpError(
+                    tedge_http_ext::HttpError::HttpStatusError(code),
+                )),
+            },
+
+            Err(e) => Err(C8YRestError::FromHttpError(e)),
+        }
+    }
+
     async fn execute_retry(
         &mut self,
         request: HttpRequestBuilder,
@@ -323,32 +371,27 @@ impl C8YHttpProxyActor {
     ) -> Result<HttpResult, C8YRestError> {
         // update internal ID
         dbg!("getting new id");
-        let id = match child_id {
-            Some(cid) => {
-                // remove the existing id and then get a fresh id
-                self.child_devices.remove(&cid);
-                self.get_c8y_internal_child_id(cid).await?
-            }
-            None => {
-                self.try_get_and_set_internal_id().await?;
-                self.end_point.device_id.clone()
-            }
-        };
+        let response = self.exec_to_get_internal_id(child_id.as_deref()).await?;
+        dbg!(&response);
+        let res = response.error_for_status()?;
 
+        let internal_id_response: InternalIdResponse = res.json().await?;
+        let internal_id = internal_id_response.id();
+        //let id = "device-001".to_string();
         dbg!("uri is ....>", &uri);
         let request = match self.id_usage {
-            InternalIDUsage::BODY => {
+            InternalIDUsage::Body => {
                 let mut event: C8yCreateEvent = serde_json::from_str(&body).unwrap();
-                event.source = Some(C8yManagedObject { id });
+                event.source = Some(C8yManagedObject { id: internal_id });
                 let body = serde_json::to_string(&event).unwrap();
                 dbg!("its in the body");
                 self.build_request_using_parts(method, uri, headers, body.into())
                     .await?
             }
-            InternalIDUsage::URL => {
-                let mut components: Vec<&str> = uri.path().split("/").collect();
+            InternalIDUsage::Url => {
+                let mut components: Vec<&str> = uri.path().split('/').collect();
                 components.pop();
-                components.push(&id);
+                components.push(&internal_id);
                 let mut path = PathBuf::new();
 
                 for component in components {
@@ -390,7 +433,7 @@ impl C8YHttpProxyActor {
             .header("Accept", "application/json")
             .header("Content-Type", "application/json")
             .json(&software_list);
-        self.id_usage = InternalIDUsage::URL;
+        self.id_usage = InternalIDUsage::Url;
         let http_result = self.execute_retry(req_builder, None).await?;
         let _ = http_result.error_for_status()?;
         Ok(())
@@ -522,7 +565,7 @@ impl C8YHttpProxyActor {
         c8y_event: C8yCreateEvent,
     ) -> Result<EventId, C8YRestError> {
         let create_event_url = self.end_point.get_url_for_create_event();
-        self.id_usage = InternalIDUsage::BODY;
+        self.id_usage = InternalIDUsage::Body;
 
         let req_builder = HttpRequestBuilder::post(create_event_url)
             .header("Accept", "application/json")
