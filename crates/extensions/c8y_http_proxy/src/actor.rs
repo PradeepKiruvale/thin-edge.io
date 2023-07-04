@@ -324,7 +324,11 @@ impl C8YHttpProxyActor {
         // update internal ID
         dbg!("getting new id");
         let id = match child_id {
-            Some(cid) => self.get_c8y_internal_child_id(cid).await?,
+            Some(cid) => {
+                // remove the existing id and then get a fresh id
+                self.child_devices.remove(&cid);
+                self.get_c8y_internal_child_id(cid).await?
+            }
             None => {
                 self.try_get_and_set_internal_id().await?;
                 self.end_point.device_id.clone()
