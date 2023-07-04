@@ -63,6 +63,17 @@ struct HttpRequestParts {
     headers: HeaderMap,
 }
 
+impl HttpRequestParts {
+    fn new(method: Method, uri: Uri, body: String, headers: HeaderMap) -> Self {
+        Self {
+            method,
+            uri,
+            body,
+            headers,
+        }
+    }
+}
+
 pub struct C8YHttpProxyActor {
     end_point: C8yEndPoint,
     child_devices: HashMap<String, String>,
@@ -230,12 +241,12 @@ impl C8YHttpProxyActor {
         let request = HttpRequestBuilder::get(url_get_id).build()?;
         // Get the parts of the request to create a http request for retry
         let (parts, mut body) = request.into_parts();
-        let req_parts = HttpRequestParts {
-            method: parts.method,
-            uri: parts.uri,
-            body: get_body_string(&mut body).await?,
-            headers: parts.headers,
-        };
+        let req_parts = HttpRequestParts::new(
+            parts.method,
+            parts.uri,
+            get_body_string(&mut body).await?,
+            parts.headers,
+        );
 
         let request = self.build_request_using_parts(&req_parts).await?;
         // Call request
@@ -264,12 +275,12 @@ impl C8YHttpProxyActor {
     ) -> Result<HttpResult, C8YRestError> {
         let request = request.build()?;
         let (parts, mut body) = request.into_parts();
-        let req_components = HttpRequestParts {
-            method: parts.method,
-            uri: parts.uri,
-            body: get_body_string(&mut body).await?,
-            headers: parts.headers,
-        };
+        let req_components = HttpRequestParts::new(
+            parts.method,
+            parts.uri,
+            get_body_string(&mut body).await?,
+            parts.headers,
+        );
 
         let request = self.build_request_using_parts(&req_components).await?;
         // Call request
@@ -561,12 +572,12 @@ fn update_body_with_new_internal_id(
         C8YRestError::CustomError(format!("Failed to serialize event to string, due to {}", e))
     })?;
 
-    Ok(HttpRequestParts {
-        method: req_parts.method.clone(),
-        uri: req_parts.uri.clone(),
+    Ok(HttpRequestParts::new(
+        req_parts.method.clone(),
+        req_parts.uri.clone(),
         body,
-        headers: req_parts.headers.clone(),
-    })
+        req_parts.headers.clone(),
+    ))
 }
 
 fn update_url_with_fresh_internal_id(
@@ -615,10 +626,10 @@ fn update_url_with_fresh_internal_id(
             )))
         })?;
 
-    Ok(HttpRequestParts {
-        method: req_parts.method.clone(),
+    Ok(HttpRequestParts::new(
+        req_parts.method.clone(),
         uri,
-        body: req_parts.body.clone(),
-        headers: req_parts.headers.clone(),
-    })
+        req_parts.body.clone(),
+        req_parts.headers.clone(),
+    ))
 }
