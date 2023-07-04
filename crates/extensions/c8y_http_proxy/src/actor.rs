@@ -56,6 +56,13 @@ pub enum InternalIDUsage {
     Body,
 }
 
+struct HttpRequestParts {
+    method: Method,
+    uri: Uri,
+    body: String,
+    headers: HeaderMap,
+}
+
 pub struct C8YHttpProxyActor {
     end_point: C8yEndPoint,
     child_devices: HashMap<String, String>,
@@ -224,20 +231,14 @@ impl C8YHttpProxyActor {
         let request = HttpRequestBuilder::get(url_get_id).build()?;
 
         let (parts, mut body) = request.into_parts();
-        let headers = parts.headers.clone();
-        let uri = parts.uri.clone();
-        let method = parts.method.clone();
+        let req_components = HttpRequestParts {
+            method: parts.method,
+            uri: parts.uri,
+            body: get_body_string(&mut body).await,
+            headers: parts.headers,
+        };
 
-        let body_string = get_body_string(&mut body).await;
-
-        let request = self
-            .build_request_using_parts(
-                method.clone(),
-                uri.clone(),
-                headers.clone(),
-                body_string.clone().into(),
-            )
-            .await?;
+        let request = self.build_request_using_parts(&req_components).await?;
 
         // Call request
         let resp = self.peers.http.await_response(request).await?;
@@ -248,12 +249,7 @@ impl C8YHttpProxyActor {
                 StatusCode::UNAUTHORIZED | StatusCode::FORBIDDEN => {
                     self.token = None;
                     Ok(self
-                        .retry_once_with_fresh_jwt_token(
-                            method.clone(),
-                            uri.clone(),
-                            headers.clone(),
-                            body_string.clone().into(),
-                        )
+                        .retry_once_with_fresh_jwt_token(&req_components)
                         .await?)
                 }
                 code => Err(C8YRestError::FromHttpError(
@@ -271,21 +267,16 @@ impl C8YHttpProxyActor {
         child_id: Option<String>,
     ) -> Result<HttpResult, C8YRestError> {
         let request = request.build()?;
+
         let (parts, mut body) = request.into_parts();
-        let headers = parts.headers.clone();
-        let uri = parts.uri.clone();
-        let method = parts.method.clone();
+        let req_components = HttpRequestParts {
+            method: parts.method,
+            uri: parts.uri,
+            body: get_body_string(&mut body).await,
+            headers: parts.headers,
+        };
 
-        let body_string = get_body_string(&mut body).await;
-
-        let request = self
-            .build_request_using_parts(
-                method.clone(),
-                uri.clone(),
-                headers.clone(),
-                body_string.clone().into(),
-            )
-            .await?;
+        let request = self.build_request_using_parts(&req_components).await?;
 
         // Call request
         let resp = self.peers.http.await_response(request).await?;
@@ -296,25 +287,14 @@ impl C8YHttpProxyActor {
                 StatusCode::UNAUTHORIZED | StatusCode::FORBIDDEN => {
                     self.token = None;
                     Ok(self
-                        .retry_once_with_fresh_jwt_token(
-                            method.clone(),
-                            uri.clone(),
-                            headers.clone(),
-                            body_string.clone().into(),
-                        )
+                        .retry_once_with_fresh_jwt_token(&req_components)
                         .await?)
                 }
                 StatusCode::NOT_FOUND => {
                     dbg!("internal id not found");
                     self.end_point.c8y_internal_id = "".to_string();
                     Ok(self
-                        .retry_once_with_fresh_internal_id(
-                            method.clone(),
-                            uri.clone(),
-                            headers.clone(),
-                            body_string.clone(),
-                            child_id,
-                        )
+                        .retry_once_with_fresh_internal_id(&req_components, child_id)
                         .await?)
                 } // Try only once with new internal ID
                 code => Err(C8YRestError::FromHttpError(
@@ -327,21 +307,19 @@ impl C8YHttpProxyActor {
 
     async fn build_request_using_parts(
         &mut self,
-        method: Method,
-        uri: Uri,
-        headers: HeaderMap,
-        body: Body,
+        http_parts: &HttpRequestParts,
     ) -> Result<HttpRequest, C8YRestError> {
-        let req_uri = match method {
-            Method::GET => HttpRequestBuilder::get(uri),
-            Method::POST => HttpRequestBuilder::post(uri),
-            Method::PUT => HttpRequestBuilder::put(uri),
+        let req_uri = match http_parts.method {
+            Method::GET => HttpRequestBuilder::get(http_parts.uri.clone()),
+            Method::POST => HttpRequestBuilder::post(http_parts.uri.clone()),
+            Method::PUT => HttpRequestBuilder::put(http_parts.uri.clone()),
             _ => todo!(),
         };
         // let req_uri = HttpRequestBuilder::post(uri);
-        let mut request: HttpRequestBuilder =
-            req_uri.bearer_auth(self.get_jwt_token().await?).body(body);
-        for (k, v) in headers {
+        let mut request: HttpRequestBuilder = req_uri
+            .bearer_auth(self.get_jwt_token().await?)
+            .body(http_parts.body.clone());
+        for (k, v) in http_parts.headers.clone() {
             request = request.header(k.unwrap(), v);
         }
         let request = request.build()?;
@@ -350,23 +328,15 @@ impl C8YHttpProxyActor {
 
     async fn retry_once_with_fresh_jwt_token(
         &mut self,
-        method: Method,
-        uri: Uri,
-        headers: HeaderMap,
-        body: Body,
+        req_parts: &HttpRequestParts,
     ) -> Result<HttpResult, C8YRestError> {
-        let request = self
-            .build_request_using_parts(method, uri, headers, body)
-            .await?;
+        let request = self.build_request_using_parts(req_parts).await?;
         Ok(self.peers.http.await_response(request).await?)
     }
 
     async fn retry_once_with_fresh_internal_id(
         &mut self,
-        method: Method,
-        uri: Uri,
-        headers: HeaderMap,
-        body: String,
+        req_parts: &HttpRequestParts,
         child_id: Option<String>,
     ) -> Result<HttpResult, C8YRestError> {
         // update internal ID
@@ -377,19 +347,23 @@ impl C8YHttpProxyActor {
 
         let internal_id_response: InternalIdResponse = res.json().await?;
         let internal_id = internal_id_response.id();
-        //let id = "device-001".to_string();
-        dbg!("uri is ....>", &uri);
+        dbg!("uri is ....>", &req_parts.uri);
         let request = match self.id_usage {
             InternalIDUsage::Body => {
-                let mut event: C8yCreateEvent = serde_json::from_str(&body).unwrap();
+                let mut event: C8yCreateEvent = serde_json::from_str(&req_parts.body).unwrap();
                 event.source = Some(C8yManagedObject { id: internal_id });
                 let body = serde_json::to_string(&event).unwrap();
+                let req_parts = HttpRequestParts {
+                    method: req_parts.method.clone(),
+                    uri: req_parts.uri.clone(),
+                    body,
+                    headers: req_parts.headers.clone(),
+                };
                 dbg!("its in the body");
-                self.build_request_using_parts(method, uri, headers, body.into())
-                    .await?
+                self.build_request_using_parts(&req_parts).await?
             }
             InternalIDUsage::Url => {
-                let mut components: Vec<&str> = uri.path().split('/').collect();
+                let mut components: Vec<&str> = req_parts.uri.path().split('/').collect();
                 components.pop();
                 components.push(&internal_id);
                 let mut path = PathBuf::new();
@@ -399,13 +373,12 @@ impl C8YHttpProxyActor {
                 }
                 let builder = Builder::new();
                 let uri = builder
-                    .scheme(uri.scheme().unwrap().as_str())
-                    .authority(uri.authority().unwrap().as_str())
+                    .scheme(req_parts.uri.scheme().unwrap().as_str())
+                    .authority(req_parts.uri.authority().unwrap().as_str())
                     .path_and_query(format!("/{}", path.as_path().display()))
                     .build();
                 dbg!("uri is ....>", &uri);
-                self.build_request_using_parts(method, uri.unwrap(), headers, body.into())
-                    .await?
+                self.build_request_using_parts(req_parts).await?
             }
         };
         dbg!("retrying with fresh internal id");
