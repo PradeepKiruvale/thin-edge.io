@@ -228,6 +228,7 @@ impl C8YHttpProxyActor {
     ) -> Result<HttpResult, C8YRestError> {
         let url_get_id = self.end_point.get_url_for_get_id(device_id);
         let request = HttpRequestBuilder::get(url_get_id).build()?;
+        // Get the parts of the request to create a http request for retry
         let (parts, mut body) = request.into_parts();
         let req_parts = HttpRequestParts {
             method: parts.method,
@@ -336,13 +337,12 @@ impl C8YHttpProxyActor {
         child_id: Option<String>,
     ) -> Result<HttpResult, C8YRestError> {
         // update internal ID
-
         let response = self.exec_to_get_internal_id(child_id.as_deref()).await?;
-
         let res = response.error_for_status()?;
-
         let internal_id_response: InternalIdResponse = res.json().await?;
         let internal_id = internal_id_response.id();
+        // update the internal id
+        self.end_point.c8y_internal_id = internal_id.clone();
 
         let request = match self.id_usage {
             InternalIDUsage::Body => {
@@ -544,10 +544,7 @@ async fn get_body_string(body: &mut Body) -> Result<String, C8YRestError> {
         Ok("".to_string())
     } else {
         Ok(String::from_utf8(data).map_err(|e| {
-            C8YRestError::CustomError(format!(
-                "Failed to covert to string from utf8 due to {}",
-                e
-            ))
+            C8YRestError::CustomError(format!("Failed to covert to string from utf8 due to {}", e))
         })?)
     }
 }
@@ -557,17 +554,11 @@ fn update_body_with_new_internal_id(
     req_parts: &HttpRequestParts,
 ) -> Result<HttpRequestParts, C8YRestError> {
     let mut event: C8yCreateEvent = serde_json::from_str(&req_parts.body).map_err(|e| {
-        C8YRestError::CustomError(format!(
-            "Failed to deserialize Event due to {}",
-            e
-        ))
+        C8YRestError::CustomError(format!("Failed to deserialize Event due to {}", e))
     })?;
     event.source = Some(C8yManagedObject { id: internal_id });
     let body: String = serde_json::to_string(&event).map_err(|e| {
-        C8YRestError::CustomError(format!(
-            "Failed to serialize event to string, due to {}",
-            e
-        ))
+        C8YRestError::CustomError(format!("Failed to serialize event to string, due to {}", e))
     })?;
 
     Ok(HttpRequestParts {
@@ -620,9 +611,7 @@ fn update_url_with_fresh_internal_id(
         .map_err(|e| {
             Err(C8YRestError::CustomError(format!(
                 "Failed to update the Uri {} with fresh internal id {} due to {}",
-                req_parts.uri,
-                internal_id,
-                e
+                req_parts.uri, internal_id, e
             )))
         })?;
 
