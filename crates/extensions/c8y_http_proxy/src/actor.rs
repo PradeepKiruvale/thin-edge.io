@@ -218,11 +218,7 @@ impl C8YHttpProxyActor {
         &mut self,
         device_id: Option<&str>,
     ) -> Result<String, C8YRestError> {
-        let url_get_id = self.end_point.get_url_for_get_id(device_id);
-
-        let request_internal_id = HttpRequestBuilder::get(url_get_id);
-
-        let res = self.execute_retry(request_internal_id, None).await?;
+        let res = self.exec_to_get_internal_id(device_id).await?;
         let res = res.error_for_status()?;
 
         let internal_id_response: InternalIdResponse = res.json().await?;
@@ -256,7 +252,7 @@ impl C8YHttpProxyActor {
                 StatusCode::OK => Ok(Ok(response)),
                 StatusCode::UNAUTHORIZED | StatusCode::FORBIDDEN => {
                     self.end_point.token = "".into();
-                    Ok(self.retry_once_with_fresh_jwt_token(&req_parts).await?)
+                    Ok(self.with_fresh_jwt_token(&req_parts).await?)
                 }
                 code => Err(C8YRestError::FromHttpError(
                     tedge_http_ext::HttpError::HttpStatusError(code),
@@ -292,12 +288,10 @@ impl C8YHttpProxyActor {
                 StatusCode::OK => Ok(Ok(response)),
                 StatusCode::UNAUTHORIZED | StatusCode::FORBIDDEN => {
                     self.end_point.token = "".into();
-                    Ok(self
-                        .retry_once_with_fresh_jwt_token(&req_components)
-                        .await?)
+                    Ok(self.with_fresh_jwt_token(&req_components).await?)
                 }
                 StatusCode::NOT_FOUND => Ok(self
-                    .retry_once_with_fresh_internal_id(&req_components, child_id)
+                    .with_fresh_internal_id(&req_components, child_id)
                     .await?),
                 code => Err(C8YRestError::FromHttpError(
                     tedge_http_ext::HttpError::HttpStatusError(code),
@@ -335,7 +329,7 @@ impl C8YHttpProxyActor {
         Ok(request)
     }
 
-    async fn retry_once_with_fresh_jwt_token(
+    async fn with_fresh_jwt_token(
         &mut self,
         req_parts: &HttpRequestParts,
     ) -> Result<HttpResult, C8YRestError> {
@@ -345,29 +339,30 @@ impl C8YHttpProxyActor {
         Ok(self.peers.http.await_response(request).await?)
     }
 
-    async fn retry_once_with_fresh_internal_id(
+    async fn with_fresh_internal_id(
         &mut self,
         req_parts: &HttpRequestParts,
         child_id: Option<String>,
     ) -> Result<HttpResult, C8YRestError> {
         // update internal ID
-        let response = self.exec_to_get_internal_id(child_id.as_deref()).await?;
-        let res = response.error_for_status()?;
-        let internal_id_response: InternalIdResponse = res.json().await?;
-        let internal_id = internal_id_response.id();
-        // update the internal id
-        self.end_point.c8y_internal_id = internal_id.clone();
+        self.end_point.c8y_internal_id = self.try_get_internal_id(child_id.as_deref()).await?;
 
         let request = match req_parts.method.clone() {
             Method::POST => {
                 self.build_request_using_parts_and_fresh_jwt_token(
-                    &update_body_with_new_internal_id(internal_id, req_parts)?,
+                    &update_body_with_new_internal_id(
+                        self.end_point.c8y_internal_id.clone(),
+                        req_parts,
+                    )?,
                 )
                 .await?
             }
             Method::GET | Method::PUT => {
                 self.build_request_using_parts_and_fresh_jwt_token(
-                    &update_url_with_fresh_internal_id(internal_id, req_parts)?,
+                    &update_url_with_fresh_internal_id(
+                        self.end_point.c8y_internal_id.clone(),
+                        req_parts,
+                    )?,
                 )
                 .await?
             }
@@ -472,7 +467,7 @@ impl C8YHttpProxyActor {
     }
 
     async fn get_jwt_token(&mut self) -> Result<String, C8YRestError> {
-        if self.end_point.token.is_empty() {         
+        if self.end_point.token.is_empty() {
             if let Ok(token) = self.peers.jwt.await_response(()).await? {
                 self.end_point.token = token.clone();
                 Ok(token)
