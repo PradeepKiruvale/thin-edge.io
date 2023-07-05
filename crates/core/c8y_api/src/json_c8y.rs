@@ -121,6 +121,14 @@ impl From<&SoftwareListResponse> for C8yUpdateSoftwareListResponse {
     }
 }
 
+impl C8yUpdateSoftwareListResponse {
+    pub fn create_empty_list() -> Self {
+        Self {
+            c8y_software_list: None,
+        }
+    }
+}
+
 impl C8yCreateEvent {
     pub fn new(
         source: Option<C8yManagedObject>,

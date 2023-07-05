@@ -28,6 +28,7 @@ use log::debug;
 use log::error;
 use log::info;
 use std::collections::HashMap;
+use std::path::PathBuf;
 use std::time::Duration;
 use tedge_actors::fan_in_message_type;
 use tedge_actors::Actor;
@@ -136,6 +137,7 @@ impl C8YHttpProxyActor {
 
     async fn init(&mut self) -> Result<(), C8YConnectionError> {
         info!(target: self.name(), "start initialisation");
+        let _ = self.get_jwt_token().await.unwrap();
         while self.end_point.get_c8y_internal_id().is_empty() {
             if let Err(error) = self.try_get_and_set_internal_id().await {
                 error!(
@@ -206,7 +208,7 @@ impl C8YHttpProxyActor {
         };
 
         let res = self
-            .execute_retry(
+            .execute_to_get_interal_id(
                 token,
                 self.end_point.c8y_internal_id.clone(),
                 req_build_closure,
@@ -236,7 +238,7 @@ impl C8YHttpProxyActor {
         Ok(self.peers.http.await_response(request).await?)
     }
 
-    async fn execute_retry(
+    async fn execute_to_get_interal_id(
         &mut self,
         token: String,
         internal_id: String,
@@ -263,12 +265,57 @@ impl C8YHttpProxyActor {
                     let request = request_builder.build()?;
                     Ok(self.peers.http.await_response(request).await?)
                 }
-                StatusCode::NOT_FOUND => {
-                    let request_builder = req_builder_closure(
-                        token,
-                        self.end_point.get_c8y_internal_id().to_string(),
-                    );
 
+                code => Err(C8YRestError::FromHttpError(
+                    tedge_http_ext::HttpError::HttpStatusError(code),
+                )),
+            },
+
+            Err(e) => Err(C8YRestError::FromHttpError(e)),
+        }
+    }
+
+    async fn execute_retry(
+        &mut self,
+        token: String,
+        internal_id: String,
+        child_device_id: Option<String>,
+        req_builder_closure: impl Fn(String, String) -> HttpRequestBuilder,
+    ) -> Result<HttpResult, C8YRestError> {
+        // Get a JWT token to authenticate the device
+        dbg!("after request callqq");
+        let request_builder = req_builder_closure(token.clone(), internal_id.clone());
+
+        let request = request_builder.build()?;
+        let resp = self.peers.http.await_response(request).await?;
+        dbg!("after request call");
+        match resp {
+            Ok(response) => match response.status() {
+                StatusCode::OK => Ok(Ok(response)),
+                StatusCode::UNAUTHORIZED | StatusCode::FORBIDDEN => {
+                    dbg!("retry the request with fresh jwt token");
+                    let request_builder = if let Ok(token) =
+                        self.peers.jwt.await_response(()).await?
+                    {
+                        req_builder_closure(token, internal_id.clone())
+                    } else {
+                        return Err(C8YRestError::CustomError("JWT token not available".into()));
+                    };
+                    let request = request_builder.build()?;
+                    Ok(self.peers.http.await_response(request).await?)
+                }
+                StatusCode::NOT_FOUND => {
+                    // get fresh internal id
+                    dbg!("retry the request with fresh internal id");
+                    let internal_id = match child_device_id {
+                        Some(cid) => self.get_c8y_internal_child_id(cid).await?,
+                        None => {
+                            self.try_get_and_set_internal_id().await?;
+                            self.end_point.c8y_internal_id.clone()
+                        }
+                    };
+
+                    let request_builder = req_builder_closure(token, internal_id);
                     let request = request_builder.build()?;
                     Ok(self.peers.http.await_response(request).await?)
                 }
@@ -298,11 +345,24 @@ impl C8YHttpProxyActor {
         software_list: C8yUpdateSoftwareListResponse,
     ) -> Result<Unit, C8YRestError> {
         let url = self.end_point.get_url_for_sw_list();
-        let req_builder = HttpRequestBuilder::put(url)
-            .header("Accept", "application/json")
-            .header("Content-Type", "application/json")
-            .json(&software_list);
-        let http_result = self.execute(req_builder).await?;
+        dbg!(&self.end_point.token);
+        let req_builder_closure = |token: String, internal_id: String| {
+            let url = update_url_with_fresh_internal_id(internal_id, url.clone());
+            dbg!(&url);
+            HttpRequestBuilder::put(url)
+                .header("Accept", "application/json")
+                .header("Content-Type", "application/json")
+                .json(&software_list)
+                .bearer_auth(token.clone())
+        };
+        let http_result = self
+            .execute_retry(
+                self.end_point.token.clone(),
+                self.end_point.c8y_internal_id.clone(),
+                None,
+                req_builder_closure,
+            )
+            .await?;
         let _ = http_result.error_for_status()?;
         Ok(())
     }
@@ -440,4 +500,13 @@ impl C8YHttpProxyActor {
         let event_response: C8yEventResponse = http_response.json().await?;
         Ok(event_response.id)
     }
+}
+
+fn update_url_with_fresh_internal_id(internal_id: String, url: String) -> String {
+    let path_buf = PathBuf::from(url);
+    let mut new_path_buf = path_buf.parent().unwrap().to_path_buf();
+    new_path_buf.push(internal_id);
+
+    dbg!(&new_path_buf);
+    new_path_buf.display().to_string()
 }

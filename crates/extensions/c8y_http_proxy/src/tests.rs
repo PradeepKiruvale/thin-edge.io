@@ -2,6 +2,7 @@ use crate::credentials::ConstJwtRetriever;
 use crate::handle::C8YHttpProxy;
 use crate::C8YHttpConfig;
 use crate::C8YHttpProxyBuilder;
+use c8y_api::json_c8y::C8yUpdateSoftwareListResponse;
 use c8y_api::json_c8y::InternalIdResponse;
 use std::path::PathBuf;
 use tedge_actors::Actor;
@@ -128,6 +129,104 @@ async fn retry_internal_id_on_expired_jwt() {
             .header("accept", "application/json")
             .build()
             .unwrap(),
+    ))
+    .await;
+}
+
+#[tokio::test]
+async fn retry_software_list_once_with_fresh_internal_id() {
+    let c8y_host = "c8y.tenant.io";
+    let device_id = "device-001";
+    let token = "JWT token";
+    let external_id = "external-device-001";
+    let tmp_dir = "/tmp";
+
+    let (mut proxy, mut c8y) =
+        spawn_c8y_http_proxy(c8y_host.into(), device_id.into(), tmp_dir.into(), token).await;
+
+    // Even before any request is sent to the c8y_proxy
+    // the proxy requests over HTTP the internal device id.
+    let init_request = HttpRequestBuilder::get(format!(
+        "https://{c8y_host}/identity/externalIds/c8y_Serial/{device_id}"
+    ))
+    .bearer_auth(token)
+    .build()
+    .unwrap();
+    c8y.assert_recv(Some(init_request)).await;
+    dbg!("after assert1");
+
+    // Cumulocity returns the internal device id, after retrying with the fresh jwt token
+    let c8y_response = HttpResponseBuilder::new()
+        .status(200)
+        .json(&InternalIdResponse::new(device_id, external_id))
+        .build()
+        .unwrap();
+    c8y.send(Ok(c8y_response)).await.unwrap();
+
+    // This internal id is then used by the proxy for subsequent requests.
+    // Create  the  software list and publish
+    let c8y_software_list = C8yUpdateSoftwareListResponse::create_empty_list();
+    tokio::spawn(async move {
+        // NOTE: this is done in the background because this call awaits for the response.
+        proxy.send_software_list_http(c8y_software_list).await
+    });
+
+    let c8y_software_list = C8yUpdateSoftwareListResponse::create_empty_list();
+    // then the upload request received by c8y is related to the internal id
+    c8y.assert_recv(Some(
+        HttpRequestBuilder::put(format!(
+            "https://{c8y_host}/inventory/managedObjects/{device_id}"
+        ))
+        .header("content-type", "application/json")
+        .header("accept", "application/json")
+        .bearer_auth(token)
+        .json(&c8y_software_list)
+        .build()
+        .unwrap(),
+    ))
+    .await;
+    dbg!("after assert2");
+
+    // The software list upload fails because the device identified with internal id not found
+    let c8y_response = HttpResponseBuilder::new()
+        .status(404)
+        .json(&InternalIdResponse::new(device_id, external_id))
+        .build()
+        .unwrap();
+    c8y.send(Ok(c8y_response)).await.unwrap();
+
+    // Cumulocity returns the internal device id, after retrying with the fresh jwt token
+    let c8y_response = HttpResponseBuilder::new()
+        .status(200)
+        .json(&InternalIdResponse::new(device_id, external_id))
+        .build()
+        .unwrap();
+    c8y.send(Ok(c8y_response)).await.unwrap();
+
+    // Now the mapper gets a new internal id for the specific device id
+    c8y.assert_recv(Some(
+        HttpRequestBuilder::get(format!(
+            "https://{c8y_host}/identity/externalIds/c8y_Serial/{device_id}"
+        ))
+        .bearer_auth(token)
+        .build()
+        .unwrap(),
+    ))
+    .await;
+    dbg!("after assert3");
+
+    let c8y_software_list = C8yUpdateSoftwareListResponse::create_empty_list();
+    // then the upload request received by c8y is related to the internal id
+    c8y.assert_recv(Some(
+        HttpRequestBuilder::put(format!(
+            "https://{c8y_host}/inventory/managedObjects/{device_id}"
+        ))
+        .bearer_auth(token)
+        .header("content-type", "application/json")
+        .header("accept", "application/json")
+        .json(&c8y_software_list)
+        .build()
+        .unwrap(),
     ))
     .await;
 }
