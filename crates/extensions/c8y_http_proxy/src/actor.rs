@@ -51,11 +51,6 @@ use tedge_http_ext::HttpResult;
 
 const RETRY_TIMEOUT_SECS: u64 = 20;
 
-pub enum InternalIDUsage {
-    Url,
-    Body,
-}
-
 struct HttpRequestParts {
     method: Method,
     uri: Uri,
@@ -78,8 +73,6 @@ pub struct C8YHttpProxyActor {
     end_point: C8yEndPoint,
     child_devices: HashMap<String, String>,
     peers: C8YHttpProxyMessageBox,
-    token: Option<String>,
-    id_usage: InternalIDUsage,
 }
 
 pub struct C8YHttpProxyMessageBox {
@@ -151,14 +144,18 @@ impl Actor for C8YHttpProxyActor {
 impl C8YHttpProxyActor {
     pub fn new(config: C8YHttpConfig, message_box: C8YHttpProxyMessageBox) -> Self {
         let unknown_internal_id = "";
-        let end_point = C8yEndPoint::new(&config.c8y_host, &config.device_id, unknown_internal_id);
+        let uknown_token = "";
+        let end_point = C8yEndPoint::new(
+            &config.c8y_host,
+            &config.device_id,
+            unknown_internal_id,
+            uknown_token,
+        );
         let child_devices = HashMap::default();
         C8YHttpProxyActor {
             end_point,
             child_devices,
             peers: message_box,
-            token: None,
-            id_usage: InternalIDUsage::Url,
         }
     }
 
@@ -258,7 +255,7 @@ impl C8YHttpProxyActor {
             Ok(response) => match response.status() {
                 StatusCode::OK => Ok(Ok(response)),
                 StatusCode::UNAUTHORIZED | StatusCode::FORBIDDEN => {
-                    self.token = None;
+                    self.end_point.token = "".into();
                     Ok(self.retry_once_with_fresh_jwt_token(&req_parts).await?)
                 }
                 code => Err(C8YRestError::FromHttpError(
@@ -294,7 +291,7 @@ impl C8YHttpProxyActor {
             Ok(response) => match response.status() {
                 StatusCode::OK => Ok(Ok(response)),
                 StatusCode::UNAUTHORIZED | StatusCode::FORBIDDEN => {
-                    self.token = None;
+                    self.end_point.token = "".into();
                     Ok(self
                         .retry_once_with_fresh_jwt_token(&req_components)
                         .await?)
@@ -361,18 +358,24 @@ impl C8YHttpProxyActor {
         // update the internal id
         self.end_point.c8y_internal_id = internal_id.clone();
 
-        let request = match self.id_usage {
-            InternalIDUsage::Body => {
+        let request = match req_parts.method.clone() {
+            Method::POST => {
                 self.build_request_using_parts_and_fresh_jwt_token(
                     &update_body_with_new_internal_id(internal_id, req_parts)?,
                 )
                 .await?
             }
-            InternalIDUsage::Url => {
+            Method::GET | Method::PUT => {
                 self.build_request_using_parts_and_fresh_jwt_token(
                     &update_url_with_fresh_internal_id(internal_id, req_parts)?,
                 )
                 .await?
+            }
+            method => {
+                return Err(C8YRestError::CustomError(format!(
+                    "HTTPRequestBuilder method {} not supported",
+                    method
+                )))
             }
         };
         Ok(self.peers.http.await_response(request).await?)
@@ -399,7 +402,7 @@ impl C8YHttpProxyActor {
             .header("Accept", "application/json")
             .header("Content-Type", "application/json")
             .json(&software_list);
-        self.id_usage = InternalIDUsage::Url;
+
         let http_result = self.execute_retry(req_builder, None).await?;
         let _ = http_result.error_for_status()?;
         Ok(())
@@ -469,15 +472,15 @@ impl C8YHttpProxyActor {
     }
 
     async fn get_jwt_token(&mut self) -> Result<String, C8YRestError> {
-        if self.token.is_none() {
+        if self.end_point.token.is_empty() {         
             if let Ok(token) = self.peers.jwt.await_response(()).await? {
-                self.token = Some(token.clone());
+                self.end_point.token = token.clone();
                 Ok(token)
             } else {
                 Err(C8YRestError::CustomError("JWT token not available".into()))
             }
         } else {
-            Ok(self.token.clone().unwrap_or_default())
+            Ok(self.end_point.token.clone())
         }
     }
 
@@ -531,7 +534,6 @@ impl C8YHttpProxyActor {
         c8y_event: C8yCreateEvent,
     ) -> Result<EventId, C8YRestError> {
         let create_event_url = self.end_point.get_url_for_create_event();
-        self.id_usage = InternalIDUsage::Body;
 
         let req_builder = HttpRequestBuilder::post(create_event_url)
             .header("Accept", "application/json")
