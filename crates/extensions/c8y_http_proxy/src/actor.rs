@@ -242,7 +242,7 @@ impl C8YHttpProxyActor {
         );
 
         let request = self
-            .build_request_using_parts_and_fresh_jwt_token(&req_parts)
+            .build_request_using_parts_and_jwt_token(&req_parts)
             .await?;
         // Call request
         let resp = self.peers.http.await_response(request).await?;
@@ -278,7 +278,7 @@ impl C8YHttpProxyActor {
         );
 
         let request = self
-            .build_request_using_parts_and_fresh_jwt_token(&req_components)
+            .build_request_using_parts_and_jwt_token(&req_components)
             .await?;
         // Call request
         let resp = self.peers.http.await_response(request).await?;
@@ -301,7 +301,7 @@ impl C8YHttpProxyActor {
         }
     }
 
-    async fn build_request_using_parts_and_fresh_jwt_token(
+    async fn build_request_using_parts_and_jwt_token(
         &mut self,
         http_parts: &HttpRequestParts,
     ) -> Result<HttpRequest, C8YRestError> {
@@ -334,7 +334,7 @@ impl C8YHttpProxyActor {
         req_parts: &HttpRequestParts,
     ) -> Result<HttpResult, C8YRestError> {
         let request = self
-            .build_request_using_parts_and_fresh_jwt_token(req_parts)
+            .build_request_using_parts_and_jwt_token(req_parts)
             .await?;
         Ok(self.peers.http.await_response(request).await?)
     }
@@ -349,21 +349,17 @@ impl C8YHttpProxyActor {
 
         let request = match req_parts.method.clone() {
             Method::POST => {
-                self.build_request_using_parts_and_fresh_jwt_token(
-                    &update_body_with_new_internal_id(
-                        self.end_point.c8y_internal_id.clone(),
-                        req_parts,
-                    )?,
-                )
+                self.build_request_using_parts_and_jwt_token(&update_body_with_new_internal_id(
+                    self.end_point.c8y_internal_id.clone(),
+                    req_parts,
+                )?)
                 .await?
             }
             Method::GET | Method::PUT => {
-                self.build_request_using_parts_and_fresh_jwt_token(
-                    &update_url_with_fresh_internal_id(
-                        self.end_point.c8y_internal_id.clone(),
-                        req_parts,
-                    )?,
-                )
+                self.build_request_using_parts_and_jwt_token(&update_url_with_fresh_internal_id(
+                    self.end_point.c8y_internal_id.clone(),
+                    req_parts,
+                )?)
                 .await?
             }
             method => {
