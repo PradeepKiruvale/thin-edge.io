@@ -18,6 +18,7 @@ pub struct C8yEndPoint {
     pub c8y_host: String,
     pub device_id: String,
     pub c8y_internal_id: String,
+    pub token: Option<String>,
 }
 
 impl C8yEndPoint {
@@ -26,6 +27,7 @@ impl C8yEndPoint {
             c8y_host: c8y_host.into(),
             device_id: device_id.into(),
             c8y_internal_id: c8y_internal_id.into(),
+            token: None,
         }
     }
 
