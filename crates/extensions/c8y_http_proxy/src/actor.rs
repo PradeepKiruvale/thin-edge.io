@@ -200,7 +200,11 @@ impl C8YHttpProxyActor {
         };
 
         let res = self
-            .execute_retry(token, "".to_string(), req_build_closure)
+            .execute_retry(
+                token,
+                self.end_point.c8y_internal_id.clone(),
+                req_build_closure,
+            )
             .await?;
         let res = res.error_for_status()?;
 
@@ -233,7 +237,7 @@ impl C8YHttpProxyActor {
         req_builder_closure: impl Fn(String, String) -> HttpRequestBuilder,
     ) -> Result<HttpResult, C8YRestError> {
         // Get a JWT token to authenticate the device
-        let request_builder = req_builder_closure(token, internal_id.clone());
+        let request_builder = req_builder_closure(token.clone(), internal_id.clone());
 
         let request = request_builder.build()?;
         let resp = self.peers.http.await_response(request).await?;
@@ -250,6 +254,15 @@ impl C8YHttpProxyActor {
                     } else {
                         return Err(C8YRestError::CustomError("JWT token not available".into()));
                     };
+                    let request = request_builder.build()?;
+                    Ok(self.peers.http.await_response(request).await?)
+                }
+                StatusCode::NOT_FOUND => {
+                    let request_builder = req_builder_closure(
+                        token,
+                        self.end_point.get_c8y_internal_id().to_string(),
+                    );
+
                     let request = request_builder.build()?;
                     Ok(self.peers.http.await_response(request).await?)
                 }
