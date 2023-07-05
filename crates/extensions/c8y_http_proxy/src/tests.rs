@@ -63,6 +63,75 @@ async fn c8y_http_proxy_requests_the_device_internal_id_on_start() {
     .await;
 }
 
+#[tokio::test]
+async fn retry_internal_id_on_expired_jwt() {
+    let c8y_host = "c8y.tenant.io";
+    let device_id = "device-001";
+    let token = "JWT token";
+    let external_id = "external-device-001";
+    let tmp_dir = "/tmp";
+
+    let (mut proxy, mut c8y) =
+        spawn_c8y_http_proxy(c8y_host.into(), device_id.into(), tmp_dir.into(), token).await;
+
+    // Even before any request is sent to the c8y_proxy
+    // the proxy requests over HTTP the internal device id.
+    let init_request = HttpRequestBuilder::get(format!(
+        "https://{c8y_host}/identity/externalIds/c8y_Serial/{device_id}"
+    ))
+    .bearer_auth(token)
+    .build()
+    .unwrap();
+    c8y.assert_recv(Some(init_request)).await;
+
+    // Cumulocity returns unauthorized error (401), because the jwt token has expired
+    let c8y_response = HttpResponseBuilder::new()
+        .status(401)
+        .json(&InternalIdResponse::new(device_id, external_id))
+        .build()
+        .unwrap();
+    c8y.send(Ok(c8y_response)).await.unwrap();
+
+    // Mapper retries to get the internal device id, after getting a fresh jwt token
+    let c8y_response = HttpResponseBuilder::new()
+        .status(200)
+        .json(&InternalIdResponse::new(device_id, external_id))
+        .build()
+        .unwrap();
+    c8y.send(Ok(c8y_response)).await.unwrap();
+
+    c8y.assert_recv(Some(
+        HttpRequestBuilder::get(format!(
+            "https://{c8y_host}/identity/externalIds/c8y_Serial/{device_id}"
+        ))
+        .bearer_auth(token)
+        .build()
+        .unwrap(),
+    ))
+    .await;
+
+    // This internal id is then used by the proxy for subsequent requests.
+    // For instance, if the proxy upload a log file
+    tokio::spawn(async move {
+        // NOTE: this is done in the background because this call awaits for the response.
+        proxy
+            .upload_log_binary("test.log", "some log content", None)
+            .await
+            .unwrap();
+    });
+
+    // then the upload request received by c8y is related to the internal id
+    c8y.assert_recv(Some(
+        HttpRequestBuilder::post(format!("https://{c8y_host}/event/events/"))
+            .bearer_auth(token)
+            .header("content-type", "application/json")
+            .header("accept", "application/json")
+            .build()
+            .unwrap(),
+    ))
+    .await;
+}
+
 /// Spawn an `C8YHttpProxyActor` instance
 /// Return two handles:
 /// - one `C8YHttpProxy` to send requests to the actor

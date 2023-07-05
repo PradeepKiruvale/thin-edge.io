@@ -23,6 +23,7 @@ use c8y_api::OffsetDateTime;
 use download::Auth;
 use download::DownloadInfo;
 use download::Downloader;
+use http::status::StatusCode;
 use log::debug;
 use log::error;
 use log::info;
@@ -187,9 +188,20 @@ impl C8YHttpProxyActor {
         device_id: Option<&str>,
     ) -> Result<String, C8YRestError> {
         let url_get_id = self.end_point.get_url_for_get_id(device_id);
+        let req_build_closure = |jwt_token: String, _internal_id: String| {
+            let request_internal_id = HttpRequestBuilder::get(url_get_id.clone());
+            request_internal_id.bearer_auth(jwt_token)
+        };
 
-        let request_internal_id = HttpRequestBuilder::get(url_get_id);
-        let res = self.execute(request_internal_id).await?;
+        let token = if let Ok(token) = self.peers.jwt.await_response(()).await? {
+            token
+        } else {
+            return Err(C8YRestError::CustomError("JWT token not available".into()));
+        };
+
+        let res = self
+            .execute_retry(token, "".to_string(), req_build_closure)
+            .await?;
         let res = res.error_for_status()?;
 
         let internal_id_response: InternalIdResponse = res.json().await?;
@@ -212,6 +224,42 @@ impl C8YHttpProxyActor {
         // TODO Manage 403 errors
         let request = request_builder.build()?;
         Ok(self.peers.http.await_response(request).await?)
+    }
+
+    async fn execute_retry(
+        &mut self,
+        token: String,
+        internal_id: String,
+        req_builder_closure: impl Fn(String, String) -> HttpRequestBuilder,
+    ) -> Result<HttpResult, C8YRestError> {
+        // Get a JWT token to authenticate the device
+        let request_builder = req_builder_closure(token, internal_id.clone());
+
+        let request = request_builder.build()?;
+        let resp = self.peers.http.await_response(request).await?;
+
+        match resp {
+            Ok(response) => match response.status() {
+                StatusCode::OK => Ok(Ok(response)),
+                StatusCode::UNAUTHORIZED | StatusCode::FORBIDDEN => {
+                    dbg!("retry the request with fresh jwt token");
+                    let request_builder = if let Ok(token) =
+                        self.peers.jwt.await_response(()).await?
+                    {
+                        req_builder_closure(token, internal_id.clone())
+                    } else {
+                        return Err(C8YRestError::CustomError("JWT token not available".into()));
+                    };
+                    let request = request_builder.build()?;
+                    Ok(self.peers.http.await_response(request).await?)
+                }
+                code => Err(C8YRestError::FromHttpError(
+                    tedge_http_ext::HttpError::HttpStatusError(code),
+                )),
+            },
+
+            Err(e) => Err(C8YRestError::FromHttpError(e)),
+        }
     }
 
     async fn create_event(
