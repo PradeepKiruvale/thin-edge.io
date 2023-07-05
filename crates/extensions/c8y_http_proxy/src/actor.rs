@@ -119,7 +119,13 @@ impl Actor for C8YHttpProxyActor {
 impl C8YHttpProxyActor {
     pub fn new(config: C8YHttpConfig, message_box: C8YHttpProxyMessageBox) -> Self {
         let unknown_internal_id = "";
-        let end_point = C8yEndPoint::new(&config.c8y_host, &config.device_id, unknown_internal_id);
+        let unknown_token = "";
+        let end_point = C8yEndPoint::new(
+            &config.c8y_host,
+            &config.device_id,
+            unknown_internal_id,
+            unknown_token,
+        );
         let child_devices = HashMap::default();
         C8YHttpProxyActor {
             end_point,
@@ -362,10 +368,15 @@ impl C8YHttpProxyActor {
     }
 
     async fn get_jwt_token(&mut self) -> Result<String, C8YRestError> {
-        if let Ok(token) = self.peers.jwt.await_response(()).await? {
-            Ok(token)
+        if self.end_point.token.is_empty() {
+            if let Ok(token) = self.peers.jwt.await_response(()).await? {
+                self.end_point.token = token.clone();
+                Ok(token)
+            } else {
+                Err(C8YRestError::CustomError("JWT token not available".into()))
+            }
         } else {
-            Err(C8YRestError::CustomError("JWT token not available".into()))
+            Ok(self.end_point.token.clone())
         }
     }
 

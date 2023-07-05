@@ -18,14 +18,16 @@ pub struct C8yEndPoint {
     pub c8y_host: String,
     pub device_id: String,
     pub c8y_internal_id: String,
+    pub token: String,
 }
 
 impl C8yEndPoint {
-    pub fn new(c8y_host: &str, device_id: &str, c8y_internal_id: &str) -> C8yEndPoint {
+    pub fn new(c8y_host: &str, device_id: &str, c8y_internal_id: &str, token: &str) -> C8yEndPoint {
         C8yEndPoint {
             c8y_host: c8y_host.into(),
             device_id: device_id.into(),
             c8y_internal_id: c8y_internal_id.into(),
+            token: token.into(),
         }
     }
 
@@ -183,7 +185,7 @@ mod tests {
 
     #[test]
     fn get_url_for_get_id_returns_correct_address() {
-        let c8y = C8yEndPoint::new("test_host", "test_device", "internal-id");
+        let c8y = C8yEndPoint::new("test_host", "test_device", "internal-id", "token");
         let res = c8y.get_url_for_get_id(None);
 
         assert_eq!(
@@ -194,7 +196,7 @@ mod tests {
 
     #[test]
     fn get_url_for_sw_list_returns_correct_address() {
-        let c8y = C8yEndPoint::new("test_host", "test_device", "12345");
+        let c8y = C8yEndPoint::new("test_host", "test_device", "12345", "token");
         let res = c8y.get_url_for_sw_list();
 
         assert_eq!(res, "https://test_host/inventory/managedObjects/12345");
@@ -210,7 +212,7 @@ mod tests {
     #[test_case("https://t1124124.test.com/path/to/file.test")]
     #[test_case("https://t1124124.test.com/path/to/file")]
     fn url_is_my_tenant_correct_urls(url: &str) {
-        let c8y = C8yEndPoint::new("test.test.com", "test_device", "internal-id");
+        let c8y = C8yEndPoint::new("test.test.com", "test_device", "internal-id", "token");
         assert!(c8y.url_is_in_my_tenant_domain(url));
     }
 
@@ -220,7 +222,7 @@ mod tests {
     #[test_case("http://test.com:123456")]
     #[test_case("http://test.com::12345")]
     fn url_is_my_tenant_incorrect_urls(url: &str) {
-        let c8y = C8yEndPoint::new("test.test.com", "test_device", "internal-id");
+        let c8y = C8yEndPoint::new("test.test.com", "test_device", "internal-id", "token");
         assert!(!c8y.url_is_in_my_tenant_domain(url));
     }
 }
