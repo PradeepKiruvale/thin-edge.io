@@ -153,7 +153,6 @@ async fn retry_software_list_once_with_fresh_internal_id() {
     .build()
     .unwrap();
     c8y.assert_recv(Some(init_request)).await;
-    dbg!("after assert1");
 
     // Cumulocity returns the internal device id, after retrying with the fresh jwt token
     let c8y_response = HttpResponseBuilder::new()
@@ -185,7 +184,6 @@ async fn retry_software_list_once_with_fresh_internal_id() {
         .unwrap(),
     ))
     .await;
-    dbg!("after assert2");
 
     // The software list upload fails because the device identified with internal id not found
     let c8y_response = HttpResponseBuilder::new()
@@ -213,7 +211,6 @@ async fn retry_software_list_once_with_fresh_internal_id() {
         .unwrap(),
     ))
     .await;
-    dbg!("after assert3");
 
     let c8y_software_list = C8yUpdateSoftwareListResponse::create_empty_list();
     // then the upload request received by c8y is related to the internal id
