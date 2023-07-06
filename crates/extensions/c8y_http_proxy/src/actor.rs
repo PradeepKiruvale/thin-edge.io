@@ -407,7 +407,7 @@ impl C8YHttpProxyActor {
                 request.config_type,
                 None,
                 None,
-                clone_option_string(&request.child_device_id),
+                request.child_device_id.as_ref().cloned(),
             )
             .await?;
 
@@ -548,8 +548,4 @@ fn update_event_with_new_internal_id(
         text: event.text.clone(),
         extras: event.extras.clone(),
     }
-}
-
-fn clone_option_string(option_string: &Option<String>) -> Option<String> {
-    option_string.as_ref().cloned()
 }
