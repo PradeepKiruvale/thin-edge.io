@@ -137,7 +137,7 @@ impl C8YHttpProxyActor {
 
     async fn init(&mut self) -> Result<(), C8YConnectionError> {
         info!(target: self.name(), "start initialisation");
-        let _ = self.get_jwt_token().await.unwrap();
+        let _ = self.get_jwt_token().await.unwrap_or_default();
         while self.end_point.get_c8y_internal_id().is_empty() {
             if let Err(error) = self.try_get_and_set_internal_id().await {
                 error!(
@@ -219,23 +219,6 @@ impl C8YHttpProxyActor {
         let internal_id_response: InternalIdResponse = res.json().await?;
         let internal_id = internal_id_response.id();
         Ok(internal_id)
-    }
-
-    async fn execute(
-        &mut self,
-        request_builder: HttpRequestBuilder,
-    ) -> Result<HttpResult, C8YRestError> {
-        // Get a JWT token to authenticate the device
-        let request_builder = if let Ok(token) = self.peers.jwt.await_response(()).await? {
-            request_builder.bearer_auth(token)
-        } else {
-            return Err(C8YRestError::CustomError("JWT token not available".into()));
-        };
-
-        // TODO Add timeout
-        // TODO Manage 403 errors
-        let request = request_builder.build()?;
-        Ok(self.peers.http.await_response(request).await?)
     }
 
     async fn execute_to_get_interal_id(
@@ -347,13 +330,13 @@ impl C8YHttpProxyActor {
         let url = self.end_point.get_url_for_sw_list();
         dbg!(&self.end_point.token);
         let req_builder_closure = |token: String, internal_id: String| {
-            let url = update_url_with_fresh_internal_id(internal_id, url.clone());
+            let url = update_url_with_new_internal_id(internal_id, url.clone());
             dbg!(&url);
             HttpRequestBuilder::put(url)
                 .header("Accept", "application/json")
                 .header("Content-Type", "application/json")
                 .json(&software_list)
-                .bearer_auth(token.clone())
+                .bearer_auth(token)
         };
         let http_result = self
             .execute_retry(
@@ -372,7 +355,12 @@ impl C8YHttpProxyActor {
         request: UploadLogBinary,
     ) -> Result<EventId, C8YRestError> {
         let log_file_event = self
-            .create_event_request(request.log_type, None, None, request.child_device_id)
+            .create_event_request(
+                request.log_type,
+                None,
+                None,
+                request.child_device_id.as_ref().cloned(),
+            )
             .await?;
 
         let event_response_id = self.send_event_internal(log_file_event).await?;
@@ -381,11 +369,23 @@ impl C8YHttpProxyActor {
             .end_point
             .get_url_for_event_binary_upload(&event_response_id);
 
-        let req_builder = HttpRequestBuilder::post(binary_upload_event_url.clone())
-            .header("Accept", "application/json")
-            .header("Content-Type", "text/plain")
-            .body(request.log_content);
-        let http_result = self.execute(req_builder).await?.unwrap();
+        let req_builder_closure = |token: String, _internal_id: String| {
+            HttpRequestBuilder::post(binary_upload_event_url.clone())
+                .header("Accept", "application/json")
+                .header("Content-Type", "text/plain")
+                .body(request.log_content.clone())
+                .bearer_auth(token)
+        };
+
+        let http_result = self
+            .execute_retry(
+                self.end_point.token.clone(),
+                self.end_point.c8y_internal_id.clone(),
+                request.child_device_id,
+                req_builder_closure,
+            )
+            .await?
+            .unwrap();
 
         if !http_result.status().is_success() {
             Err(C8YRestError::CustomError("Upload failed".into()))
@@ -403,7 +403,12 @@ impl C8YHttpProxyActor {
             .map_err(<std::io::Error as Into<SMCumulocityMapperError>>::into)?;
 
         let config_file_event = self
-            .create_event_request(request.config_type, None, None, request.child_device_id)
+            .create_event_request(
+                request.config_type,
+                None,
+                None,
+                clone_option_string(&request.child_device_id),
+            )
             .await?;
 
         debug!(target: self.name(), "Creating config event: {:?}", config_file_event);
@@ -413,12 +418,23 @@ impl C8YHttpProxyActor {
         let binary_upload_event_url = self
             .end_point
             .get_url_for_event_binary_upload(&event_response_id);
-        let req_builder = HttpRequestBuilder::post(binary_upload_event_url.clone())
-            .header("Accept", "application/json")
-            .header("Content-Type", "text/plain")
-            .body(config_content.to_string());
+        let req_builder_closure = |token: String, _internal_id: String| {
+            HttpRequestBuilder::post(binary_upload_event_url.clone())
+                .header("Accept", "application/json")
+                .header("Content-Type", "text/plain")
+                .body(config_content.to_string())
+                .bearer_auth(token)
+        };
         debug!(target: self.name(), "Uploading config file to URL: {}", binary_upload_event_url);
-        let http_result = self.execute(req_builder).await?.unwrap();
+        let http_result = self
+            .execute_retry(
+                self.end_point.token.clone(),
+                self.end_point.c8y_internal_id.clone(),
+                request.child_device_id,
+                req_builder_closure,
+            )
+            .await?
+            .unwrap();
 
         if !http_result.status().is_success() {
             Err(C8YRestError::CustomError("Upload failed".into()))
@@ -490,23 +506,50 @@ impl C8YHttpProxyActor {
         c8y_event: C8yCreateEvent,
     ) -> Result<EventId, C8YRestError> {
         let create_event_url = self.end_point.get_url_for_create_event();
+        let req_builder_closure = |token: String, internal_id: String| {
+            let updated_c8y_event = update_event_with_new_internal_id(internal_id, &c8y_event);
+            HttpRequestBuilder::post(create_event_url.clone())
+                .header("Accept", "application/json")
+                .header("Content-Type", "application/json")
+                .json(&updated_c8y_event)
+                .bearer_auth(token)
+        };
 
-        let req_builder = HttpRequestBuilder::post(create_event_url)
-            .header("Accept", "application/json")
-            .header("Content-Type", "application/json")
-            .json(&c8y_event);
-        let http_result = self.execute(req_builder).await?;
+        let http_result = self
+            .execute_retry(
+                self.end_point.token.clone(),
+                self.end_point.c8y_internal_id.clone(),
+                None,
+                req_builder_closure,
+            )
+            .await?;
         let http_response = http_result.error_for_status()?;
         let event_response: C8yEventResponse = http_response.json().await?;
         Ok(event_response.id)
     }
 }
 
-fn update_url_with_fresh_internal_id(internal_id: String, url: String) -> String {
+fn update_url_with_new_internal_id(internal_id: String, url: String) -> String {
     let path_buf = PathBuf::from(url);
     let mut new_path_buf = path_buf.parent().unwrap().to_path_buf();
     new_path_buf.push(internal_id);
-
     dbg!(&new_path_buf);
     new_path_buf.display().to_string()
+}
+
+fn update_event_with_new_internal_id(
+    internal_id: String,
+    event: &C8yCreateEvent,
+) -> C8yCreateEvent {
+    C8yCreateEvent {
+        source: Some(C8yManagedObject { id: internal_id }),
+        event_type: event.event_type.clone(),
+        time: event.time,
+        text: event.text.clone(),
+        extras: event.extras.clone(),
+    }
+}
+
+fn clone_option_string(option_string: &Option<String>) -> Option<String> {
+    option_string.as_ref().cloned()
 }
