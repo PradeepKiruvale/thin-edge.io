@@ -22,6 +22,7 @@ tedge_http_ext = { path = "../../extensions/tedge_http_ext" }
 tedge_utils = { path = "../../common/tedge_utils" }
 thiserror = "1.0"
 tokio = { version = "1.23", features = ["macros"] }
+url = "2.4"
 
 [dev-dependencies]
 tedge_http_ext = { path = "../../extensions/tedge_http_ext", features = [
