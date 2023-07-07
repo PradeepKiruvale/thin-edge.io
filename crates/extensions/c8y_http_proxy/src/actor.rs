@@ -194,26 +194,12 @@ impl C8YHttpProxyActor {
             request_internal_id.bearer_auth(token)
         };
 
-        let res = self.execute_to_get_internal_id(req_build_closure).await?;
-        let res = res.error_for_status()?;
-
-        let internal_id_response: InternalIdResponse = res.json().await?;
-        let internal_id = internal_id_response.id();
-        Ok(internal_id)
-    }
-
-    async fn execute_to_get_internal_id(
-        &mut self,
-        req_builder_closure: impl Fn(String) -> HttpRequestBuilder,
-    ) -> Result<HttpResult, C8YRestError> {
-        // this will get and set jwt token is not set
         self.get_jwt_token().await?;
-        let request_builder = req_builder_closure(self.end_point.token.clone().unwrap_or_default());
+        let request_builder = req_build_closure(self.end_point.token.clone().unwrap_or_default());
 
         let request = request_builder.build()?;
-        let resp = self.peers.http.await_response(request).await?;
 
-        match resp {
+        let res = match self.peers.http.await_response(request).await? {
             Ok(response) => match response.status() {
                 StatusCode::OK => Ok(Ok(response)),
                 StatusCode::UNAUTHORIZED | StatusCode::FORBIDDEN => {
@@ -221,7 +207,7 @@ impl C8YHttpProxyActor {
                     self.end_point.token = None;
                     self.get_jwt_token().await?;
                     let request_builder =
-                        req_builder_closure(self.end_point.token.clone().unwrap_or_default());
+                        req_build_closure(self.end_point.token.clone().unwrap_or_default());
                     let request = request_builder.build()?;
                     Ok(self.peers.http.await_response(request).await?)
                 }
@@ -232,7 +218,12 @@ impl C8YHttpProxyActor {
             },
 
             Err(e) => Err(C8YRestError::FromHttpError(e)),
-        }
+        };
+        let res = res?.error_for_status()?;
+
+        let internal_id_response: InternalIdResponse = res.json().await?;
+        let internal_id = internal_id_response.id();
+        Ok(internal_id)
     }
 
     async fn execute_retry(
