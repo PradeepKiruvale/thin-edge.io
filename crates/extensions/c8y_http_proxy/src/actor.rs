@@ -194,7 +194,7 @@ impl C8YHttpProxyActor {
             request_internal_id.bearer_auth(token)
         };
 
-        let res = self.execute_to_get_interal_id(req_build_closure).await?;
+        let res = self.execute_to_get_internal_id(req_build_closure).await?;
         let res = res.error_for_status()?;
 
         let internal_id_response: InternalIdResponse = res.json().await?;
@@ -202,7 +202,7 @@ impl C8YHttpProxyActor {
         Ok(internal_id)
     }
 
-    async fn execute_to_get_interal_id(
+    async fn execute_to_get_internal_id(
         &mut self,
         req_builder_closure: impl Fn(String) -> HttpRequestBuilder,
     ) -> Result<HttpResult, C8YRestError> {
