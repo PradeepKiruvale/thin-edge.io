@@ -217,6 +217,8 @@ impl C8YHttpProxyActor {
             Ok(response) => match response.status() {
                 StatusCode::OK => Ok(Ok(response)),
                 StatusCode::UNAUTHORIZED | StatusCode::FORBIDDEN => {
+                    // get new token not the cached one
+                    self.end_point.token = None;
                     self.get_jwt_token().await?;
                     let request_builder =
                         req_builder_closure(self.end_point.token.clone().unwrap_or_default());
@@ -248,6 +250,8 @@ impl C8YHttpProxyActor {
             Ok(response) => match response.status() {
                 StatusCode::OK => Ok(Ok(response)),
                 StatusCode::UNAUTHORIZED | StatusCode::FORBIDDEN => {
+                    // get new token not the cached one
+                    self.end_point.token = None;
                     self.get_jwt_token().await?;
                     let request_builder = req_builder_closure(
                         self.end_point.token.clone().unwrap_or_default(),
@@ -257,7 +261,8 @@ impl C8YHttpProxyActor {
                     Ok(self.peers.http.await_response(request).await?)
                 }
                 StatusCode::NOT_FOUND => {
-                    // get fresh internal id
+                    // get new internal id not the cached one
+                    self.end_point.c8y_internal_id = "".into();
                     let internal_id = match child_device_id {
                         Some(cid) => self.get_c8y_internal_child_id(cid).await?,
                         None => {
