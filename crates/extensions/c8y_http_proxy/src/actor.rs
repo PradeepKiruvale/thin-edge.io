@@ -306,8 +306,8 @@ impl C8YHttpProxyActor {
         let url = self.end_point.get_url_for_sw_list();
         let req_builder_closure =
             |token: String, internal_id: String| -> Result<HttpRequestBuilder, C8YRestError> {
-                let url = update_url_with_new_internal_id(internal_id, url.clone())?;
-                Ok(HttpRequestBuilder::put(url)
+                let url = update_url_with_new_internal_id(internal_id, &url)?;
+                Ok(HttpRequestBuilder::put(url.to_string())
                     .header("Accept", "application/json")
                     .header("Content-Type", "application/json")
                     .json(&software_list)
@@ -338,7 +338,7 @@ impl C8YHttpProxyActor {
 
         let req_builder_closure =
             |token: String, _internal_id: String| -> Result<HttpRequestBuilder, C8YRestError> {
-                Ok(HttpRequestBuilder::post(binary_upload_event_url.clone())
+                Ok(HttpRequestBuilder::post(&binary_upload_event_url)
                     .header("Accept", "application/json")
                     .header("Content-Type", "text/plain")
                     .body(request.log_content.clone())
@@ -382,7 +382,7 @@ impl C8YHttpProxyActor {
             .get_url_for_event_binary_upload(&event_response_id);
         let req_builder_closure =
             |token: String, _internal_id: String| -> Result<HttpRequestBuilder, C8YRestError> {
-                Ok(HttpRequestBuilder::post(binary_upload_event_url.clone())
+                Ok(HttpRequestBuilder::post(&binary_upload_event_url)
                     .header("Accept", "application/json")
                     .header("Content-Type", "text/plain")
                     .body(config_content.to_string())
@@ -467,7 +467,7 @@ impl C8YHttpProxyActor {
         let req_builder_closure =
             |token: String, internal_id: String| -> Result<HttpRequestBuilder, C8YRestError> {
                 let updated_c8y_event = update_event_with_new_internal_id(internal_id, &c8y_event);
-                Ok(HttpRequestBuilder::post(create_event_url.clone())
+                Ok(HttpRequestBuilder::post(&create_event_url)
                     .header("Accept", "application/json")
                     .header("Content-Type", "application/json")
                     .json(&updated_c8y_event)
@@ -481,11 +481,8 @@ impl C8YHttpProxyActor {
     }
 }
 
-fn update_url_with_new_internal_id(
-    internal_id: String,
-    url: String,
-) -> Result<String, C8YRestError> {
-    let url = Url::parse(&url).map_err(|e| {
+fn update_url_with_new_internal_id(internal_id: String, url: &str) -> Result<Url, C8YRestError> {
+    let url = Url::parse(url).map_err(|e| {
         C8YRestError::CustomError(format!("failed to parse string to url due to: {e}"))
     })?;
 
@@ -493,7 +490,7 @@ fn update_url_with_new_internal_id(
         .join(&format!("./{internal_id}"))
         .map_err(|e| C8YRestError::CustomError(format!("failed to update the url due to: {e}")))?;
 
-    Ok(new_url.to_string())
+    Ok(new_url)
 }
 
 fn update_event_with_new_internal_id(
