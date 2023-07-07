@@ -164,13 +164,13 @@ async fn retry_software_list_once_with_fresh_internal_id() {
 
     // This internal id is then used by the proxy for subsequent requests.
     // Create  the  software list and publish
-    let c8y_software_list = C8yUpdateSoftwareListResponse::create_empty_list();
+    let c8y_software_list = C8yUpdateSoftwareListResponse::default();
     tokio::spawn(async move {
         // NOTE: this is done in the background because this call awaits for the response.
         proxy.send_software_list_http(c8y_software_list).await
     });
 
-    let c8y_software_list = C8yUpdateSoftwareListResponse::create_empty_list();
+    let c8y_software_list = C8yUpdateSoftwareListResponse::default();
     // then the upload request received by c8y is related to the internal id
     c8y.assert_recv(Some(
         HttpRequestBuilder::put(format!(
@@ -212,7 +212,7 @@ async fn retry_software_list_once_with_fresh_internal_id() {
     ))
     .await;
 
-    let c8y_software_list = C8yUpdateSoftwareListResponse::create_empty_list();
+    let c8y_software_list = C8yUpdateSoftwareListResponse::default();
     // then the upload request received by c8y is related to the internal id
     c8y.assert_recv(Some(
         HttpRequestBuilder::put(format!(

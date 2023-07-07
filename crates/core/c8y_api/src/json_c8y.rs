@@ -121,8 +121,8 @@ impl From<&SoftwareListResponse> for C8yUpdateSoftwareListResponse {
     }
 }
 
-impl C8yUpdateSoftwareListResponse {
-    pub fn create_empty_list() -> Self {
+impl Default for C8yUpdateSoftwareListResponse {
+    fn default() -> Self {
         Self {
             c8y_software_list: None,
         }

@@ -120,13 +120,7 @@ impl Actor for C8YHttpProxyActor {
 impl C8YHttpProxyActor {
     pub fn new(config: C8YHttpConfig, message_box: C8YHttpProxyMessageBox) -> Self {
         let unknown_internal_id = "";
-        let unknown_token = "";
-        let end_point = C8yEndPoint::new(
-            &config.c8y_host,
-            &config.device_id,
-            unknown_internal_id,
-            unknown_token,
-        );
+        let end_point = C8yEndPoint::new(&config.c8y_host, &config.device_id, unknown_internal_id);
         let child_devices = HashMap::default();
         C8YHttpProxyActor {
             end_point,
@@ -194,7 +188,7 @@ impl C8YHttpProxyActor {
         &mut self,
         device_id: Option<&str>,
     ) -> Result<String, C8YRestError> {
-        let url_get_id : String = self.end_point.get_url_for_get_id(device_id);
+        let url_get_id: String = self.end_point.get_url_for_get_id(device_id);
         let req_build_closure = |token: String| {
             let request_internal_id = HttpRequestBuilder::get(&url_get_id);
             request_internal_id.bearer_auth(token)
@@ -214,7 +208,7 @@ impl C8YHttpProxyActor {
     ) -> Result<HttpResult, C8YRestError> {
         // this will get and set jwt token is not set
         self.get_jwt_token().await?;
-        let request_builder = req_builder_closure(self.end_point.token.clone());
+        let request_builder = req_builder_closure(self.end_point.token.clone().unwrap_or_default());
 
         let request = request_builder.build()?;
         let resp = self.peers.http.await_response(request).await?;
@@ -224,7 +218,8 @@ impl C8YHttpProxyActor {
                 StatusCode::OK => Ok(Ok(response)),
                 StatusCode::UNAUTHORIZED | StatusCode::FORBIDDEN => {
                     self.get_jwt_token().await?;
-                    let request_builder = req_builder_closure(self.end_point.token.clone());
+                    let request_builder =
+                        req_builder_closure(self.end_point.token.clone().unwrap_or_default());
                     let request = request_builder.build()?;
                     Ok(self.peers.http.await_response(request).await?)
                 }
@@ -240,25 +235,24 @@ impl C8YHttpProxyActor {
 
     async fn execute_retry(
         &mut self,
-        token: String,
-        internal_id: String,
         child_device_id: Option<String>,
         req_builder_closure: impl Fn(String, String) -> HttpRequestBuilder,
     ) -> Result<HttpResult, C8YRestError> {
-        let request_builder = req_builder_closure(token.clone(), internal_id.clone());
+        let request_builder = req_builder_closure(
+            self.end_point.token.clone().unwrap_or_default(),
+            self.end_point.c8y_internal_id.clone(),
+        );
         let request = request_builder.build()?;
         let resp = self.peers.http.await_response(request).await?;
         match resp {
             Ok(response) => match response.status() {
                 StatusCode::OK => Ok(Ok(response)),
                 StatusCode::UNAUTHORIZED | StatusCode::FORBIDDEN => {
-                    let request_builder = if let Ok(token) =
-                        self.peers.jwt.await_response(()).await?
-                    {
-                        req_builder_closure(token, internal_id.clone())
-                    } else {
-                        return Err(C8YRestError::CustomError("JWT token not available".into()));
-                    };
+                    self.get_jwt_token().await?;
+                    let request_builder = req_builder_closure(
+                        self.end_point.token.clone().unwrap_or_default(),
+                        self.end_point.c8y_internal_id.clone(),
+                    );
                     let request = request_builder.build()?;
                     Ok(self.peers.http.await_response(request).await?)
                 }
@@ -272,7 +266,10 @@ impl C8YHttpProxyActor {
                         }
                     };
 
-                    let request_builder = req_builder_closure(token, internal_id);
+                    let request_builder = req_builder_closure(
+                        self.end_point.token.clone().unwrap_or_default(),
+                        internal_id,
+                    );
                     let request = request_builder.build()?;
                     Ok(self.peers.http.await_response(request).await?)
                 }
@@ -310,14 +307,7 @@ impl C8YHttpProxyActor {
                 .json(&software_list)
                 .bearer_auth(token)
         };
-        let http_result = self
-            .execute_retry(
-                self.end_point.token.clone(),
-                self.end_point.c8y_internal_id.clone(),
-                None,
-                req_builder_closure,
-            )
-            .await?;
+        let http_result = self.execute_retry(None, req_builder_closure).await?;
         let _ = http_result.error_for_status()?;
         Ok(())
     }
@@ -349,12 +339,7 @@ impl C8YHttpProxyActor {
         };
 
         let http_result = self
-            .execute_retry(
-                self.end_point.token.clone(),
-                self.end_point.c8y_internal_id.clone(),
-                request.child_device_id,
-                req_builder_closure,
-            )
+            .execute_retry(request.child_device_id, req_builder_closure)
             .await?
             .unwrap();
 
@@ -398,12 +383,7 @@ impl C8YHttpProxyActor {
         };
         debug!(target: self.name(), "Uploading config file to URL: {}", binary_upload_event_url);
         let http_result = self
-            .execute_retry(
-                self.end_point.token.clone(),
-                self.end_point.c8y_internal_id.clone(),
-                request.child_device_id,
-                req_builder_closure,
-            )
+            .execute_retry(request.child_device_id, req_builder_closure)
             .await?
             .unwrap();
 
@@ -415,15 +395,16 @@ impl C8YHttpProxyActor {
     }
 
     async fn get_jwt_token(&mut self) -> Result<String, C8YRestError> {
-        if self.end_point.token.is_empty() {
-            if let Ok(token) = self.peers.jwt.await_response(()).await? {
-                self.end_point.token = token.clone();
-                Ok(token)
-            } else {
-                Err(C8YRestError::CustomError("JWT token not available".into()))
+        match self.end_point.token.clone() {
+            Some(token) => Ok(token),
+            None => {
+                if let Ok(token) = self.peers.jwt.await_response(()).await? {
+                    self.end_point.token = Some(token.clone());
+                    Ok(token)
+                } else {
+                    Err(C8YRestError::CustomError("JWT token not available".into()))
+                }
             }
-        } else {
-            Ok(self.end_point.token.clone())
         }
     }
 
@@ -486,14 +467,7 @@ impl C8YHttpProxyActor {
                 .bearer_auth(token)
         };
 
-        let http_result = self
-            .execute_retry(
-                self.end_point.token.clone(),
-                self.end_point.c8y_internal_id.clone(),
-                None,
-                req_builder_closure,
-            )
-            .await?;
+        let http_result = self.execute_retry(None, req_builder_closure).await?;
         let http_response = http_result.error_for_status()?;
         let event_response: C8yEventResponse = http_response.json().await?;
         Ok(event_response.id)
