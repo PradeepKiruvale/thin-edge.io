@@ -32,7 +32,9 @@ async fn c8y_http_proxy_requests_the_device_internal_id_on_start() {
     .bearer_auth(token)
     .build()
     .unwrap();
+    dbg!("b4 assert");
     c8y.assert_recv(Some(init_request)).await;
+    dbg!("after..dbg");
 
     // Cumulocity returns the internal device id
     let c8y_response = HttpResponseBuilder::new()
@@ -88,7 +90,7 @@ async fn retry_internal_id_on_expired_jwt() {
     // Cumulocity returns unauthorized error (401), because the jwt token has expired
     let c8y_response = HttpResponseBuilder::new().status(401).build().unwrap();
     c8y.send(Ok(c8y_response)).await.unwrap();
-
+    dbg!("b4......");
     c8y.assert_recv(Some(
         HttpRequestBuilder::get(format!(
             "https://{c8y_host}/identity/externalIds/c8y_Serial/{device_id}"

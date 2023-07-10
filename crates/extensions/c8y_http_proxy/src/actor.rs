@@ -190,16 +190,10 @@ impl C8YHttpProxyActor {
         device_id: Option<&str>,
     ) -> Result<String, C8YRestError> {
         let url_get_id: String = self.end_point.get_url_for_get_id(device_id);
-        let req_builder = |token: String, _internal_id: String| {
-            let request_internal_id = HttpRequestBuilder::get(&url_get_id);
-            Ok(request_internal_id.bearer_auth(token))
-        };
+        let req_builder = |token: String| HttpRequestBuilder::get(&url_get_id).bearer_auth(token);
 
         self.get_and_set_jwt_token().await?;
-        let request_builder = req_builder(
-            self.end_point.token.clone().unwrap_or_default(),
-            "".to_string(),
-        )?;
+        let request_builder = req_builder(self.end_point.token.clone().unwrap_or_default());
 
         let request = request_builder.build()?;
 
@@ -207,7 +201,11 @@ impl C8YHttpProxyActor {
             Ok(response) => match response.status() {
                 StatusCode::OK => Ok(Ok(response)),
                 StatusCode::UNAUTHORIZED | StatusCode::FORBIDDEN => {
-                    self.retry_request_with_fresh_token(req_builder).await
+                    let request_builder =
+                        req_builder(self.end_point.token.clone().unwrap_or_default());
+                    let request = request_builder.build()?;
+                    // retry the request
+                    Ok(self.peers.http.await_response(request).await?)
                 }
 
                 code => Err(C8YRestError::FromHttpError(
@@ -227,18 +225,18 @@ impl C8YHttpProxyActor {
     async fn execute(
         &mut self,
         child_device_id: Option<String>,
-        req_builder_closure: impl Fn(String, String) -> Result<HttpRequestBuilder, C8YRestError>,
+        req_builder_closure: impl Fn(String) -> Result<HttpRequestBuilder, C8YRestError>,
     ) -> Result<HttpResult, C8YRestError> {
-        let request_builder = req_builder_closure(
-            self.end_point.token.clone().unwrap_or_default(),
-            self.end_point.c8y_internal_id.clone(),
-        );
-        let request = request_builder?.build()?;
+        let request_builder = req_builder_closure(self.end_point.c8y_internal_id.clone());
+        let request = request_builder?
+            .bearer_auth(self.end_point.token.clone().unwrap_or_default())
+            .build()?;
         let resp = self.peers.http.await_response(request).await?;
         match resp {
             Ok(response) => match response.status() {
                 StatusCode::OK => Ok(Ok(response)),
                 StatusCode::UNAUTHORIZED | StatusCode::FORBIDDEN => {
+                    dbg!("retry.........");
                     self.retry_request_with_fresh_token(req_builder_closure)
                         .await
                 }
@@ -263,15 +261,12 @@ impl C8YHttpProxyActor {
 
     async fn retry_request_with_fresh_token(
         &mut self,
-        req_builder_closure: impl Fn(String, String) -> Result<HttpRequestBuilder, C8YRestError>,
+        req_builder_closure: impl Fn(String) -> Result<HttpRequestBuilder, C8YRestError>,
     ) -> Result<HttpResult, C8YRestError> {
         // get new token not the cached one
         self.get_fresh_token().await?;
         // build the request
-        let request_builder = req_builder_closure(
-            self.end_point.token.clone().unwrap_or_default(),
-            self.end_point.c8y_internal_id.clone(),
-        );
+        let request_builder = req_builder_closure(self.end_point.c8y_internal_id.clone());
         let request = request_builder?.build()?;
         // retry the request
         Ok(self.peers.http.await_response(request).await?)
@@ -280,7 +275,7 @@ impl C8YHttpProxyActor {
     async fn retry_request_with_fresh_internal_id(
         &mut self,
         child_device_id: Option<String>,
-        req_builder_closure: impl Fn(String, String) -> Result<HttpRequestBuilder, C8YRestError>,
+        req_builder_closure: impl Fn(String) -> Result<HttpRequestBuilder, C8YRestError>,
     ) -> Result<HttpResult, C8YRestError> {
         // get new internal id not the cached one
         self.end_point.c8y_internal_id = "".into();
@@ -292,11 +287,10 @@ impl C8YHttpProxyActor {
             }
         };
 
-        let request_builder = req_builder_closure(
-            self.end_point.token.clone().unwrap_or_default(),
-            internal_id,
-        );
-        let request = request_builder?.build()?;
+        let request_builder = req_builder_closure(internal_id);
+        let request = request_builder?
+            .bearer_auth(self.end_point.token.clone().unwrap_or_default())
+            .build()?;
         Ok(self.peers.http.await_response(request).await?)
     }
 
@@ -318,13 +312,12 @@ impl C8YHttpProxyActor {
     ) -> Result<Unit, C8YRestError> {
         let url = self.end_point.get_url_for_sw_list();
         let req_builder_closure =
-            |token: String, internal_id: String| -> Result<HttpRequestBuilder, C8YRestError> {
+            |internal_id: String| -> Result<HttpRequestBuilder, C8YRestError> {
                 let url = update_url_with_new_internal_id(internal_id, &url)?;
                 Ok(HttpRequestBuilder::put(url.to_string())
                     .header("Accept", "application/json")
                     .header("Content-Type", "application/json")
-                    .json(&software_list)
-                    .bearer_auth(token))
+                    .json(&software_list))
             };
         let http_result = self.execute(None, req_builder_closure).await?;
         let _ = http_result.error_for_status()?;
@@ -350,12 +343,11 @@ impl C8YHttpProxyActor {
             .get_url_for_event_binary_upload(&event_response_id);
 
         let req_builder_closure =
-            |token: String, _internal_id: String| -> Result<HttpRequestBuilder, C8YRestError> {
+            |_internal_id: String| -> Result<HttpRequestBuilder, C8YRestError> {
                 Ok(HttpRequestBuilder::post(&binary_upload_event_url)
                     .header("Accept", "application/json")
                     .header("Content-Type", "text/plain")
-                    .body(request.log_content.clone())
-                    .bearer_auth(token))
+                    .body(request.log_content.clone()))
             };
 
         let http_result = self
@@ -394,12 +386,11 @@ impl C8YHttpProxyActor {
             .end_point
             .get_url_for_event_binary_upload(&event_response_id);
         let req_builder_closure =
-            |token: String, _internal_id: String| -> Result<HttpRequestBuilder, C8YRestError> {
+            |_internal_id: String| -> Result<HttpRequestBuilder, C8YRestError> {
                 Ok(HttpRequestBuilder::post(&binary_upload_event_url)
                     .header("Accept", "application/json")
                     .header("Content-Type", "text/plain")
-                    .body(config_content.to_string())
-                    .bearer_auth(token))
+                    .body(config_content.to_string()))
             };
         debug!(target: self.name(), "Uploading config file to URL: {}", binary_upload_event_url);
         let http_result = self
@@ -478,13 +469,12 @@ impl C8YHttpProxyActor {
     ) -> Result<EventId, C8YRestError> {
         let create_event_url = self.end_point.get_url_for_create_event();
         let req_builder_closure =
-            |token: String, internal_id: String| -> Result<HttpRequestBuilder, C8YRestError> {
+            |internal_id: String| -> Result<HttpRequestBuilder, C8YRestError> {
                 let updated_c8y_event = update_event_with_new_internal_id(internal_id, &c8y_event);
                 Ok(HttpRequestBuilder::post(&create_event_url)
                     .header("Accept", "application/json")
                     .header("Content-Type", "application/json")
-                    .json(&updated_c8y_event)
-                    .bearer_auth(token))
+                    .json(&updated_c8y_event))
             };
 
         let http_result = self.execute(None, req_builder_closure).await?;
