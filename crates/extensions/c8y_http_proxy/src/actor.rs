@@ -47,7 +47,6 @@ const RETRY_TIMEOUT_SECS: u64 = 20;
 
 pub struct C8YHttpProxyActor {
     end_point: C8yEndPoint,
-    child_devices: HashMap<String, String>,
     peers: C8YHttpProxyMessageBox,
 }
 
@@ -122,10 +121,8 @@ impl C8YHttpProxyActor {
     pub fn new(config: C8YHttpConfig, message_box: C8YHttpProxyMessageBox) -> Self {
         let unknown_internal_id = "";
         let end_point = C8yEndPoint::new(&config.c8y_host, &config.device_id, unknown_internal_id);
-        let child_devices = HashMap::default();
         C8YHttpProxyActor {
             end_point,
-            child_devices,
             peers: message_box,
         }
     }
@@ -175,12 +172,11 @@ impl C8YHttpProxyActor {
         &mut self,
         child_device_id: String,
     ) -> Result<String, C8YRestError> {
-        if let Some(c8y_internal_id) = self.child_devices.get(&child_device_id) {
+        if let Some(c8y_internal_id) = self.end_point.get_child_internal_id(&child_device_id) {
             Ok(c8y_internal_id.clone())
         } else {
             let c8y_internal_id = self.try_get_internal_id(Some(&child_device_id)).await?;
-            self.child_devices
-                .insert(child_device_id, c8y_internal_id.clone());
+            self.end_point.set_child_internal_id(child_device_id, c8y_internal_id.clone());
             Ok(c8y_internal_id)
         }
     }

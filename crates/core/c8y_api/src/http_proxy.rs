@@ -6,6 +6,7 @@ use mqtt_channel::StreamExt;
 use mqtt_channel::Topic;
 use mqtt_channel::TopicFilter;
 use reqwest::Url;
+use std::collections::HashMap;
 use std::time::Duration;
 use tedge_config::mqtt_config::MqttConfigBuildError;
 use tedge_config::TEdgeConfig;
@@ -19,6 +20,7 @@ pub struct C8yEndPoint {
     pub device_id: String,
     pub c8y_internal_id: String,
     pub token: Option<String>,
+    child_devices: HashMap<String, String>,
 }
 
 impl C8yEndPoint {
@@ -28,6 +30,7 @@ impl C8yEndPoint {
             device_id: device_id.into(),
             c8y_internal_id: c8y_internal_id.into(),
             token: None,
+            child_devices: HashMap::default(),
         }
     }
 
@@ -37,6 +40,14 @@ impl C8yEndPoint {
 
     pub fn set_c8y_internal_id(&mut self, id: String) {
         self.c8y_internal_id = id;
+    }
+
+    pub fn get_child_internal_id(&self, id: &str) -> Option<String> {
+        self.child_devices.get(id).cloned()
+    }
+
+    pub fn set_child_internal_id(&mut self, device_id: String, internal_id:String) {
+        self.child_devices.insert(device_id, internal_id);
     }
 
     fn get_base_url(&self) -> String {
