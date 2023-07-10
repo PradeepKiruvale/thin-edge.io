@@ -226,7 +226,7 @@ impl C8YHttpProxyActor {
         Ok(internal_id)
     }
 
-    async fn execute_retry(
+    async fn execute(
         &mut self,
         child_device_id: Option<String>,
         req_builder_closure: impl Fn(String, String) -> Result<HttpRequestBuilder, C8YRestError>,
@@ -304,7 +304,7 @@ impl C8YHttpProxyActor {
                     .json(&software_list)
                     .bearer_auth(token))
             };
-        let http_result = self.execute_retry(None, req_builder_closure).await?;
+        let http_result = self.execute(None, req_builder_closure).await?;
         let _ = http_result.error_for_status()?;
         Ok(())
     }
@@ -337,7 +337,7 @@ impl C8YHttpProxyActor {
             };
 
         let http_result = self
-            .execute_retry(request.child_device_id, req_builder_closure)
+            .execute(request.child_device_id, req_builder_closure)
             .await??;
 
         if !http_result.status().is_success() {
@@ -381,7 +381,7 @@ impl C8YHttpProxyActor {
             };
         debug!(target: self.name(), "Uploading config file to URL: {}", binary_upload_event_url);
         let http_result = self
-            .execute_retry(request.child_device_id, req_builder_closure)
+            .execute(request.child_device_id, req_builder_closure)
             .await??;
 
         if !http_result.status().is_success() {
@@ -465,7 +465,7 @@ impl C8YHttpProxyActor {
                     .bearer_auth(token))
             };
 
-        let http_result = self.execute_retry(None, req_builder_closure).await?;
+        let http_result = self.execute(None, req_builder_closure).await?;
         let http_response = http_result.error_for_status()?;
         let event_response: C8yEventResponse = http_response.json().await?;
         Ok(event_response.id)
