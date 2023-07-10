@@ -82,9 +82,10 @@ impl Actor for C8YHttpProxyActor {
 
         while let Some((client_id, request)) = self.peers.clients.recv().await {
             let result = match request {
-                C8YRestRequest::GetJwtToken(_) => {
-                    self.get_and_set_jwt_token().await.map(|response| response.into())
-                }
+                C8YRestRequest::GetJwtToken(_) => self
+                    .get_and_set_jwt_token()
+                    .await
+                    .map(|response| response.into()),
 
                 C8YRestRequest::C8yCreateEvent(request) => self
                     .create_event(request)
@@ -189,13 +190,16 @@ impl C8YHttpProxyActor {
         device_id: Option<&str>,
     ) -> Result<String, C8YRestError> {
         let url_get_id: String = self.end_point.get_url_for_get_id(device_id);
-        let req_build_closure = |token: String| {
+        let req_builder = |token: String, _internal_id: String| {
             let request_internal_id = HttpRequestBuilder::get(&url_get_id);
-            request_internal_id.bearer_auth(token)
+            Ok(request_internal_id.bearer_auth(token))
         };
 
         self.get_and_set_jwt_token().await?;
-        let request_builder = req_build_closure(self.end_point.token.clone().unwrap_or_default());
+        let request_builder = req_builder(
+            self.end_point.token.clone().unwrap_or_default(),
+            "".to_string(),
+        )?;
 
         let request = request_builder.build()?;
 
@@ -203,13 +207,7 @@ impl C8YHttpProxyActor {
             Ok(response) => match response.status() {
                 StatusCode::OK => Ok(Ok(response)),
                 StatusCode::UNAUTHORIZED | StatusCode::FORBIDDEN => {
-                    // get new token not the cached one
-                    self.get_fresh_token().await?;
-
-                    let request_builder =
-                        req_build_closure(self.end_point.token.clone().unwrap_or_default());
-                    let request = request_builder.build()?;
-                    Ok(self.peers.http.await_response(request).await?)
+                    self.retry_request_with_fresh_token(req_builder).await
                 }
 
                 code => Err(C8YRestError::FromHttpError(
