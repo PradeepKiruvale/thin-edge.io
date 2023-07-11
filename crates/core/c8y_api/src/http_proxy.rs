@@ -18,24 +18,37 @@ use tracing::info;
 pub struct C8yEndPoint {
     pub c8y_host: String,
     pub device_id: String,
-    // internal id that can be used to build url, this could be main/child device internal-id
-    pub c8y_internal_id: String,
+    pub token: Option<String>,
+    pub devices_intenal_id: HashMap<String, String>,
 }
+
 impl C8yEndPoint {
     pub fn new(c8y_host: &str, device_id: &str, c8y_internal_id: &str) -> C8yEndPoint {
+        let mut devices_intenal_id = HashMap::new();
+        if !c8y_internal_id.is_empty() {
+            devices_intenal_id.insert(device_id.to_string(), c8y_internal_id.to_string());
+        }
         C8yEndPoint {
             c8y_host: c8y_host.into(),
             device_id: device_id.into(),
-            c8y_internal_id: c8y_internal_id.into(),
+            token: None,
+            devices_intenal_id,
         }
     }
 
-    pub fn get_c8y_internal_id(&self) -> &str {
-        &self.c8y_internal_id
+    pub fn get_internal_id(&self, id: Option<&str>) -> Option<String> {
+        self.devices_intenal_id
+            .get(id.unwrap_or(&self.device_id))
+            .cloned()
     }
 
-    pub fn set_c8y_internal_id(&mut self, id: String) {
-        self.c8y_internal_id = id;
+    pub fn set_internal_id(&mut self, device_id: String, internal_id: String) {
+        self.devices_intenal_id.insert(device_id, internal_id);
+    }
+
+    pub fn clear_the_cached_internal_id(&mut self, device_id: Option<String>) {
+        self.devices_intenal_id
+            .remove(&device_id.unwrap_or(self.device_id.clone()));
     }
 
     fn get_base_url(&self) -> String {
@@ -48,18 +61,18 @@ impl C8yEndPoint {
         url_get_id
     }
 
-    pub fn get_url_for_sw_list(&self) -> String {
+    pub fn get_url_for_sw_list(&self, device_id: Option<&str>) -> String {
         let mut url_update_swlist = self.get_base_url();
         url_update_swlist.push_str("/inventory/managedObjects/");
-        url_update_swlist.push_str(&self.c8y_internal_id);
+        url_update_swlist.push_str(&self.get_internal_id(device_id).unwrap_or_default());
 
         url_update_swlist
     }
 
-    pub fn get_url_for_get_id(&self, device_id: Option<&str>) -> String {
+    pub fn get_url_for_get_id(&self, device_id: String) -> String {
         let mut url_get_id = self.get_base_url();
         url_get_id.push_str("/identity/externalIds/c8y_Serial/");
-        url_get_id.push_str(device_id.unwrap_or(&self.device_id));
+        url_get_id.push_str(device_id.as_str());
 
         url_get_id
     }
@@ -102,45 +115,6 @@ impl C8yEndPoint {
             return true;
         }
         false
-    }
-}
-
-#[derive(Debug)]
-pub struct CachedIdentifiers {
-    pub token: Option<String>,
-    pub child_devices_intenal_id: HashMap<String, String>,
-    pub main_device_internal_id: Option<String>,
-}
-
-impl CachedIdentifiers {
-    pub fn new() -> Self {
-        Self {
-            token: None,
-            child_devices_intenal_id: HashMap::new(),
-            main_device_internal_id: None,
-        }
-    }
-
-    pub fn get_main_device_internal_id(&self) -> Option<String> {
-        self.main_device_internal_id.as_ref().cloned()
-    }
-
-    pub fn set_main_device_internal_id(&mut self, id: String) {
-        self.main_device_internal_id = Some(id);
-    }
-
-    pub fn get_child_internal_id(&self, id: &str) -> Option<String> {
-        self.child_devices_intenal_id.get(id).cloned()
-    }
-
-    pub fn set_child_internal_id(&mut self, device_id: String, internal_id: String) {
-        self.child_devices_intenal_id.insert(device_id, internal_id);
-    }
-}
-
-impl Default for CachedIdentifiers {
-    fn default() -> Self {
-        Self::new()
     }
 }
 
@@ -224,7 +198,7 @@ mod tests {
     #[test]
     fn get_url_for_get_id_returns_correct_address() {
         let c8y = C8yEndPoint::new("test_host", "test_device", "internal-id");
-        let res = c8y.get_url_for_get_id(None);
+        let res = c8y.get_url_for_get_id("test_device".into());
 
         assert_eq!(
             res,
@@ -235,7 +209,7 @@ mod tests {
     #[test]
     fn get_url_for_sw_list_returns_correct_address() {
         let c8y = C8yEndPoint::new("test_host", "test_device", "12345");
-        let res = c8y.get_url_for_sw_list();
+        let res = c8y.get_url_for_sw_list(Some("test_device"));
 
         assert_eq!(res, "https://test_host/inventory/managedObjects/12345");
     }

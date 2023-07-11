@@ -13,7 +13,6 @@ use crate::messages::UploadLogBinary;
 use crate::C8YHttpConfig;
 use async_trait::async_trait;
 use c8y_api::http_proxy::C8yEndPoint;
-use c8y_api::http_proxy::CachedIdentifiers;
 use c8y_api::json_c8y::C8yCreateEvent;
 use c8y_api::json_c8y::C8yEventResponse;
 use c8y_api::json_c8y::C8yManagedObject;
@@ -48,7 +47,6 @@ const RETRY_TIMEOUT_SECS: u64 = 20;
 pub struct C8YHttpProxyActor {
     end_point: C8yEndPoint,
     peers: C8YHttpProxyMessageBox,
-    cached_identifiers: CachedIdentifiers,
 }
 
 pub struct C8YHttpProxyMessageBox {
@@ -125,18 +123,17 @@ impl C8YHttpProxyActor {
         C8YHttpProxyActor {
             end_point,
             peers: message_box,
-            cached_identifiers: CachedIdentifiers::new(),
         }
     }
 
     async fn init(&mut self) -> Result<(), C8YConnectionError> {
         info!(target: self.name(), "start initialisation");
-        while self
-            .cached_identifiers
-            .get_main_device_internal_id()
-            .is_none()
-        {
-            if let Err(error) = self.try_get_and_set_internal_id().await {
+
+        while self.end_point.get_internal_id(None).is_none() {
+            if let Err(error) = self
+                .try_get_and_set_internal_id(self.end_point.device_id.clone())
+                .await
+            {
                 error!(
                     "An error occurred while retrieving internal Id, operation will retry in {} seconds\n Error: {:?}",
                     RETRY_TIMEOUT_SECS, error
@@ -168,95 +165,64 @@ impl C8YHttpProxyActor {
         Ok(())
     }
 
-    async fn try_get_and_set_internal_id(&mut self) -> Result<(), C8YRestError> {
-        let internal_id = self.try_get_internal_id(None).await?;
-        self.end_point.set_c8y_internal_id(internal_id.clone());
-        self.cached_identifiers
-            .set_main_device_internal_id(internal_id);
+    async fn try_get_and_set_internal_id(&mut self, device_id: String) -> Result<(), C8YRestError> {
+        if self
+            .end_point
+            .get_internal_id(Some(device_id.as_str()))
+            .is_none()
+        {
+            let internal_id = self.try_get_internal_id(device_id.clone()).await?;
+            self.end_point
+                .set_internal_id(self.end_point.device_id.clone(), internal_id);
+        }
         Ok(())
     }
 
-    async fn get_c8y_internal_child_id(
-        &mut self,
-        child_device_id: String,
-    ) -> Result<String, C8YRestError> {
-        if let Some(c8y_internal_id) = self
-            .cached_identifiers
-            .get_child_internal_id(&child_device_id)
-        {
-            Ok(c8y_internal_id)
-        } else {
-            let c8y_internal_id = self.try_get_internal_id(Some(&child_device_id)).await?;
-            self.cached_identifiers
-                .set_child_internal_id(child_device_id, c8y_internal_id.clone());
-            Ok(c8y_internal_id)
+    async fn try_get_internal_id(&mut self, device_id: String) -> Result<String, C8YRestError> {
+        let url_get_id: String = self.end_point.get_url_for_get_id(device_id);
+        if self.end_point.token.is_none() {
+            self.get_fresh_token().await?;
         }
-    }
+        let req_builder = |token: String| HttpRequestBuilder::get(&url_get_id).bearer_auth(token);
 
-    async fn try_get_internal_id(
-        &mut self,
-        device_id: Option<&str>,
-    ) -> Result<String, C8YRestError> {
-        let internal_id = if self.cached_identifiers.main_device_internal_id.is_none() {
-            let url_get_id: String = self.end_point.get_url_for_get_id(device_id);
-            let req_builder =
-                |token: String| HttpRequestBuilder::get(&url_get_id).bearer_auth(token);
+        let request_builder = req_builder(self.end_point.token.clone().unwrap_or_default());
 
-            self.get_and_set_jwt_token().await?;
-            let request_builder =
-                req_builder(self.cached_identifiers.token.clone().unwrap_or_default());
+        let request = request_builder.build()?;
 
-            let request = request_builder.build()?;
+        let res = match self.peers.http.await_response(request).await? {
+            Ok(response) => match response.status() {
+                StatusCode::OK => Ok(Ok(response)),
+                StatusCode::UNAUTHORIZED | StatusCode::FORBIDDEN => {
+                    let token = self.get_fresh_token().await?;
+                    let request_builder = req_builder(token);
+                    let request = request_builder.build()?;
+                    // retry the request
+                    Ok(self.peers.http.await_response(request).await?)
+                }
 
-            let res = match self.peers.http.await_response(request).await? {
-                Ok(response) => match response.status() {
-                    StatusCode::OK => Ok(Ok(response)),
-                    StatusCode::UNAUTHORIZED | StatusCode::FORBIDDEN => {
-                        let request_builder =
-                            req_builder(self.cached_identifiers.token.clone().unwrap_or_default());
-                        let request = request_builder.build()?;
-                        // retry the request
-                        Ok(self.peers.http.await_response(request).await?)
-                    }
+                code => Err(C8YRestError::FromHttpError(
+                    tedge_http_ext::HttpError::HttpStatusError(code),
+                )),
+            },
 
-                    code => Err(C8YRestError::FromHttpError(
-                        tedge_http_ext::HttpError::HttpStatusError(code),
-                    )),
-                },
-
-                Err(e) => Err(C8YRestError::FromHttpError(e)),
-            };
-            let res = res?.error_for_status()?;
-
-            let internal_id_response: InternalIdResponse = res.json().await?;
-            internal_id_response.id()
-        } else {
-            self.cached_identifiers
-                .main_device_internal_id
-                .clone()
-                .unwrap_or_default()
+            Err(e) => Err(C8YRestError::FromHttpError(e)),
         };
+        let res = res?.error_for_status()?;
+
+        let internal_id_response: InternalIdResponse = res.json().await?;
+        let internal_id = internal_id_response.id();
 
         Ok(internal_id)
     }
 
     async fn execute(
         &mut self,
-        child_device_id: Option<String>,
+        device_id: Option<String>,
         req_builder_closure: impl Fn(&C8yEndPoint) -> Result<HttpRequestBuilder, C8YRestError>,
     ) -> Result<HttpResult, C8YRestError> {
-        // Get and set the proper internal id
-        self.end_point.c8y_internal_id = match child_device_id.clone() {
-            Some(cid) => self.get_c8y_internal_child_id(cid).await?,
-            None => {
-                self.try_get_and_set_internal_id().await?;
-                self.end_point.c8y_internal_id.clone()
-            }
-        };
-
         let request_builder = req_builder_closure(&self.end_point);
         let request = request_builder?
-            .bearer_auth(self.cached_identifiers.token.clone().unwrap_or_default())
+            .bearer_auth(self.end_point.token.clone().unwrap_or_default())
             .build()?;
         let resp = self.peers.http.await_response(request).await?;
         match resp {
@@ -267,7 +233,7 @@ impl C8YHttpProxyActor {
                         .await
                 }
                 StatusCode::NOT_FOUND => {
-                    self.retry_request_with_fresh_internal_id(child_device_id, req_builder_closure)
+                    self.retry_request_with_fresh_internal_id(device_id, req_builder_closure)
                         .await
                 }
                 code => Err(C8YRestError::FromHttpError(
@@ -279,10 +245,9 @@ impl C8YHttpProxyActor {
         }
     }
 
-    async fn get_fresh_token(&mut self) -> Result<(), C8YRestError> {
-        self.cached_identifiers.token = None;
-        self.get_and_set_jwt_token().await?;
-        Ok(())
+    async fn get_fresh_token(&mut self) -> Result<String, C8YRestError> {
+        self.end_point.token = None;
+        self.get_and_set_jwt_token().await
     }
 
     async fn retry_request_with_fresh_token(
@@ -300,22 +265,18 @@ impl C8YHttpProxyActor {
 
     async fn retry_request_with_fresh_internal_id(
         &mut self,
-        child_device_id: Option<String>,
+        device_id: Option<String>,
         req_builder_closure: impl Fn(&C8yEndPoint) -> Result<HttpRequestBuilder, C8YRestError>,
     ) -> Result<HttpResult, C8YRestError> {
+        self.end_point
+            .clear_the_cached_internal_id(device_id.clone());
         // get new internal id not the cached one
-        self.cached_identifiers.main_device_internal_id = None;
-        self.end_point.c8y_internal_id = match child_device_id {
-            Some(cid) => self.get_c8y_internal_child_id(cid).await?,
-            None => {
-                self.try_get_and_set_internal_id().await?;
-                self.end_point.c8y_internal_id.clone()
-            }
-        };
+        self.try_get_and_set_internal_id(device_id.unwrap_or(self.end_point.device_id.clone()))
+            .await?;
 
         let request_builder = req_builder_closure(&self.end_point);
         let request = request_builder?
-            .bearer_auth(self.cached_identifiers.token.clone().unwrap_or_default())
+            .bearer_auth(self.end_point.token.clone().unwrap_or_default())
             .build()?;
         Ok(self.peers.http.await_response(request).await?)
     }
@@ -331,7 +292,7 @@ impl C8YHttpProxyActor {
             }
         };
 
-        self.send_event_internal(create_event).await
+        self.send_event_internal(None, create_event).await
     }
 
     async fn send_software_list_http(
@@ -340,7 +301,7 @@ impl C8YHttpProxyActor {
     ) -> Result<Unit, C8YRestError> {
         let req_builder_closure =
             |end_point: &C8yEndPoint| -> Result<HttpRequestBuilder, C8YRestError> {
-                let url = end_point.get_url_for_sw_list();
+                let url = end_point.get_url_for_sw_list(None);
                 Ok(HttpRequestBuilder::put(url)
                     .header("Accept", "application/json")
                     .header("Content-Type", "application/json")
@@ -365,7 +326,9 @@ impl C8YHttpProxyActor {
             }
         };
 
-        let event_response_id = self.send_event_internal(create_event).await?;
+        let event_response_id = self
+            .send_event_internal(request.child_device_id.as_ref().cloned(), create_event)
+            .await?;
 
         let req_builder_closure =
             |end_point: &C8yEndPoint| -> Result<HttpRequestBuilder, C8YRestError> {
@@ -408,7 +371,9 @@ impl C8YHttpProxyActor {
             }
         };
 
-        let event_response_id = self.send_event_internal(create_event).await?;
+        let event_response_id = self
+            .send_event_internal(request.child_device_id.clone(), create_event)
+            .await?;
         debug!(target: self.name(), "Config event created with id: {:?}", event_response_id);
 
         let req_builder_closure =
@@ -436,11 +401,11 @@ impl C8YHttpProxyActor {
     }
 
     async fn get_and_set_jwt_token(&mut self) -> Result<String, C8YRestError> {
-        match self.cached_identifiers.token.clone() {
+        match self.end_point.token.clone() {
             Some(token) => Ok(token),
             None => {
                 if let Ok(token) = self.peers.jwt.await_response(()).await? {
-                    self.cached_identifiers.token = Some(token.clone());
+                    self.end_point.token = Some(token.clone());
                     Ok(token)
                 } else {
                     Err(C8YRestError::CustomError("JWT token not available".into()))
@@ -470,19 +435,24 @@ impl C8YHttpProxyActor {
 
     async fn send_event_internal(
         &mut self,
+        device_id: Option<String>,
         create_event: impl Fn(String) -> C8yCreateEvent,
     ) -> Result<EventId, C8YRestError> {
         let req_builder_closure =
             |end_point: &C8yEndPoint| -> Result<HttpRequestBuilder, C8YRestError> {
                 let create_event_url = end_point.get_url_for_create_event();
-                let updated_c8y_event = create_event(end_point.c8y_internal_id.clone());
+                let updated_c8y_event = create_event(
+                    end_point
+                        .get_internal_id(device_id.clone().as_deref())
+                        .unwrap_or_default(),
+                );
                 Ok(HttpRequestBuilder::post(&create_event_url)
                     .header("Accept", "application/json")
                     .header("Content-Type", "application/json")
                     .json(&updated_c8y_event))
             };
 
-        let http_result = self.execute(None, req_builder_closure).await?;
+        let http_result = self.execute(device_id.clone(), req_builder_closure).await?;
         let http_response = http_result.error_for_status()?;
         let event_response: C8yEventResponse = http_response.json().await?;
         Ok(event_response.id)
