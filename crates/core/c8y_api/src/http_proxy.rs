@@ -121,11 +121,11 @@ impl CachedIdentifiers {
         }
     }
 
-    pub fn get_cached_main_device_internal_id(&self) -> Option<String> {
+    pub fn get_main_device_internal_id(&self) -> Option<String> {
         self.main_device_internal_id.as_ref().cloned()
     }
 
-    pub fn set_cached_main_internal_id(&mut self, id: String) {
+    pub fn set_main_device_internal_id(&mut self, id: String) {
         self.main_device_internal_id = Some(id);
     }
 

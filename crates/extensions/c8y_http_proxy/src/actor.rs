@@ -133,7 +133,7 @@ impl C8YHttpProxyActor {
         info!(target: self.name(), "start initialisation");
         while self
             .cached_identifiers
-            .get_cached_main_device_internal_id()
+            .get_main_device_internal_id()
             .is_none()
         {
             if let Err(error) = self.try_get_and_set_internal_id().await {
@@ -172,7 +172,7 @@ impl C8YHttpProxyActor {
         let internal_id = self.try_get_internal_id(None).await?;
         self.end_point.set_c8y_internal_id(internal_id.clone());
         self.cached_identifiers
-            .set_cached_main_internal_id(internal_id);
+            .set_main_device_internal_id(internal_id);
         Ok(())
     }
 
@@ -253,7 +253,7 @@ impl C8YHttpProxyActor {
         match resp {
             Ok(response) => match response.status() {
                 StatusCode::OK => Ok(Ok(response)),
-                StatusCode::UNAUTHORIZED | StatusCode::FORBIDDEN => {                  
+                StatusCode::UNAUTHORIZED | StatusCode::FORBIDDEN => {
                     self.retry_request_with_fresh_token(req_builder_closure)
                         .await
                 }
@@ -469,6 +469,7 @@ impl C8YHttpProxyActor {
             self.end_point.get_c8y_internal_id().to_string()
         };
 
+        self.end_point.c8y_internal_id = device_internal_id.clone();
         let c8y_managed_object = C8yManagedObject {
             id: device_internal_id,
         };
