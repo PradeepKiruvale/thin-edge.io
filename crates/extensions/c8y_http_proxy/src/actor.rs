@@ -13,6 +13,7 @@ use crate::messages::UploadLogBinary;
 use crate::C8YHttpConfig;
 use async_trait::async_trait;
 use c8y_api::http_proxy::C8yEndPoint;
+use c8y_api::http_proxy::CachedIdentifiers;
 use c8y_api::json_c8y::C8yCreateEvent;
 use c8y_api::json_c8y::C8yEventResponse;
 use c8y_api::json_c8y::C8yManagedObject;
@@ -47,6 +48,7 @@ const RETRY_TIMEOUT_SECS: u64 = 20;
 pub struct C8YHttpProxyActor {
     end_point: C8yEndPoint,
     peers: C8YHttpProxyMessageBox,
+    cached_identifiers: CachedIdentifiers,
 }
 
 pub struct C8YHttpProxyMessageBox {
@@ -123,12 +125,17 @@ impl C8YHttpProxyActor {
         C8YHttpProxyActor {
             end_point,
             peers: message_box,
+            cached_identifiers: CachedIdentifiers::new(),
         }
     }
 
     async fn init(&mut self) -> Result<(), C8YConnectionError> {
         info!(target: self.name(), "start initialisation");
-        while self.end_point.get_cached_main_c8y_internal_id().is_empty() {
+        while self
+            .cached_identifiers
+            .get_cached_main_device_internal_id()
+            .is_none()
+        {
             if let Err(error) = self.try_get_and_set_internal_id().await {
                 error!(
                     "An error occurred while retrieving internal Id, operation will retry in {} seconds\n Error: {:?}",
@@ -164,7 +171,8 @@ impl C8YHttpProxyActor {
     async fn try_get_and_set_internal_id(&mut self) -> Result<(), C8YRestError> {
         let internal_id = self.try_get_internal_id(None).await?;
         self.end_point.set_c8y_internal_id(internal_id.clone());
-        self.end_point.set_cached_main_c8y_internal_id(internal_id);
+        self.cached_identifiers
+            .set_cached_main_internal_id(internal_id);
         Ok(())
     }
 
@@ -172,11 +180,14 @@ impl C8YHttpProxyActor {
         &mut self,
         child_device_id: String,
     ) -> Result<String, C8YRestError> {
-        if let Some(c8y_internal_id) = self.end_point.get_child_internal_id(&child_device_id) {
+        if let Some(c8y_internal_id) = self
+            .cached_identifiers
+            .get_child_internal_id(&child_device_id)
+        {
             Ok(c8y_internal_id)
         } else {
             let c8y_internal_id = self.try_get_internal_id(Some(&child_device_id)).await?;
-            self.end_point
+            self.cached_identifiers
                 .set_child_internal_id(child_device_id, c8y_internal_id.clone());
             Ok(c8y_internal_id)
         }
@@ -186,13 +197,14 @@ impl C8YHttpProxyActor {
         &mut self,
         device_id: Option<&str>,
     ) -> Result<String, C8YRestError> {
-        let internal_id = if self.end_point.cached_main_c8y_internal_id.is_empty() {
+        let internal_id = if self.cached_identifiers.main_device_internal_id.is_none() {
             let url_get_id: String = self.end_point.get_url_for_get_id(device_id);
             let req_builder =
                 |token: String| HttpRequestBuilder::get(&url_get_id).bearer_auth(token);
 
             self.get_and_set_jwt_token().await?;
-            let request_builder = req_builder(self.end_point.token.clone().unwrap_or_default());
+            let request_builder =
+                req_builder(self.cached_identifiers.token.clone().unwrap_or_default());
 
             let request = request_builder.build()?;
 
@@ -201,7 +213,7 @@ impl C8YHttpProxyActor {
                     StatusCode::OK => Ok(Ok(response)),
                     StatusCode::UNAUTHORIZED | StatusCode::FORBIDDEN => {
                         let request_builder =
-                            req_builder(self.end_point.token.clone().unwrap_or_default());
+                            req_builder(self.cached_identifiers.token.clone().unwrap_or_default());
                         let request = request_builder.build()?;
                         // retry the request
                         Ok(self.peers.http.await_response(request).await?)
@@ -219,7 +231,10 @@ impl C8YHttpProxyActor {
             let internal_id_response: InternalIdResponse = res.json().await?;
             internal_id_response.id()
         } else {
-            self.end_point.cached_main_c8y_internal_id.clone()
+            self.cached_identifiers
+                .main_device_internal_id
+                .clone()
+                .unwrap_or_default()
         };
 
         Ok(internal_id)
@@ -232,14 +247,13 @@ impl C8YHttpProxyActor {
     ) -> Result<HttpResult, C8YRestError> {
         let request_builder = req_builder_closure(&self.end_point);
         let request = request_builder?
-            .bearer_auth(self.end_point.token.clone().unwrap_or_default())
+            .bearer_auth(self.cached_identifiers.token.clone().unwrap_or_default())
             .build()?;
         let resp = self.peers.http.await_response(request).await?;
         match resp {
             Ok(response) => match response.status() {
                 StatusCode::OK => Ok(Ok(response)),
-                StatusCode::UNAUTHORIZED | StatusCode::FORBIDDEN => {
-                    dbg!("retry.........");
+                StatusCode::UNAUTHORIZED | StatusCode::FORBIDDEN => {                  
                     self.retry_request_with_fresh_token(req_builder_closure)
                         .await
                 }
@@ -257,7 +271,7 @@ impl C8YHttpProxyActor {
     }
 
     async fn get_fresh_token(&mut self) -> Result<(), C8YRestError> {
-        self.end_point.token = None;
+        self.cached_identifiers.token = None;
         self.get_and_set_jwt_token().await?;
         Ok(())
     }
@@ -281,19 +295,18 @@ impl C8YHttpProxyActor {
         req_builder_closure: impl Fn(&C8yEndPoint) -> Result<HttpRequestBuilder, C8YRestError>,
     ) -> Result<HttpResult, C8YRestError> {
         // get new internal id not the cached one
-        self.end_point.cached_main_c8y_internal_id = "".into();
-        let internal_id = match child_device_id {
+        self.cached_identifiers.main_device_internal_id = None;
+        self.end_point.c8y_internal_id = match child_device_id {
             Some(cid) => self.get_c8y_internal_child_id(cid).await?,
             None => {
                 self.try_get_and_set_internal_id().await?;
                 self.end_point.c8y_internal_id.clone()
             }
         };
-        // update the url with new internal id
-        self.end_point.c8y_internal_id = internal_id;
+
         let request_builder = req_builder_closure(&self.end_point);
         let request = request_builder?
-            .bearer_auth(self.end_point.token.clone().unwrap_or_default())
+            .bearer_auth(self.cached_identifiers.token.clone().unwrap_or_default())
             .build()?;
         Ok(self.peers.http.await_response(request).await?)
     }
@@ -411,11 +424,11 @@ impl C8YHttpProxyActor {
     }
 
     async fn get_and_set_jwt_token(&mut self) -> Result<String, C8YRestError> {
-        match self.end_point.token.clone() {
+        match self.cached_identifiers.token.clone() {
             Some(token) => Ok(token),
             None => {
                 if let Ok(token) = self.peers.jwt.await_response(()).await? {
-                    self.end_point.token = Some(token.clone());
+                    self.cached_identifiers.token = Some(token.clone());
                     Ok(token)
                 } else {
                     Err(C8YRestError::CustomError("JWT token not available".into()))

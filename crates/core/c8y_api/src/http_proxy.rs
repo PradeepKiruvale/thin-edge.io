@@ -20,20 +20,13 @@ pub struct C8yEndPoint {
     pub device_id: String,
     // internal id that can be used to build url, this could be main/child device internal-id
     pub c8y_internal_id: String,
-    pub token: Option<String>,
-    pub child_devices: HashMap<String, String>,
-    pub cached_main_c8y_internal_id: String,
 }
-
 impl C8yEndPoint {
     pub fn new(c8y_host: &str, device_id: &str, c8y_internal_id: &str) -> C8yEndPoint {
         C8yEndPoint {
             c8y_host: c8y_host.into(),
             device_id: device_id.into(),
             c8y_internal_id: c8y_internal_id.into(),
-            token: None,
-            child_devices: HashMap::default(),
-            cached_main_c8y_internal_id: "".to_string(),
         }
     }
 
@@ -43,22 +36,6 @@ impl C8yEndPoint {
 
     pub fn set_c8y_internal_id(&mut self, id: String) {
         self.c8y_internal_id = id;
-    }
-
-    pub fn get_cached_main_c8y_internal_id(&self) -> &str {
-        &self.cached_main_c8y_internal_id
-    }
-
-    pub fn set_cached_main_c8y_internal_id(&mut self, id: String) {
-        self.cached_main_c8y_internal_id = id;
-    }
-
-    pub fn get_child_internal_id(&self, id: &str) -> Option<String> {
-        self.child_devices.get(id).cloned()
-    }
-
-    pub fn set_child_internal_id(&mut self, device_id: String, internal_id: String) {
-        self.child_devices.insert(device_id, internal_id);
     }
 
     fn get_base_url(&self) -> String {
@@ -125,6 +102,39 @@ impl C8yEndPoint {
             return true;
         }
         false
+    }
+}
+
+#[derive(Debug)]
+pub struct CachedIdentifiers {
+    pub token: Option<String>,
+    pub child_devices_intenal_id: HashMap<String, String>,
+    pub main_device_internal_id: Option<String>,
+}
+
+impl CachedIdentifiers {
+    pub fn new() -> Self {
+        Self {
+            token: None,
+            child_devices_intenal_id: HashMap::new(),
+            main_device_internal_id: None,
+        }
+    }
+
+    pub fn get_cached_main_device_internal_id(&self) -> Option<String> {
+        self.main_device_internal_id.as_ref().cloned()
+    }
+
+    pub fn set_cached_main_internal_id(&mut self, id: String) {
+        self.main_device_internal_id = Some(id);
+    }
+
+    pub fn get_child_internal_id(&self, id: &str) -> Option<String> {
+        self.child_devices_intenal_id.get(id).cloned()
+    }
+
+    pub fn set_child_internal_id(&mut self, device_id: String, internal_id: String) {
+        self.child_devices_intenal_id.insert(device_id, internal_id);
     }
 }
 
