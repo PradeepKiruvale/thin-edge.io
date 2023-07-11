@@ -138,6 +138,12 @@ impl CachedIdentifiers {
     }
 }
 
+impl Default for CachedIdentifiers {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 pub struct C8yMqttJwtTokenRetriever {
     mqtt_config: mqtt_channel::Config,
 }

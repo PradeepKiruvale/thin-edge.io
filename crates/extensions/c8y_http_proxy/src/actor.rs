@@ -245,6 +245,15 @@ impl C8YHttpProxyActor {
         child_device_id: Option<String>,
         req_builder_closure: impl Fn(&C8yEndPoint) -> Result<HttpRequestBuilder, C8YRestError>,
     ) -> Result<HttpResult, C8YRestError> {
+        // Get and set the proper internal id
+        self.end_point.c8y_internal_id = match child_device_id.clone() {
+            Some(cid) => self.get_c8y_internal_child_id(cid).await?,
+            None => {
+                self.try_get_and_set_internal_id().await?;
+                self.end_point.c8y_internal_id.clone()
+            }
+        };
+
         let request_builder = req_builder_closure(&self.end_point);
         let request = request_builder?
             .bearer_auth(self.cached_identifiers.token.clone().unwrap_or_default())
@@ -252,7 +261,7 @@ impl C8YHttpProxyActor {
         let resp = self.peers.http.await_response(request).await?;
         match resp {
             Ok(response) => match response.status() {
-                StatusCode::OK => Ok(Ok(response)),
+                StatusCode::OK | StatusCode::CREATED => Ok(Ok(response)),
                 StatusCode::UNAUTHORIZED | StatusCode::FORBIDDEN => {
                     self.retry_request_with_fresh_token(req_builder_closure)
                         .await
@@ -311,16 +320,18 @@ impl C8YHttpProxyActor {
         Ok(self.peers.http.await_response(request).await?)
     }
 
-    async fn create_event(
-        &mut self,
-        mut c8y_event: C8yCreateEvent,
-    ) -> Result<EventId, C8YRestError> {
-        if c8y_event.source.is_none() {
-            c8y_event.source = Some(C8yManagedObject {
-                id: self.end_point.get_c8y_internal_id().to_string(),
-            });
-        }
-        self.send_event_internal(c8y_event).await
+    async fn create_event(&mut self, c8y_event: C8yCreateEvent) -> Result<EventId, C8YRestError> {
+        let create_event = |internal_id: String| -> C8yCreateEvent {
+            C8yCreateEvent {
+                source: Some(C8yManagedObject { id: internal_id }),
+                event_type: c8y_event.event_type.clone(),
+                time: c8y_event.time,
+                text: c8y_event.text.clone(),
+                extras: c8y_event.extras.clone(),
+            }
+        };
+
+        self.send_event_internal(create_event).await
     }
 
     async fn send_software_list_http(
@@ -344,16 +355,17 @@ impl C8YHttpProxyActor {
         &mut self,
         request: UploadLogBinary,
     ) -> Result<EventId, C8YRestError> {
-        let log_file_event = self
-            .create_event_request(
-                request.log_type,
-                None,
-                None,
-                request.child_device_id.as_ref().cloned(),
-            )
-            .await?;
+        let create_event = |internal_id: String| -> C8yCreateEvent {
+            C8yCreateEvent {
+                source: Some(C8yManagedObject { id: internal_id }),
+                event_type: request.log_type.clone(),
+                time: OffsetDateTime::now_utc(),
+                text: request.log_type.clone(),
+                extras: HashMap::new(),
+            }
+        };
 
-        let event_response_id = self.send_event_internal(log_file_event).await?;
+        let event_response_id = self.send_event_internal(create_event).await?;
 
         let req_builder_closure =
             |end_point: &C8yEndPoint| -> Result<HttpRequestBuilder, C8YRestError> {
@@ -386,17 +398,17 @@ impl C8YHttpProxyActor {
         let config_content = std::fs::read_to_string(request.config_path)
             .map_err(<std::io::Error as Into<SMCumulocityMapperError>>::into)?;
 
-        let config_file_event = self
-            .create_event_request(
-                request.config_type,
-                None,
-                None,
-                request.child_device_id.as_ref().cloned(),
-            )
-            .await?;
+        let create_event = |internal_id: String| -> C8yCreateEvent {
+            C8yCreateEvent {
+                source: Some(C8yManagedObject { id: internal_id }),
+                event_type: request.config_type.clone(),
+                time: OffsetDateTime::now_utc(),
+                text: request.config_type.clone(),
+                extras: HashMap::new(),
+            }
+        };
 
-        debug!(target: self.name(), "Creating config event: {:?}", config_file_event);
-        let event_response_id = self.send_event_internal(config_file_event).await?;
+        let event_response_id = self.send_event_internal(create_event).await?;
         debug!(target: self.name(), "Config event created with id: {:?}", event_response_id);
 
         let req_builder_closure =
@@ -456,44 +468,14 @@ impl C8YHttpProxyActor {
         Ok(())
     }
 
-    async fn create_event_request(
-        &mut self,
-        event_type: String,
-        event_text: Option<String>,
-        event_time: Option<OffsetDateTime>,
-        child_device_id: Option<String>,
-    ) -> Result<C8yCreateEvent, C8YRestError> {
-        let device_internal_id = if let Some(device_id) = child_device_id {
-            self.get_c8y_internal_child_id(device_id).await?
-        } else {
-            self.end_point.get_c8y_internal_id().to_string()
-        };
-
-        self.end_point.c8y_internal_id = device_internal_id.clone();
-        let c8y_managed_object = C8yManagedObject {
-            id: device_internal_id,
-        };
-
-        Ok(C8yCreateEvent::new(
-            Some(c8y_managed_object),
-            event_type.clone(),
-            event_time.unwrap_or_else(OffsetDateTime::now_utc),
-            event_text.unwrap_or(event_type),
-            HashMap::new(),
-        ))
-    }
-
     async fn send_event_internal(
         &mut self,
-        c8y_event: C8yCreateEvent,
+        create_event: impl Fn(String) -> C8yCreateEvent,
     ) -> Result<EventId, C8YRestError> {
         let req_builder_closure =
             |end_point: &C8yEndPoint| -> Result<HttpRequestBuilder, C8YRestError> {
                 let create_event_url = end_point.get_url_for_create_event();
-                let updated_c8y_event = update_event_with_new_internal_id(
-                    end_point.c8y_internal_id.clone(),
-                    &c8y_event,
-                );
+                let updated_c8y_event = create_event(end_point.c8y_internal_id.clone());
                 Ok(HttpRequestBuilder::post(&create_event_url)
                     .header("Accept", "application/json")
                     .header("Content-Type", "application/json")
@@ -504,18 +486,5 @@ impl C8YHttpProxyActor {
         let http_response = http_result.error_for_status()?;
         let event_response: C8yEventResponse = http_response.json().await?;
         Ok(event_response.id)
-    }
-}
-
-fn update_event_with_new_internal_id(
-    internal_id: String,
-    event: &C8yCreateEvent,
-) -> C8yCreateEvent {
-    C8yCreateEvent {
-        source: Some(C8yManagedObject { id: internal_id }),
-        event_type: event.event_type.clone(),
-        time: event.time,
-        text: event.text.clone(),
-        extras: event.extras.clone(),
     }
 }

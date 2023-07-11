@@ -17,7 +17,7 @@ use time::OffsetDateTime;
 
 const EMPTY_STRING: &str = "";
 
-#[derive(Debug, Serialize, Deserialize, PartialEq, Eq)]
+#[derive(Debug, Serialize, Deserialize, PartialEq, Eq, Clone)]
 #[serde(rename_all = "camelCase")]
 pub struct C8yCreateEvent {
     #[serde(skip_serializing_if = "Option::is_none")]
