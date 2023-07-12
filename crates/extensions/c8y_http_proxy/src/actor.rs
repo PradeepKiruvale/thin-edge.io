@@ -172,8 +172,7 @@ impl C8YHttpProxyActor {
             .is_none()
         {
             let internal_id = self.try_get_internal_id(device_id.clone()).await?;
-            self.end_point
-                .set_internal_id(self.end_point.device_id.clone(), internal_id);
+            self.end_point.set_internal_id(device_id, internal_id);
         }
         Ok(())
     }
@@ -433,6 +432,11 @@ impl C8YHttpProxyActor {
         device_id: Option<String>,
         create_event: impl Fn(String) -> C8yCreateEvent,
     ) -> Result<EventId, C8YRestError> {
+        // Get and set child device internal id
+        if let Some(device_id) = device_id.clone() {
+            self.try_get_and_set_internal_id(device_id).await?;
+        }
+
         let build_request = |end_point: &C8yEndPoint| -> Result<HttpRequestBuilder, C8YRestError> {
             let create_event_url = end_point.get_url_for_create_event();
             let updated_c8y_event = create_event(
