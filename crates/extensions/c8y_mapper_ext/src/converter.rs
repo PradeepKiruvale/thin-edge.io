@@ -210,7 +210,7 @@ impl CumulocityConverter {
         let log_dir = config.logs_path.join(TEDGE_AGENT_LOG_DIR);
         let operation_logs = OperationLogs::try_new(log_dir.into())?;
 
-        let c8y_endpoint = C8yEndPoint::new(&c8y_host, &device_name, "");
+        let c8y_endpoint = C8yEndPoint::new(&c8y_host, &device_name);
 
         let mapper_config = MapperConfig {
             out_topic: Topic::new_unchecked("c8y/measurement/measurements/create"),
