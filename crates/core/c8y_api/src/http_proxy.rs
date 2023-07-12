@@ -19,35 +19,35 @@ pub struct C8yEndPoint {
     pub c8y_host: String,
     pub device_id: String,
     pub token: Option<String>,
-    pub devices_intenal_id: HashMap<String, String>,
+    pub devices_internal_id: HashMap<String, String>,
 }
 
 impl C8yEndPoint {
     pub fn new(c8y_host: &str, device_id: &str, c8y_internal_id: &str) -> C8yEndPoint {
-        let mut devices_intenal_id = HashMap::new();
+        let mut devices_internal_id = HashMap::new();
         if !c8y_internal_id.is_empty() {
-            devices_intenal_id.insert(device_id.to_string(), c8y_internal_id.to_string());
+            devices_internal_id.insert(device_id.to_string(), c8y_internal_id.to_string());
         }
         C8yEndPoint {
             c8y_host: c8y_host.into(),
             device_id: device_id.into(),
             token: None,
-            devices_intenal_id,
+            devices_internal_id,
         }
     }
 
     pub fn get_internal_id(&self, id: Option<&str>) -> Option<String> {
-        self.devices_intenal_id
+        self.devices_internal_id
             .get(id.unwrap_or(&self.device_id))
             .cloned()
     }
 
     pub fn set_internal_id(&mut self, device_id: String, internal_id: String) {
-        self.devices_intenal_id.insert(device_id, internal_id);
+        self.devices_internal_id.insert(device_id, internal_id);
     }
 
     pub fn clear_the_cached_internal_id(&mut self, device_id: Option<String>) {
-        self.devices_intenal_id
+        self.devices_internal_id
             .remove(&device_id.unwrap_or(self.device_id.clone()));
     }
 
