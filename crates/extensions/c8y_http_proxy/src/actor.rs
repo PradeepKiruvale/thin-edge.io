@@ -177,7 +177,7 @@ impl C8YHttpProxyActor {
     }
 
     async fn try_get_internal_id(&mut self, device_id: String) -> Result<String, C8YRestError> {
-        let url_get_id: String = self.end_point.get_url_for_get_id(device_id);
+        let url_get_id: String = self.end_point.get_url_for_internal_id(device_id);
         if self.end_point.token.is_none() {
             self.get_fresh_token().await?;
         }
@@ -194,7 +194,7 @@ impl C8YHttpProxyActor {
             Ok(response) => match response.status() {
                 StatusCode::OK => Ok(Ok(response)),
                 StatusCode::UNAUTHORIZED | StatusCode::FORBIDDEN => {
-                    self.retry_request_with_fresh_token(build_request).await
+                    self.try_request_with_fresh_token(build_request).await
                 }
 
                 code => Err(C8YRestError::FromHttpError(
@@ -226,10 +226,10 @@ impl C8YHttpProxyActor {
             Ok(response) => match response.status() {
                 StatusCode::OK | StatusCode::CREATED => Ok(Ok(response)),
                 StatusCode::UNAUTHORIZED | StatusCode::FORBIDDEN => {
-                    self.retry_request_with_fresh_token(build_request).await
+                    self.try_request_with_fresh_token(build_request).await
                 }
                 StatusCode::NOT_FOUND => {
-                    self.retry_request_with_fresh_internal_id(device_id, build_request)
+                    self.try_request_with_fresh_internal_id(device_id, build_request)
                         .await
                 }
                 code => Err(C8YRestError::FromHttpError(
@@ -246,7 +246,7 @@ impl C8YHttpProxyActor {
         self.get_and_set_jwt_token().await
     }
 
-    async fn retry_request_with_fresh_token(
+    async fn try_request_with_fresh_token(
         &mut self,
         build_request: impl Fn(&C8yEndPoint) -> Result<HttpRequestBuilder, C8YRestError>,
     ) -> Result<HttpResult, C8YRestError> {
@@ -259,7 +259,7 @@ impl C8YHttpProxyActor {
         Ok(self.peers.http.await_response(request).await?)
     }
 
-    async fn retry_request_with_fresh_internal_id(
+    async fn try_request_with_fresh_internal_id(
         &mut self,
         device_id: Option<String>,
         build_request: impl Fn(&C8yEndPoint) -> Result<HttpRequestBuilder, C8YRestError>,
@@ -296,7 +296,9 @@ impl C8YHttpProxyActor {
         software_list: C8yUpdateSoftwareListResponse,
     ) -> Result<Unit, C8YRestError> {
         let build_request = |end_point: &C8yEndPoint| -> Result<HttpRequestBuilder, C8YRestError> {
-            let url = end_point.get_url_for_sw_list(None);
+            let url = end_point
+                .get_url_for_sw_list(None)
+                .map_err(|e| C8YRestError::CustomError(e.to_string()))?;
             Ok(HttpRequestBuilder::put(url)
                 .header("Accept", "application/json")
                 .header("Content-Type", "application/json")

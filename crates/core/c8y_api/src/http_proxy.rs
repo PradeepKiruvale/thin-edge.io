@@ -13,6 +13,12 @@ use tedge_config::TEdgeConfig;
 use tracing::error;
 use tracing::info;
 
+#[derive(thiserror::Error, Debug)]
+pub enum C8yEndPointError {
+    #[error("Internal id is empty")]
+    EmptyInternalID,
+}
+
 /// Define a C8y endpoint
 #[derive(Debug)]
 pub struct C8yEndPoint {
@@ -32,9 +38,9 @@ impl C8yEndPoint {
         }
     }
 
-    pub fn get_internal_id(&self, id: Option<&str>) -> Option<String> {
+    pub fn get_internal_id(&self, device_id: Option<&str>) -> Option<String> {
         self.devices_internal_id
-            .get(id.unwrap_or(&self.device_id))
+            .get(device_id.unwrap_or(&self.device_id))
             .cloned()
     }
 
@@ -57,15 +63,19 @@ impl C8yEndPoint {
         url_get_id
     }
 
-    pub fn get_url_for_sw_list(&self, device_id: Option<&str>) -> String {
+    pub fn get_url_for_sw_list(&self, device_id: Option<&str>) -> Result<String, C8yEndPointError> {
         let mut url_update_swlist = self.get_base_url();
         url_update_swlist.push_str("/inventory/managedObjects/");
-        url_update_swlist.push_str(&self.get_internal_id(device_id).unwrap_or_default());
-
-        url_update_swlist
+        match self.get_internal_id(device_id) {
+            Some(internal_id) if !internal_id.is_empty() => {
+                url_update_swlist.push_str(&internal_id);
+                Ok(url_update_swlist)
+            }
+            _ => Err(C8yEndPointError::EmptyInternalID),
+        }
     }
 
-    pub fn get_url_for_get_id(&self, device_id: String) -> String {
+    pub fn get_url_for_internal_id(&self, device_id: String) -> String {
         let mut url_get_id = self.get_base_url();
         url_get_id.push_str("/identity/externalIds/c8y_Serial/");
         url_get_id.push_str(device_id.as_str());
@@ -194,7 +204,7 @@ mod tests {
     #[test]
     fn get_url_for_get_id_returns_correct_address() {
         let c8y = C8yEndPoint::new("test_host", "test_device");
-        let res = c8y.get_url_for_get_id("test_device".into());
+        let res = c8y.get_url_for_internal_id("test_device".into());
 
         assert_eq!(
             res,
@@ -207,7 +217,10 @@ mod tests {
         let c8y = C8yEndPoint::new("test_host", "test_device");
         let res = c8y.get_url_for_sw_list(Some("test_device"));
 
-        assert_eq!(res, "https://test_host/inventory/managedObjects/12345");
+        assert_eq!(
+            res.unwrap(),
+            "https://test_host/inventory/managedObjects/12345"
+        );
     }
 
     #[test_case("http://aaa.test.com")]
