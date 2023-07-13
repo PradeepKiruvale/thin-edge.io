@@ -1,3 +1,5 @@
+use tedge_config_macros::ConfigNotSet;
+
 #[derive(thiserror::Error, Debug)]
 pub enum TEdgeConfigError {
     #[error("TOML parse error")]
@@ -29,6 +31,9 @@ pub enum TEdgeConfigError {
 
     #[error(transparent)]
     DirNotFound(#[from] tedge_utils::paths::PathsError),
+
+    #[error(transparent)]
+    ConfigNotSet(#[from] ConfigNotSet),
 }
 
 impl TEdgeConfigError {
