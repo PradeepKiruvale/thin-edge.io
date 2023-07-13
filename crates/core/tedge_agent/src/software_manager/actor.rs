@@ -7,7 +7,6 @@ use crate::state_repository::state::State;
 use crate::state_repository::state::StateRepository;
 use crate::state_repository::state::StateStatus;
 use async_trait::async_trait;
-use lazy_static::__Deref;
 use plugin_sm::operation_logs::LogKind;
 use plugin_sm::operation_logs::OperationLogs;
 use plugin_sm::plugin_manager::ExternalPlugins;
