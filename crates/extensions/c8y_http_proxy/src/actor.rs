@@ -170,9 +170,15 @@ impl C8YHttpProxyActor {
             .get_internal_id(Some(device_id.as_str()))
             .is_none()
         {
-            let internal_id = self.try_get_internal_id(device_id.clone()).await?;
-            self.end_point.set_internal_id(device_id, internal_id);
+            self.get_and_set_internal_id(device_id).await?
         }
+        Ok(())
+    }
+
+    async fn get_and_set_internal_id(&mut self, device_id: String) -> Result<(), C8YRestError> {
+        let internal_id = self.try_get_internal_id(device_id.clone()).await?;
+        self.end_point.set_internal_id(device_id, internal_id);
+
         Ok(())
     }
 
@@ -264,10 +270,8 @@ impl C8YHttpProxyActor {
         device_id: Option<String>,
         build_request: impl Fn(&C8yEndPoint) -> Result<HttpRequestBuilder, C8YRestError>,
     ) -> Result<HttpResult, C8YRestError> {
-        self.end_point
-            .clear_the_cached_internal_id(device_id.clone());
         // get new internal id not the cached one
-        self.try_get_and_set_internal_id(device_id.unwrap_or(self.end_point.device_id.clone()))
+        self.get_and_set_internal_id(device_id.unwrap_or(self.end_point.device_id.clone()))
             .await?;
 
         let request_builder = build_request(&self.end_point);
