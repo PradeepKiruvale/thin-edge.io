@@ -214,7 +214,9 @@ mod tests {
 
     #[test]
     fn get_url_for_sw_list_returns_correct_address() {
-        let c8y = C8yEndPoint::new("test_host", "test_device");
+        let mut c8y = C8yEndPoint::new("test_host", "test_device");
+        c8y.devices_internal_id
+            .insert("test_device".to_string(), "12345".to_string());
         let res = c8y.get_url_for_sw_list(Some("test_device"));
 
         assert_eq!(
