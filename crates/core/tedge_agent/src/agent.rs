@@ -57,7 +57,7 @@ impl AgentConfig {
         let http_config = HttpConfig::default()
             .with_data_dir(data_dir.clone())
             .with_port(http_port)
-            .with_ip_address(http_bind_address.into());
+            .with_ip_address(http_bind_address);
 
         // Restart config
         let restart_config = RestartManagerConfig::from_tedge_config(tedge_config_location)?;

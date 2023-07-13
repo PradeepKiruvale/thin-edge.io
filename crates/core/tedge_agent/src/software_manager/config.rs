@@ -51,7 +51,7 @@ impl SoftwareManagerConfig {
         );
 
         Ok(Self::new(
-            &tmp_dir,
+            tmp_dir,
             &config_dir,
             &sm_plugins_dir,
             &log_dir,
