@@ -41,14 +41,7 @@ impl SoftwareManagerConfig {
         let tmp_dir = &tedge_config.tmp.path;
         let sm_plugins_dir = config_dir.join("sm-plugins");
         let log_dir = tedge_config.logs.path.join("tedge").join("agent");
-        let default_plugin_type = Some(
-            tedge_config
-                .software
-                .plugin
-                .default
-                .or_config_not_set()?
-                .to_string(),
-        );
+        let default_plugin_type = Some(tedge_config.software.plugin.default.clone());
 
         Ok(Self::new(
             tmp_dir,

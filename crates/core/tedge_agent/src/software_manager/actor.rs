@@ -60,6 +60,7 @@ impl Actor for SoftwareManagerActor {
         .map_err(|err| RuntimeError::ActorError(Box::new(err)))?;
 
         if plugins.empty() {
+            dbg!("plugins empty");
             warn!(
                 "{}",
                 NoPlugins {
@@ -71,8 +72,10 @@ impl Actor for SoftwareManagerActor {
         self.process_pending_sm_operation().await?;
 
         while let Some(request) = self.message_box.recv().await {
+            dbg!(&request);
             match request {
                 SoftwareRequest::SoftwareUpdateRequest(request) => {
+                    dbg!("update response");
                     if let Err(err) = self
                         .handle_software_update_operation(&request, &mut plugins, &operation_logs)
                         .await
@@ -81,6 +84,7 @@ impl Actor for SoftwareManagerActor {
                     }
                 }
                 SoftwareRequest::SoftwareListRequest(request) => {
+                    dbg!("list response");
                     if let Err(err) = self
                         .handle_software_list_operation(&request, &plugins, &operation_logs)
                         .await
@@ -154,7 +158,11 @@ impl SoftwareManagerActor {
         plugins: &mut ExternalPlugins,
         operation_logs: &OperationLogs,
     ) -> Result<(), SoftwareManagerError> {
+        dbg!("b4 plugins load");
         plugins.load()?;
+        dbg!("after");
+        dbg!(&self.config.config_location);
+        dbg!(get_default_plugin(&self.config.config_location)?);
         plugins.update_default(&get_default_plugin(&self.config.config_location)?)?;
 
         self.state_repository
@@ -163,9 +171,10 @@ impl SoftwareManagerActor {
                 operation: Some(StateStatus::Software(SoftwareOperationVariants::Update)),
             })
             .await?;
-
+        dbg!("b4 exec status");
         // Send 'executing'
         let executing_response = SoftwareUpdateResponse::new(request);
+        dbg!(&executing_response);
         self.message_box.send(executing_response.into()).await?;
 
         let response = match operation_logs.new_log_file(LogKind::SoftwareUpdate).await {
@@ -203,6 +212,7 @@ impl SoftwareManagerActor {
 
         // Send 'executing'
         let executing_response = SoftwareListResponse::new(request);
+        dbg!(&executing_response);
         self.message_box.send(executing_response.into()).await?;
 
         let response = match operation_logs.new_log_file(LogKind::SoftwareList).await {
@@ -226,14 +236,10 @@ fn get_default_plugin(
     config_location: &tedge_config::TEdgeConfigLocation,
 ) -> Result<Option<SoftwareType>, SoftwareManagerError> {
     let config_repository = tedge_config::TEdgeConfigRepository::new(config_location.clone());
+    dbg!(&config_location);
     let tedge_config = config_repository.load_new()?;
+    let res = &tedge_config.software.plugin.default;
+    dbg!(res);
 
-    Ok(Some(
-        tedge_config
-            .software
-            .plugin
-            .default
-            .or_config_not_set()?
-            .to_string(),
-    ))
+    Ok(Some(tedge_config.software.plugin.default.clone()))
 }

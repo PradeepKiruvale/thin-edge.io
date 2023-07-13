@@ -516,7 +516,7 @@ define_tedge_config! {
     software: {
         plugin: {
             /// The default software plugin to be used for software management on the device
-            #[tedge_config(example = "apt")]
+            #[tedge_config(example = "apt", default(value = "apt"))]
             default: String,
 
             /// The maximum number of software packages reported for each type of software package
