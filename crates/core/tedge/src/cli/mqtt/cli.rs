@@ -7,7 +7,6 @@ use crate::command::Command;
 use camino::Utf8PathBuf;
 use rumqttc::QoS;
 use std::time::Duration;
-use tedge_config::*;
 
 const PUB_CLIENT_PREFIX: &str = "tedge-pub";
 const SUB_CLIENT_PREFIX: &str = "tedge-sub";
@@ -44,41 +43,16 @@ pub enum TEdgeMqttCli {
 
 impl BuildCommand for TEdgeMqttCli {
     fn build_command(self, context: BuildContext) -> Result<Box<dyn Command>, crate::ConfigError> {
-        let port = context
-            .config_repository
-            .load()?
-            .query(MqttClientPortSetting)?;
-        let host = context
-            .config_repository
-            .load()?
-            .query(MqttClientHostSetting)?;
-        let ca_file = context
-            .config_repository
-            .load()?
-            .query(MqttClientCafileSetting)
-            .ok();
-        let ca_path = context
-            .config_repository
-            .load()?
-            .query(MqttClientCapathSetting)
-            .ok();
-        let client_cert = context
-            .config_repository
-            .load()?
-            .query(MqttClientAuthCertSetting);
-        let client_private_key = context
-            .config_repository
-            .load()?
-            .query(MqttClientAuthKeySetting);
+        let config = context.config_repository.load_new()?;
+        let client_cert = config.mqtt.client.auth.ca_file.clone().or_none().cloned();
+        let client_private_key = config.mqtt.client.auth.key_file.clone().or_none().cloned();
 
-        let client_auth_config = if client_cert.is_err() && client_private_key.is_err() {
+        let client_auth_config = if client_cert.is_none() && client_private_key.is_none() {
             None
         } else {
-            let client_cert = client_cert?;
-            let client_private_key = client_private_key?;
             Some(ClientAuthConfig {
-                cert_file: client_cert,
-                key_file: client_private_key,
+                cert_file: client_cert.unwrap_or_default(),
+                key_file: client_private_key.unwrap_or_default(),
             })
         };
 
@@ -90,16 +64,16 @@ impl BuildCommand for TEdgeMqttCli {
                     qos,
                     retain,
                 } => MqttPublishCommand {
-                    host,
-                    port: port.into(),
+                    host: config.mqtt.client.host.clone(),
+                    port: config.mqtt.client.port.into(),
                     topic,
                     message,
                     qos,
                     client_id: format!("{}-{}", PUB_CLIENT_PREFIX, std::process::id()),
                     disconnect_timeout: DISCONNECT_TIMEOUT,
                     retain,
-                    ca_file,
-                    ca_dir: ca_path,
+                    ca_file: config.mqtt.client.auth.ca_file.clone().or_none().cloned(),
+                    ca_dir: config.mqtt.client.auth.ca_dir.clone().or_none().cloned(),
                     client_auth_config,
                 }
                 .into_boxed(),
@@ -108,14 +82,14 @@ impl BuildCommand for TEdgeMqttCli {
                     qos,
                     hide_topic,
                 } => MqttSubscribeCommand {
-                    host,
-                    port: port.into(),
+                    host: config.mqtt.client.host.clone(),
+                    port: config.mqtt.client.port.into(),
                     topic,
                     qos,
                     hide_topic,
                     client_id: format!("{}-{}", SUB_CLIENT_PREFIX, std::process::id()),
-                    ca_file,
-                    ca_dir: ca_path,
+                    ca_file: config.mqtt.client.auth.ca_file.clone().or_none().cloned(),
+                    ca_dir: config.mqtt.client.auth.ca_dir.clone().or_none().cloned(),
                     client_auth_config,
                 }
                 .into_boxed(),
