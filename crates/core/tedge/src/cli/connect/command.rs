@@ -113,7 +113,7 @@ impl Command for ConnectCommand {
                 config.mqtt.external.key_file.clone().or_none().cloned(),
             );
 
-        let device_type = config.device.ty;
+        let device_type = config.device.ty.clone();
 
         new_bridge(
             &bridge_config,
@@ -156,7 +156,7 @@ impl Command for ConnectCommand {
                     .clone()
                     .or_none()
                     .cloned()
-                    .map(|u| &u.to_string()).unwrap(), //query_string(C8yMqttSetting)?,
+                    .map(|u| u.to_string().clone()).unwrap(), //query_string(C8yMqttSetting)?,
             );
             enable_software_management(&bridge_config, self.service_manager.as_ref());
         }
@@ -170,39 +170,39 @@ impl ConnectCommand {
         match self.cloud {
             Cloud::Azure => {
                 let params = BridgeConfigAzureParams {
-                    connect_url: config.query(AzureUrlSetting)?,
+                    connect_url: config.az.url.clone().or_config_not_set()?.clone(),
                     mqtt_tls_port: MQTT_TLS_PORT,
                     config_file: AZURE_CONFIG_FILENAME.into(),
-                    bridge_root_cert_path: config.query(AzureRootCertPathSetting)?,
-                    remote_clientid: config.query(DeviceIdSetting)?,
-                    bridge_certfile: config.query(DeviceCertPathSetting)?,
-                    bridge_keyfile: config.query(DeviceKeyPathSetting)?,
+                    bridge_root_cert_path: config.az.root_cert_path.clone(),
+                    remote_clientid: config.device.id.try_read(&config)?.clone(),
+                    bridge_certfile: config.device.cert_path.clone(), // if not set then must be error right?
+                    bridge_keyfile: config.device.key_path.clone(),
                 };
 
                 Ok(BridgeConfig::from(params))
             }
             Cloud::Aws => {
                 let params = BridgeConfigAwsParams {
-                    connect_url: config.query(AwsUrlSetting)?,
+                    connect_url: config.aws.url.clone().or_config_not_set()?.clone(),
                     mqtt_tls_port: MQTT_TLS_PORT,
                     config_file: AWS_CONFIG_FILENAME.into(),
-                    bridge_root_cert_path: config.query(AwsRootCertPathSetting)?,
-                    remote_clientid: config.query(DeviceIdSetting)?,
-                    bridge_certfile: config.query(DeviceCertPathSetting)?,
-                    bridge_keyfile: config.query(DeviceKeyPathSetting)?,
+                    bridge_root_cert_path: config.aws.root_cert_path.clone(),
+                    remote_clientid: config.device.id.try_read(&config)?.clone(),
+                    bridge_certfile: config.device.cert_path.clone(),
+                    bridge_keyfile: config.device.key_path.clone(),
                 };
 
                 Ok(BridgeConfig::from(params))
             }
             Cloud::C8y => {
                 let params = BridgeConfigC8yParams {
-                    mqtt_host: config.query(C8yMqttSetting)?,
+                    mqtt_host: config.c8y.mqtt.clone().or_config_not_set()?.clone(), //query(C8yMqttSetting)?,
                     config_file: C8Y_CONFIG_FILENAME.into(),
-                    bridge_root_cert_path: config.query(C8yRootCertPathSetting)?,
-                    remote_clientid: config.query(DeviceIdSetting)?,
-                    bridge_certfile: config.query(DeviceCertPathSetting)?,
-                    bridge_keyfile: config.query(DeviceKeyPathSetting)?,
-                    smartrest_templates: config.query(C8ySmartRestTemplates)?,
+                    bridge_root_cert_path: config.c8y.root_cert_path.clone(),                   
+                    remote_clientid: config.device.id.try_read(&config)?.clone(),
+                    bridge_certfile: config.device.cert_path.clone(),
+                    bridge_keyfile: config.device.key_path.clone(),
+                    smartrest_templates: config.c8y.smartrest.templates.clone(),
                 };
 
                 Ok(BridgeConfig::from(params))
