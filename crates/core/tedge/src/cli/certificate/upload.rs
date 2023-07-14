@@ -4,9 +4,11 @@ use crate::command::Command;
 use camino::Utf8PathBuf;
 use reqwest::StatusCode;
 use reqwest::Url;
+use tedge_config::HostPort;
 use std::io::prelude::*;
 use std::path::Path;
-use tedge_config::*;
+use tedge_config::get_new_tedge_config;
+use tedge_config::HTTPS_PORT;
 
 #[derive(Debug, serde::Deserialize)]
 struct CumulocityResponse {
@@ -48,8 +50,8 @@ impl UploadCertCmd {
             Err(_) => rpassword::read_password_from_tty(Some("Enter password: "))?,
         };
 
-        let config = get_tedge_config()?;
-        let root_cert = config.query(C8yRootCertPathSetting)?;
+        let config = get_new_tedge_config()?;
+        let root_cert = &config.c8y.root_cert_path;
         let client_builder = reqwest::blocking::Client::builder();
         let client = match std::fs::metadata(&root_cert)?.is_file() {
             true => {
