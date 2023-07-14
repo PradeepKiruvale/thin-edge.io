@@ -12,6 +12,7 @@ use rumqttc::QoS::AtLeastOnce;
 use std::path::Path;
 use std::sync::Arc;
 use std::time::Duration;
+use tedge_config::new::TEdgeConfig;
 use tedge_config::system_services::*;
 use tedge_config::*;
 use tedge_utils::paths::create_directories;
@@ -53,7 +54,7 @@ impl Command for ConnectCommand {
     }
 
     fn execute(&self) -> anyhow::Result<()> {
-        let config = self.config_repository.load()?;
+        let config = self.config_repository.load_new()?;
         if self.is_test_connection {
             let br_config = self.bridge_config(&config)?;
             if self.check_if_bridge_exists(&br_config) {
@@ -84,22 +85,35 @@ impl Command for ConnectCommand {
             .common_mosquitto_config
             .clone()
             .with_internal_opts(
-                config.query(MqttPortSetting)?.into(),
-                config.query(MqttBindAddressSetting)?.to_string(),
+                config.mqtt.bind.port.clone().into(),
+                config.mqtt.bind.address.to_string(),
             )
             .with_external_opts(
-                config.query(MqttExternalPortSetting).ok().map(|x| x.into()),
+                config.mqtt.external.bind.port.clone().or_none().cloned(),
                 config
-                    .query(MqttExternalBindAddressSetting)
-                    .ok()
-                    .map(|x| x.to_string()),
-                config.query(MqttExternalBindInterfaceSetting).ok(),
-                config.query(MqttExternalCAPathSetting).ok(),
-                config.query(MqttExternalCertfileSetting).ok(),
-                config.query(MqttExternalKeyfileSetting).ok(),
+                    .mqtt
+                    .external
+                    .bind
+                    .address
+                    .clone()
+                    .or_none()
+                    .cloned()
+                    .map(|a| a.to_string()),
+                config
+                    .mqtt
+                    .external
+                    .bind
+                    .interface
+                    .clone()
+                    .or_none()
+                    .cloned()
+                    .map(|a| a),
+                config.mqtt.external.ca_path.clone().or_none().cloned(),
+                config.mqtt.external.cert_file.clone().or_none().cloned(),
+                config.mqtt.external.key_file.clone().or_none().cloned(),
             );
 
-        let device_type = config.query(DeviceTypeSetting)?;
+        let device_type = config.device.ty;
 
         new_bridge(
             &bridge_config,
@@ -136,7 +150,13 @@ impl Command for ConnectCommand {
         if let Cloud::C8y = self.cloud {
             check_connected_c8y_tenant_as_configured(
                 &config,
-                &config.query_string(C8yMqttSetting)?,
+                &config
+                    .c8y
+                    .mqtt
+                    .clone()
+                    .or_none()
+                    .cloned()
+                    .map(|u| &u.to_string()).unwrap(), //query_string(C8yMqttSetting)?,
             );
             enable_software_management(&bridge_config, self.service_manager.as_ref());
         }
