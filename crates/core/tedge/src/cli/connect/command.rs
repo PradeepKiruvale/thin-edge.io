@@ -85,7 +85,7 @@ impl Command for ConnectCommand {
             .common_mosquitto_config
             .clone()
             .with_internal_opts(
-                config.mqtt.bind.port.clone().into(),
+                config.mqtt.bind.port.into(),
                 config.mqtt.bind.address.to_string(),
             )
             .with_external_opts(
@@ -106,8 +106,7 @@ impl Command for ConnectCommand {
                     .interface
                     .clone()
                     .or_none()
-                    .cloned()
-                    .map(|a| a),
+                    .cloned(),
                 config.mqtt.external.ca_path.clone().or_none().cloned(),
                 config.mqtt.external.cert_file.clone().or_none().cloned(),
                 config.mqtt.external.key_file.clone().or_none().cloned(),
@@ -156,7 +155,8 @@ impl Command for ConnectCommand {
                     .clone()
                     .or_none()
                     .cloned()
-                    .map(|u| u.to_string().clone()).unwrap(), //query_string(C8yMqttSetting)?,
+                    .map(|u| u.to_string())
+                    .unwrap(),
             );
             enable_software_management(&bridge_config, self.service_manager.as_ref());
         }
@@ -174,7 +174,7 @@ impl ConnectCommand {
                     mqtt_tls_port: MQTT_TLS_PORT,
                     config_file: AZURE_CONFIG_FILENAME.into(),
                     bridge_root_cert_path: config.az.root_cert_path.clone(),
-                    remote_clientid: config.device.id.try_read(&config)?.clone(),
+                    remote_clientid: config.device.id.try_read(config)?.clone(),
                     bridge_certfile: config.device.cert_path.clone(), // if not set then must be error right?
                     bridge_keyfile: config.device.key_path.clone(),
                 };
@@ -187,7 +187,7 @@ impl ConnectCommand {
                     mqtt_tls_port: MQTT_TLS_PORT,
                     config_file: AWS_CONFIG_FILENAME.into(),
                     bridge_root_cert_path: config.aws.root_cert_path.clone(),
-                    remote_clientid: config.device.id.try_read(&config)?.clone(),
+                    remote_clientid: config.device.id.try_read(config)?.clone(),
                     bridge_certfile: config.device.cert_path.clone(),
                     bridge_keyfile: config.device.key_path.clone(),
                 };
@@ -198,8 +198,8 @@ impl ConnectCommand {
                 let params = BridgeConfigC8yParams {
                     mqtt_host: config.c8y.mqtt.clone().or_config_not_set()?.clone(), //query(C8yMqttSetting)?,
                     config_file: C8Y_CONFIG_FILENAME.into(),
-                    bridge_root_cert_path: config.c8y.root_cert_path.clone(),                   
-                    remote_clientid: config.device.id.try_read(&config)?.clone(),
+                    bridge_root_cert_path: config.c8y.root_cert_path.clone(),
+                    remote_clientid: config.device.id.try_read(config)?.clone(),
                     bridge_certfile: config.device.cert_path.clone(),
                     bridge_keyfile: config.device.key_path.clone(),
                     smartrest_templates: config.c8y.smartrest.templates.clone(),

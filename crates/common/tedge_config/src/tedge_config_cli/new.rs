@@ -433,7 +433,7 @@ define_tedge_config! {
             #[doku(as = "u16")]
             port: NonZeroU16,
 
-            #[tedge_config(reader(private))]
+            // #[tedge_config(reader(private))]
             auth: {
                 /// Path to the CA certificate used by MQTT clients to use when authenticating the MQTT broker
                 #[tedge_config(example = "/etc/mosquitto/ca_certificates/ca.crt")]
