@@ -13,6 +13,7 @@ use crate::messages::UploadLogBinary;
 use crate::C8YHttpConfig;
 use async_trait::async_trait;
 use c8y_api::http_proxy::C8yEndPoint;
+use c8y_api::http_proxy::DeviceType;
 use c8y_api::json_c8y::C8yCreateEvent;
 use c8y_api::json_c8y::C8yEventResponse;
 use c8y_api::json_c8y::C8yManagedObject;
@@ -128,11 +129,12 @@ impl C8YHttpProxyActor {
     async fn init(&mut self) -> Result<(), C8YConnectionError> {
         info!(target: self.name(), "start initialisation");
 
-        while self.end_point.get_internal_id(None).is_none() {
-            if let Err(error) = self
-                .try_get_and_set_internal_id(self.end_point.device_id.clone())
-                .await
-            {
+        while self
+            .end_point
+            .get_internal_id(DeviceType::MainDevice)
+            .is_err()
+        {
+            if let Err(error) = self.get_and_set_internal_id(self.get_device_id(None)).await {
                 error!(
                     "An error occurred while retrieving internal Id, operation will retry in {} seconds\n Error: {:?}",
                     RETRY_TIMEOUT_SECS, error
@@ -161,17 +163,6 @@ impl C8YHttpProxyActor {
             };
         }
         info!(target: self.name(), "initialisation done.");
-        Ok(())
-    }
-
-    async fn try_get_and_set_internal_id(&mut self, device_id: String) -> Result<(), C8YRestError> {
-        if self
-            .end_point
-            .get_internal_id(Some(device_id.as_str()))
-            .is_none()
-        {
-            self.get_and_set_internal_id(device_id).await?
-        }
         Ok(())
     }
 
@@ -271,8 +262,8 @@ impl C8YHttpProxyActor {
         build_request: impl Fn(&C8yEndPoint) -> Result<HttpRequestBuilder, C8YRestError>,
     ) -> Result<HttpResult, C8YRestError> {
         // get new internal id not the cached one
-        self.get_and_set_internal_id(device_id.unwrap_or(self.end_point.device_id.clone()))
-            .await?;
+        let device_id = self.get_device_id(device_id);
+        self.get_and_set_internal_id(device_id).await?;
 
         let request_builder = build_request(&self.end_point);
         let request = request_builder?
@@ -300,9 +291,10 @@ impl C8YHttpProxyActor {
         software_list: C8yUpdateSoftwareListResponse,
     ) -> Result<Unit, C8YRestError> {
         let build_request = |end_point: &C8yEndPoint| -> Result<HttpRequestBuilder, C8YRestError> {
-            let url = end_point
-                .get_url_for_sw_list(None)
+            let internal_id = end_point
+                .get_internal_id(DeviceType::MainDevice)
                 .map_err(|e| C8YRestError::CustomError(e.to_string()))?;
+            let url = end_point.get_url_for_sw_list(internal_id);
             Ok(HttpRequestBuilder::put(url)
                 .header("Accept", "application/json")
                 .header("Content-Type", "application/json")
@@ -439,16 +431,17 @@ impl C8YHttpProxyActor {
     ) -> Result<EventId, C8YRestError> {
         // Get and set child device internal id
         if let Some(device_id) = device_id.clone() {
-            self.try_get_and_set_internal_id(device_id).await?;
+            self.get_and_set_internal_id(device_id).await?;
         }
 
         let build_request = |end_point: &C8yEndPoint| -> Result<HttpRequestBuilder, C8YRestError> {
             let create_event_url = end_point.get_url_for_create_event();
-            let updated_c8y_event = create_event(
-                end_point
-                    .get_internal_id(device_id.clone().as_deref())
-                    .unwrap_or_default(),
-            );
+            let device_type = end_point.get_device_type(device_id.clone());
+            let internal_id = end_point
+                .get_internal_id(device_type)
+                .map_err(|e| C8YRestError::CustomError(e.to_string()))?;
+            let updated_c8y_event = create_event(internal_id);
+
             Ok(HttpRequestBuilder::post(&create_event_url)
                 .header("Accept", "application/json")
                 .header("Content-Type", "application/json")
@@ -459,5 +452,9 @@ impl C8YHttpProxyActor {
         let http_response = http_result.error_for_status()?;
         let event_response: C8yEventResponse = http_response.json().await?;
         Ok(event_response.id)
+    }
+
+    fn get_device_id(&self, device_id: Option<String>) -> String {
+        device_id.unwrap_or(self.end_point.get_main_device_id())
     }
 }
