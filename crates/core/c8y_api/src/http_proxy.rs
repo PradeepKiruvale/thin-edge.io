@@ -13,7 +13,7 @@ use tedge_config::TEdgeConfig;
 use tracing::error;
 use tracing::info;
 
-#[derive(Debug, PartialEq, Eq, Hash)]
+#[derive(Debug, PartialEq, Eq, Hash, Clone)]
 pub enum DeviceType {
     MainDevice,
     ChildDevice(String),
@@ -56,14 +56,8 @@ impl C8yEndPoint {
         }
     }
 
-    pub fn set_internal_id(&mut self, device_id: String, internal_id: String) {
-        if self.device_id.eq(&device_id) {
-            self.devices_internal_id
-                .insert(DeviceType::MainDevice, internal_id);
-        } else {
-            self.devices_internal_id
-                .insert(DeviceType::ChildDevice(device_id), internal_id);
-        }
+    pub fn set_internal_id(&mut self, device_type: DeviceType, internal_id: String) {
+        self.devices_internal_id.insert(device_type, internal_id);
     }
 
     fn get_base_url(&self) -> String {
@@ -140,6 +134,13 @@ impl C8yEndPoint {
 
     pub fn get_main_device_id(&self) -> String {
         self.device_id.clone()
+    }
+
+    pub fn get_device_id(&self, device_type: DeviceType) -> String {
+        match device_type {
+            DeviceType::MainDevice => self.device_id.clone(),
+            DeviceType::ChildDevice(device_id) => device_id,
+        }
     }
 }
 

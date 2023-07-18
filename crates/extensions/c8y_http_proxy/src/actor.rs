@@ -134,7 +134,7 @@ impl C8YHttpProxyActor {
             .get_internal_id(DeviceType::MainDevice)
             .is_err()
         {
-            if let Err(error) = self.get_and_set_internal_id(self.get_device_id(None)).await {
+            if let Err(error) = self.get_and_set_internal_id(DeviceType::MainDevice).await {
                 error!(
                     "An error occurred while retrieving internal Id, operation will retry in {} seconds\n Error: {:?}",
                     RETRY_TIMEOUT_SECS, error
@@ -166,14 +166,21 @@ impl C8YHttpProxyActor {
         Ok(())
     }
 
-    async fn get_and_set_internal_id(&mut self, device_id: String) -> Result<(), C8YRestError> {
-        let internal_id = self.try_get_internal_id(device_id.clone()).await?;
-        self.end_point.set_internal_id(device_id, internal_id);
+    async fn get_and_set_internal_id(
+        &mut self,
+        device_type: DeviceType,
+    ) -> Result<(), C8YRestError> {
+        let internal_id = self.try_get_internal_id(device_type.clone()).await?;
+        self.end_point.set_internal_id(device_type, internal_id);
 
         Ok(())
     }
 
-    async fn try_get_internal_id(&mut self, device_id: String) -> Result<String, C8YRestError> {
+    async fn try_get_internal_id(
+        &mut self,
+        device_type: DeviceType,
+    ) -> Result<String, C8YRestError> {
+        let device_id = self.end_point.get_device_id(device_type);
         let url_get_id: String = self.end_point.get_url_for_internal_id(device_id);
         if self.end_point.token.is_none() {
             self.get_fresh_token().await?;
@@ -211,7 +218,7 @@ impl C8YHttpProxyActor {
 
     async fn execute(
         &mut self,
-        device_id: String,
+        device_type: DeviceType,
         build_request: impl Fn(&C8yEndPoint) -> Result<HttpRequestBuilder, C8YRestError>,
     ) -> Result<HttpResult, C8YRestError> {
         let request_builder = build_request(&self.end_point);
@@ -226,7 +233,7 @@ impl C8YHttpProxyActor {
                     self.try_request_with_fresh_token(build_request).await
                 }
                 StatusCode::NOT_FOUND => {
-                    self.try_request_with_fresh_internal_id(device_id, build_request)
+                    self.try_request_with_fresh_internal_id(device_type, build_request)
                         .await
                 }
                 code => Err(C8YRestError::FromHttpError(
@@ -258,11 +265,11 @@ impl C8YHttpProxyActor {
 
     async fn try_request_with_fresh_internal_id(
         &mut self,
-        device_id: String,
+        device_type: DeviceType,
         build_request: impl Fn(&C8yEndPoint) -> Result<HttpRequestBuilder, C8YRestError>,
     ) -> Result<HttpResult, C8YRestError> {
         // get new internal id not the cached one
-        self.get_and_set_internal_id(device_id).await?;
+        self.get_and_set_internal_id(device_type).await?;
 
         let request_builder = build_request(&self.end_point);
         let request = request_builder?
@@ -281,8 +288,8 @@ impl C8YHttpProxyActor {
                 extras: c8y_event.extras.clone(),
             }
         };
-        let device_id = self.get_device_id(None);
-        self.send_event_internal(device_id, create_event).await
+        let device_type = self.end_point.get_device_type(None);
+        self.send_event_internal(device_type, create_event).await
     }
 
     async fn send_software_list_http(
@@ -299,8 +306,8 @@ impl C8YHttpProxyActor {
                 .header("Content-Type", "application/json")
                 .json(&software_list))
         };
-        let device_id = self.get_device_id(None);
-        let http_result = self.execute(device_id, build_request).await?;
+
+        let http_result = self.execute(DeviceType::MainDevice, build_request).await?;
         let _ = http_result.error_for_status()?;
         Ok(())
     }
@@ -318,9 +325,9 @@ impl C8YHttpProxyActor {
                 extras: HashMap::new(),
             }
         };
-        let device_id = self.get_device_id(request.child_device_id);
+        let device_type = self.end_point.get_device_type(request.child_device_id);
         let event_response_id = self
-            .send_event_internal(device_id.clone(), create_event)
+            .send_event_internal(device_type.clone(), create_event)
             .await?;
 
         let build_request = |end_point: &C8yEndPoint| -> Result<HttpRequestBuilder, C8YRestError> {
@@ -332,7 +339,7 @@ impl C8YHttpProxyActor {
                 .body(request.log_content.clone()))
         };
 
-        let http_result = self.execute(device_id, build_request).await??;
+        let http_result = self.execute(device_type, build_request).await??;
 
         if !http_result.status().is_success() {
             Err(C8YRestError::CustomError("Upload failed".into()))
@@ -361,9 +368,11 @@ impl C8YHttpProxyActor {
             }
         };
 
-        let device_id = self.get_device_id(request.child_device_id.clone());
+        let device_type = self
+            .end_point
+            .get_device_type(request.child_device_id.clone());
         let event_response_id = self
-            .send_event_internal(device_id.clone(), create_event)
+            .send_event_internal(device_type.clone(), create_event)
             .await?;
         debug!(target: self.name(), "Config event created with id: {:?}", event_response_id);
 
@@ -377,7 +386,7 @@ impl C8YHttpProxyActor {
         };
         debug!(target: self.name(), "Uploading config file to URL: {}", self.end_point
         .get_url_for_event_binary_upload(&event_response_id));
-        let http_result = self.execute(device_id, build_request).await??;
+        let http_result = self.execute(device_type, build_request).await??;
 
         if !http_result.status().is_success() {
             Err(C8YRestError::CustomError("Upload failed".into()))
@@ -423,17 +432,16 @@ impl C8YHttpProxyActor {
 
     async fn send_event_internal(
         &mut self,
-        device_id: String,
+        device_type: DeviceType,
         create_event: impl Fn(String) -> C8yCreateEvent,
     ) -> Result<EventId, C8YRestError> {
         // Get and set child device internal id
-        self.get_and_set_internal_id(device_id.clone()).await?;
-
+        self.get_and_set_internal_id(device_type.clone()).await?;
+        let device_type_clone = device_type.clone();
         let build_request = |end_point: &C8yEndPoint| -> Result<HttpRequestBuilder, C8YRestError> {
             let create_event_url = end_point.get_url_for_create_event();
-            let device_type = end_point.get_device_type(Some(device_id.clone()));
             let internal_id = end_point
-                .get_internal_id(device_type)
+                .get_internal_id(device_type_clone.clone())
                 .map_err(|e| C8YRestError::CustomError(e.to_string()))?;
             let updated_c8y_event = create_event(internal_id);
 
@@ -443,13 +451,9 @@ impl C8YHttpProxyActor {
                 .json(&updated_c8y_event))
         };
 
-        let http_result = self.execute(device_id.clone(), build_request).await?;
+        let http_result = self.execute(device_type, build_request).await?;
         let http_response = http_result.error_for_status()?;
         let event_response: C8yEventResponse = http_response.json().await?;
         Ok(event_response.id)
-    }
-
-    fn get_device_id(&self, device_id: Option<String>) -> String {
-        device_id.unwrap_or(self.end_point.get_main_device_id())
     }
 }
