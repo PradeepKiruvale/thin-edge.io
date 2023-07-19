@@ -156,7 +156,7 @@ impl Command for ConnectCommand {
                     .or_none()
                     .cloned()
                     .map(|u| u.to_string())
-                    .unwrap(),
+                    .unwrap_or_default(),
             );
             enable_software_management(&bridge_config, self.service_manager.as_ref());
         }
@@ -175,7 +175,7 @@ impl ConnectCommand {
                     config_file: AZURE_CONFIG_FILENAME.into(),
                     bridge_root_cert_path: config.az.root_cert_path.clone(),
                     remote_clientid: config.device.id.try_read(config)?.clone(),
-                    bridge_certfile: config.device.cert_path.clone(), // if not set then must be error right?
+                    bridge_certfile: config.device.cert_path.clone(),
                     bridge_keyfile: config.device.key_path.clone(),
                 };
 
@@ -196,7 +196,7 @@ impl ConnectCommand {
             }
             Cloud::C8y => {
                 let params = BridgeConfigC8yParams {
-                    mqtt_host: config.c8y.mqtt.clone().or_config_not_set()?.clone(), //query(C8yMqttSetting)?,
+                    mqtt_host: config.c8y.mqtt.clone().or_config_not_set()?.clone(),
                     config_file: C8Y_CONFIG_FILENAME.into(),
                     bridge_root_cert_path: config.c8y.root_cert_path.clone(),
                     remote_clientid: config.device.id.try_read(config)?.clone(),
