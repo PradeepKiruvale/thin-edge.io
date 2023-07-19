@@ -185,22 +185,19 @@ impl C8YHttpProxyActor {
         if self.end_point.token.is_none() {
             self.get_fresh_token().await?;
         }
-        let build_request = |end_point: &C8yEndPoint| -> Result<HttpRequestBuilder, C8YRestError> {
-            Ok(HttpRequestBuilder::get(&url_get_id)
-                .bearer_auth(end_point.token.clone().unwrap_or_default()))
-        };
-
-        let request_builder = build_request(&self.end_point)?;
-
-        let request = request_builder.build()?;
-
+        let request = HttpRequestBuilder::get(&url_get_id)
+            .bearer_auth(self.end_point.token.clone().unwrap_or_default())
+            .build()?;
         let res = match self.peers.http.await_response(request).await? {
             Ok(response) => match response.status() {
                 StatusCode::OK => Ok(Ok(response)),
                 StatusCode::UNAUTHORIZED | StatusCode::FORBIDDEN => {
-                    self.try_request_with_fresh_token(build_request).await
+                    self.get_fresh_token().await?;
+                    let request = HttpRequestBuilder::get(&url_get_id)
+                        .bearer_auth(self.end_point.token.clone().unwrap_or_default())
+                        .build()?;
+                    Ok(self.peers.http.await_response(request).await?)
                 }
-
                 code => Err(C8YRestError::FromHttpError(
                     tedge_http_ext::HttpError::HttpStatusError(code),
                 )),
