@@ -436,7 +436,9 @@ impl C8YHttpProxyActor {
         create_event: impl Fn(String) -> C8yCreateEvent,
     ) -> Result<EventId, C8YRestError> {
         // Get and set child device internal id
-        self.get_and_set_internal_id(device_type.clone()).await?;
+        if !device_type.eq(&DeviceType::MainDevice) {
+            self.get_and_set_internal_id(device_type.clone()).await?;
+        }
         let device_type_clone = device_type.clone();
         let build_request = |end_point: &C8yEndPoint| -> Result<HttpRequestBuilder, C8YRestError> {
             let create_event_url = end_point.get_url_for_create_event();
