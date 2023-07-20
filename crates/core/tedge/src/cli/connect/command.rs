@@ -89,37 +89,29 @@ impl Command for ConnectCommand {
                 config.mqtt.bind.address.to_string(),
             )
             .with_external_opts(
-                config.mqtt.external.bind.port.clone().or_none().cloned(),
+                config.mqtt.external.bind.port.or_none().cloned(),
                 config
                     .mqtt
                     .external
                     .bind
                     .address
-                    .clone()
                     .or_none()
                     .cloned()
                     .map(|a| a.to_string()),
-                config
-                    .mqtt
-                    .external
-                    .bind
-                    .interface
-                    .clone()
-                    .or_none()
-                    .cloned(),
-                config.mqtt.external.ca_path.clone().or_none().cloned(),
-                config.mqtt.external.cert_file.clone().or_none().cloned(),
-                config.mqtt.external.key_file.clone().or_none().cloned(),
+                config.mqtt.external.bind.interface.or_none().cloned(),
+                config.mqtt.external.ca_path.or_none().cloned(),
+                config.mqtt.external.cert_file.or_none().cloned(),
+                config.mqtt.external.key_file.or_none().cloned(),
             );
 
-        let device_type = config.device.ty.clone();
+        let device_type = &config.device.ty;
 
         new_bridge(
             &bridge_config,
             &updated_mosquitto_config,
             self.service_manager.as_ref(),
             &self.config_location,
-            &device_type,
+            device_type,
         )?;
 
         match self.check_connection(&config) {
@@ -152,7 +144,6 @@ impl Command for ConnectCommand {
                 &config
                     .c8y
                     .mqtt
-                    .clone()
                     .or_none()
                     .cloned()
                     .map(|u| u.to_string())
@@ -170,7 +161,7 @@ impl ConnectCommand {
         match self.cloud {
             Cloud::Azure => {
                 let params = BridgeConfigAzureParams {
-                    connect_url: config.az.url.clone().or_config_not_set()?.clone(),
+                    connect_url: config.az.url.or_config_not_set()?.clone(),
                     mqtt_tls_port: MQTT_TLS_PORT,
                     config_file: AZURE_CONFIG_FILENAME.into(),
                     bridge_root_cert_path: config.az.root_cert_path.clone(),
@@ -183,7 +174,7 @@ impl ConnectCommand {
             }
             Cloud::Aws => {
                 let params = BridgeConfigAwsParams {
-                    connect_url: config.aws.url.clone().or_config_not_set()?.clone(),
+                    connect_url: config.aws.url.or_config_not_set()?.clone(),
                     mqtt_tls_port: MQTT_TLS_PORT,
                     config_file: AWS_CONFIG_FILENAME.into(),
                     bridge_root_cert_path: config.aws.root_cert_path.clone(),
@@ -196,7 +187,7 @@ impl ConnectCommand {
             }
             Cloud::C8y => {
                 let params = BridgeConfigC8yParams {
-                    mqtt_host: config.c8y.mqtt.clone().or_config_not_set()?.clone(),
+                    mqtt_host: config.c8y.mqtt.or_config_not_set()?.clone(),
                     config_file: C8Y_CONFIG_FILENAME.into(),
                     bridge_root_cert_path: config.c8y.root_cert_path.clone(),
                     remote_clientid: config.device.id.try_read(config)?.clone(),
