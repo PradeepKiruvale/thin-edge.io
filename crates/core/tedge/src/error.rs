@@ -1,5 +1,3 @@
-use tedge_config::new::ConfigNotSet;
-
 #[derive(thiserror::Error, Debug)]
 #[allow(clippy::enum_variant_names)]
 pub enum TEdgeError {
@@ -31,5 +29,8 @@ pub enum TEdgeError {
     FromTEdgeConfigRead(#[from] tedge_config::new::ReadError),
 
     #[error(transparent)]
-    FromConfigNotSet(#[from] ConfigNotSet),
+    FromConfigNotSet(#[from] tedge_config::new::ConfigNotSet),
+
+    #[error(transparent)]
+    CertificatesNotSet(#[from] tedge_config::CertificateError),
 }

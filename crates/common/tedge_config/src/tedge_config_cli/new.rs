@@ -9,6 +9,7 @@ use camino::Utf8PathBuf;
 use certificate::CertificateError;
 use certificate::PemCertificate;
 use doku::Document;
+use mqtt_channel::MqttClientAuthConfigs;
 use once_cell::sync::Lazy;
 use std::borrow::Cow;
 use std::net::IpAddr;
@@ -82,6 +83,23 @@ impl TEdgeConfig {
         }
 
         Ok(mqtt_config)
+    }
+
+    pub fn mqtt_client_auth_configs(
+        &self,
+    ) -> Result<mqtt_channel::MqttClientAuthConfigs, CertificateError> {
+        let mut client_auth = MqttClientAuthConfigs::default();
+        // Both these options have to either be set or not set, so we keep
+        // original error to rethrow when only one is set
+        if let Ok(Some((client_cert, client_key))) = all_or_nothing((
+            self.mqtt.client.auth.cert_file.as_ref(),
+            self.mqtt.client.auth.key_file.as_ref(),
+        )) {
+            client_auth.cert_dir = self.mqtt.client.auth.ca_dir.or_none().cloned();
+            client_auth.cert_file = Some(client_cert.clone());
+            client_auth.key_file = Some(client_key.clone());
+        }
+        Ok(client_auth)
     }
 }
 
@@ -433,6 +451,7 @@ define_tedge_config! {
             #[doku(as = "u16")]
             port: NonZeroU16,
 
+            #[tedge_config(reader(private))]
             auth: {
                 /// Path to the CA certificate used by MQTT clients to use when authenticating the MQTT broker
                 #[tedge_config(example = "/etc/mosquitto/ca_certificates/ca.crt")]

@@ -44,17 +44,17 @@ pub enum TEdgeMqttCli {
 impl BuildCommand for TEdgeMqttCli {
     fn build_command(self, context: BuildContext) -> Result<Box<dyn Command>, crate::ConfigError> {
         let config = context.config_repository.load_new()?;
-        let client_cert = config.mqtt.client.auth.ca_file.or_none().cloned();
-        let client_private_key = config.mqtt.client.auth.key_file.or_none().cloned();
+        let auth_config = config.mqtt_client_auth_configs()?;
 
-        let client_auth_config = if client_cert.is_none() && client_private_key.is_none() {
-            None
-        } else {
-            Some(ClientAuthConfig {
-                cert_file: client_cert.unwrap_or_default(),
-                key_file: client_private_key.unwrap_or_default(),
-            })
-        };
+        let client_auth_config =
+            if auth_config.cert_file.is_none() && auth_config.key_file.is_none() {
+                None
+            } else {
+                Some(ClientAuthConfig {
+                    cert_file: auth_config.cert_file.clone().unwrap_or_default(),
+                    key_file: auth_config.key_file.unwrap_or_default(),
+                })
+            };
 
         let cmd = {
             match self {
@@ -72,8 +72,8 @@ impl BuildCommand for TEdgeMqttCli {
                     client_id: format!("{}-{}", PUB_CLIENT_PREFIX, std::process::id()),
                     disconnect_timeout: DISCONNECT_TIMEOUT,
                     retain,
-                    ca_file: config.mqtt.client.auth.ca_file.or_none().cloned(),
-                    ca_dir: config.mqtt.client.auth.ca_dir.or_none().cloned(),
+                    ca_file: auth_config.cert_file.clone(),
+                    ca_dir: auth_config.cert_dir,
                     client_auth_config,
                 }
                 .into_boxed(),
@@ -88,8 +88,8 @@ impl BuildCommand for TEdgeMqttCli {
                     qos,
                     hide_topic,
                     client_id: format!("{}-{}", SUB_CLIENT_PREFIX, std::process::id()),
-                    ca_file: config.mqtt.client.auth.ca_file.or_none().cloned(),
-                    ca_dir: config.mqtt.client.auth.ca_dir.or_none().cloned(),
+                    ca_file: auth_config.cert_file,
+                    ca_dir: auth_config.cert_dir,
                     client_auth_config,
                 }
                 .into_boxed(),

@@ -1,5 +1,6 @@
 use crate::Message;
 use crate::TopicFilter;
+use camino::Utf8PathBuf;
 use certificate::parse_root_certificate;
 use certificate::CertificateError;
 use rumqttc::tokio_rustls::rustls;
@@ -107,6 +108,13 @@ impl Default for AuthenticationConfig {
 struct ClientAuthConfig {
     cert_chain: Vec<Certificate>,
     key: PrivateKey,
+}
+
+#[derive(Debug, Clone, Default)]
+pub struct MqttClientAuthConfigs {
+    pub cert_dir: Option<Utf8PathBuf>,
+    pub cert_file: Option<Utf8PathBuf>,
+    pub key_file: Option<Utf8PathBuf>,
 }
 
 #[derive(Clone)]
