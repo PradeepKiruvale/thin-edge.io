@@ -95,7 +95,8 @@ impl TEdgeConfig {
             self.mqtt.client.auth.cert_file.as_ref(),
             self.mqtt.client.auth.key_file.as_ref(),
         )) {
-            client_auth.cert_dir = self.mqtt.client.auth.ca_dir.or_none().cloned();
+            client_auth.ca_dir = self.mqtt.client.auth.ca_dir.or_none().cloned();
+            client_auth.ca_file = self.mqtt.client.auth.ca_file.or_none().cloned();
             client_auth.cert_file = Some(client_cert.clone());
             client_auth.key_file = Some(client_key.clone());
         }

@@ -48,6 +48,7 @@ impl BuildCommand for TEdgeMqttCli {
 
         let client_auth_config =
             if auth_config.cert_file.is_none() && auth_config.key_file.is_none() {
+                dbg!("...............None....................");
                 None
             } else {
                 Some(ClientAuthConfig {
@@ -72,8 +73,8 @@ impl BuildCommand for TEdgeMqttCli {
                     client_id: format!("{}-{}", PUB_CLIENT_PREFIX, std::process::id()),
                     disconnect_timeout: DISCONNECT_TIMEOUT,
                     retain,
-                    ca_file: auth_config.cert_file.clone(),
-                    ca_dir: auth_config.cert_dir,
+                    ca_file: auth_config.ca_file.clone(),
+                    ca_dir: auth_config.ca_dir,
                     client_auth_config,
                 }
                 .into_boxed(),
@@ -88,8 +89,8 @@ impl BuildCommand for TEdgeMqttCli {
                     qos,
                     hide_topic,
                     client_id: format!("{}-{}", SUB_CLIENT_PREFIX, std::process::id()),
-                    ca_file: auth_config.cert_file,
-                    ca_dir: auth_config.cert_dir,
+                    ca_file: auth_config.ca_file,
+                    ca_dir: auth_config.ca_dir,
                     client_auth_config,
                 }
                 .into_boxed(),

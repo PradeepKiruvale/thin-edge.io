@@ -112,7 +112,8 @@ struct ClientAuthConfig {
 
 #[derive(Debug, Clone, Default)]
 pub struct MqttClientAuthConfigs {
-    pub cert_dir: Option<Utf8PathBuf>,
+    pub ca_dir: Option<Utf8PathBuf>,
+    pub ca_file: Option<Utf8PathBuf>,
     pub cert_file: Option<Utf8PathBuf>,
     pub key_file: Option<Utf8PathBuf>,
 }
