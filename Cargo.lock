@@ -3452,6 +3452,7 @@ dependencies = [
  "clap 3.2.25",
  "doku",
  "hyper",
+ "log",
  "mockito 0.31.1",
  "mqtt_tests",
  "pad",

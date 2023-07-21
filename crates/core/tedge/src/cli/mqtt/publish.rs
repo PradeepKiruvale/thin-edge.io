@@ -13,6 +13,7 @@ use rumqttc::Packet;
 use rumqttc::QoS::AtLeastOnce;
 use rumqttc::QoS::AtMostOnce;
 use rumqttc::QoS::ExactlyOnce;
+use log::info;
 use std::time::Duration;
 
 const DEFAULT_QUEUE_CAPACITY: usize = 10;
@@ -45,6 +46,7 @@ impl Command for MqttPublishCommand {
 }
 
 fn publish(cmd: &MqttPublishCommand) -> Result<(), MqttError> {
+    info!("........publishing...............");
     let mut options = MqttOptions::new(cmd.client_id.as_str(), &cmd.host, cmd.port);
     options.set_clean_session(true);
 
@@ -63,10 +65,10 @@ fn publish(cmd: &MqttPublishCommand) -> Result<(), MqttError> {
         const SECURE_MQTT_PORT: u16 = 8883;
 
         if cmd.port == INSECURE_MQTT_PORT && !root_store.is_empty() {
-            eprintln!("Warning: Connecting on port 1883 for insecure MQTT using a TLS connection");
+            println!("Warning: Connecting on port 1883 for insecure MQTT using a TLS connection");
         }
         if cmd.port == SECURE_MQTT_PORT && root_store.is_empty() {
-            eprintln!("Warning: Connecting on port 8883 for secure MQTT with no CA certificates");
+            println!("Warning: Connecting on port 8883 for secure MQTT with no CA certificates");
         }
 
         let tls_config = ClientConfig::builder()
@@ -74,10 +76,12 @@ fn publish(cmd: &MqttPublishCommand) -> Result<(), MqttError> {
             .with_root_certificates(root_store);
 
         let tls_config = if let Some(client_auth) = cmd.client_auth_config.as_ref() {
+            info!("**********with auth config**********************");
             let client_cert = parse_root_certificate::read_cert_chain(&client_auth.cert_file)?;
             let client_key = parse_root_certificate::read_pvt_key(&client_auth.key_file)?;
             tls_config.with_single_cert(client_cert, client_key)?
         } else {
+            info!("................no auth config..................");
             tls_config.with_no_client_auth()
         };
 

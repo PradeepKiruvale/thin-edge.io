@@ -6,6 +6,7 @@ use crate::command::BuildContext;
 use crate::command::Command;
 use camino::Utf8PathBuf;
 use rumqttc::QoS;
+use log::info;
 use std::time::Duration;
 
 const PUB_CLIENT_PREFIX: &str = "tedge-pub";
@@ -44,13 +45,15 @@ pub enum TEdgeMqttCli {
 impl BuildCommand for TEdgeMqttCli {
     fn build_command(self, context: BuildContext) -> Result<Box<dyn Command>, crate::ConfigError> {
         let config = context.config_repository.load_new()?;
+        info!("++++in build cmd+++++++++++++++++++++");
         let auth_config = config.mqtt_client_auth_configs()?;
 
         let client_auth_config =
             if auth_config.cert_file.is_none() && auth_config.key_file.is_none() {
-                dbg!("...............None....................");
+                info!("...............None....................");
                 None
             } else {
+                info!("&&&&&&&&&&&&&& with certs &&&&&&&&&&&&&&&&&&");
                 Some(ClientAuthConfig {
                     cert_file: auth_config.cert_file.clone().unwrap_or_default(),
                     key_file: auth_config.key_file.unwrap_or_default(),

@@ -43,6 +43,7 @@ tracing = { version = "0.1", features = ["attributes", "log"] }
 url = "2.2"
 which = "4.2"
 yansi = "0.5"
+log = "0.4"
 
 [dev-dependencies]
 assert_cmd = "2.0"
