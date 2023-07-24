@@ -785,7 +785,7 @@ mod tests {
             Some(C8YRestRequest::UploadLogBinary(UploadLogBinary {
                 log_type: "type_two".to_string(),
                 log_content: "filename: file_c\nSome content\n".to_string(),
-                child_device_id: None
+                source: None
             }))
         );
 

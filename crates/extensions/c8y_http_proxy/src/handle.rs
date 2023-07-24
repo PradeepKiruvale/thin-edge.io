@@ -61,12 +61,12 @@ impl C8YHttpProxy {
         &mut self,
         log_type: &str,
         log_content: &str,
-        child_device_id: Option<String>,
+        source: Option<String>,
     ) -> Result<String, C8YRestError> {
         let request: C8YRestRequest = UploadLogBinary {
             log_type: log_type.to_string(),
             log_content: log_content.to_string(),
-            child_device_id,
+            source,
         }
         .into();
         match self.c8y.await_response(request).await? {
@@ -79,12 +79,12 @@ impl C8YHttpProxy {
         &mut self,
         config_path: &Path,
         config_type: &str,
-        child_device_id: Option<String>,
+        source: Option<String>,
     ) -> Result<String, C8YRestError> {
         let request: C8YRestRequest = UploadConfigFile {
             config_path: config_path.to_owned(),
             config_type: config_type.to_string(),
-            child_device_id,
+            source,
         }
         .into();
         match self.c8y.await_response(request).await? {

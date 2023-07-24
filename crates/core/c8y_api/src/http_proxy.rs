@@ -125,7 +125,7 @@ impl C8yEndPoint {
         false
     }
 
-    pub fn get_device_type(&self, device_id: Option<String>) -> DeviceType {
+    pub fn get_device_type_from_device_id(device_id: Option<String>) -> DeviceType {
         match device_id {
             Some(device_id) => DeviceType::ChildDevice(device_id),
             None => DeviceType::MainDevice,

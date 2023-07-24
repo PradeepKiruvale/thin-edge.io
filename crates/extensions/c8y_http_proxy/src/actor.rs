@@ -86,25 +86,37 @@ impl Actor for C8YHttpProxyActor {
                     .await
                     .map(|response| response.into()),
 
-                C8YRestRequest::C8yCreateEvent(request) => self
-                    .create_event(request)
-                    .await
-                    .map(|response| response.into()),
+                C8YRestRequest::C8yCreateEvent(request) => {
+                    let device_type = C8yEndPoint::get_device_type_from_device_id(Some(
+                        request.source.clone().unwrap_or_default().id,
+                    ));
+                    self.create_event(device_type, request)
+                        .await
+                        .map(|response| response.into())
+                }
 
-                C8YRestRequest::C8yUpdateSoftwareListResponse(request) => self
-                    .send_software_list_http(request)
-                    .await
-                    .map(|response| response.into()),
+                C8YRestRequest::C8yUpdateSoftwareListResponse(request) => {
+                    let device_type =
+                        C8yEndPoint::get_device_type_from_device_id(request.source.clone());
+                    self.send_software_list_http(device_type, request)
+                        .await
+                        .map(|response| response.into())
+                }
 
-                C8YRestRequest::UploadLogBinary(request) => self
-                    .upload_log_binary(request)
-                    .await
-                    .map(|response| response.into()),
-
-                C8YRestRequest::UploadConfigFile(request) => self
-                    .upload_config_file(request)
-                    .await
-                    .map(|response| response.into()),
+                C8YRestRequest::UploadLogBinary(request) => {
+                    let device_type =
+                        C8yEndPoint::get_device_type_from_device_id(request.source.clone());
+                    self.upload_log_binary(device_type, request)
+                        .await
+                        .map(|response| response.into())
+                }
+                C8YRestRequest::UploadConfigFile(request) => {
+                    let device_type =
+                        C8yEndPoint::get_device_type_from_device_id(request.source.clone());
+                    self.upload_config_file(device_type, request)
+                        .await
+                        .map(|response| response.into())
+                }
 
                 C8YRestRequest::DownloadFile(request) => self
                     .download_file(request)
@@ -275,7 +287,11 @@ impl C8YHttpProxyActor {
         Ok(self.peers.http.await_response(request).await?)
     }
 
-    async fn create_event(&mut self, c8y_event: C8yCreateEvent) -> Result<EventId, C8YRestError> {
+    async fn create_event(
+        &mut self,
+        device_type: DeviceType,
+        c8y_event: C8yCreateEvent,
+    ) -> Result<EventId, C8YRestError> {
         let create_event = |internal_id: String| -> C8yCreateEvent {
             C8yCreateEvent {
                 source: Some(C8yManagedObject { id: internal_id }),
@@ -285,12 +301,12 @@ impl C8YHttpProxyActor {
                 extras: c8y_event.extras.clone(),
             }
         };
-        let device_type = self.end_point.get_device_type(None);
         self.send_event_internal(device_type, create_event).await
     }
 
     async fn send_software_list_http(
         &mut self,
+        device_type: DeviceType,
         software_list: C8yUpdateSoftwareListResponse,
     ) -> Result<Unit, C8YRestError> {
         let build_request = |end_point: &C8yEndPoint| -> Result<HttpRequestBuilder, C8YRestError> {
@@ -304,13 +320,14 @@ impl C8YHttpProxyActor {
                 .json(&software_list))
         };
 
-        let http_result = self.execute(DeviceType::MainDevice, build_request).await?;
+        let http_result = self.execute(device_type, build_request).await?;
         let _ = http_result.error_for_status()?;
         Ok(())
     }
 
     async fn upload_log_binary(
         &mut self,
+        device_type: DeviceType,
         request: UploadLogBinary,
     ) -> Result<EventId, C8YRestError> {
         let create_event = |internal_id: String| -> C8yCreateEvent {
@@ -322,7 +339,6 @@ impl C8YHttpProxyActor {
                 extras: HashMap::new(),
             }
         };
-        let device_type = self.end_point.get_device_type(request.child_device_id);
         let event_response_id = self
             .send_event_internal(device_type.clone(), create_event)
             .await?;
@@ -349,6 +365,7 @@ impl C8YHttpProxyActor {
 
     async fn upload_config_file(
         &mut self,
+        device_type: DeviceType,
         request: UploadConfigFile,
     ) -> Result<EventId, C8YRestError> {
         // read the config file contents
@@ -365,9 +382,6 @@ impl C8YHttpProxyActor {
             }
         };
 
-        let device_type = self
-            .end_point
-            .get_device_type(request.child_device_id.clone());
         let event_response_id = self
             .send_event_internal(device_type.clone(), create_event)
             .await?;
