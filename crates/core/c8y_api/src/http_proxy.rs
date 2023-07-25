@@ -13,12 +13,6 @@ use tedge_config::TEdgeConfig;
 use tracing::error;
 use tracing::info;
 
-#[derive(Debug, PartialEq, Eq, Hash, Clone)]
-pub enum DeviceType {
-    MainDevice,
-    ChildDevice(String),
-}
-
 #[derive(thiserror::Error, Debug)]
 pub enum C8yEndPointError {
     #[error("Cumulocity internal id not found for the device: {0}")]
@@ -120,22 +114,8 @@ impl C8yEndPoint {
         false
     }
 
-    pub fn get_device_type_from_device_id(device_id: Option<String>) -> DeviceType {
-        match device_id {
-            Some(device_id) => DeviceType::ChildDevice(device_id),
-            None => DeviceType::MainDevice,
-        }
-    }
-
     pub fn get_main_device_id(&self) -> String {
         self.device_id.clone()
-    }
-
-    pub fn get_device_id(&self, device_type: DeviceType) -> String {
-        match device_type {
-            DeviceType::MainDevice => self.device_id.clone(),
-            DeviceType::ChildDevice(device_id) => device_id,
-        }
     }
 }
 
