@@ -296,7 +296,6 @@ impl C8YHttpProxyActor {
         device_id: String,
         software_list: C8yUpdateSoftwareListResponse,
     ) -> Result<Unit, C8YRestError> {
-        dbg!(&device_id);
         let build_request = |end_point: &C8yEndPoint| -> Result<HttpRequestBuilder, C8YRestError> {
             let internal_id = end_point
                 .get_internal_id(device_id.clone())
