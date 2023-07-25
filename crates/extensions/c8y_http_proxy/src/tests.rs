@@ -47,7 +47,7 @@ async fn c8y_http_proxy_requests_the_device_internal_id_on_start() {
     tokio::spawn(async move {
         // NOTE: this is done in the background because this call awaits for the response.
         proxy
-            .upload_log_binary("test.log", "some log content", "main".into())
+            .upload_log_binary("test.log", "some log content", "device-001".into())
             .await
             .unwrap();
     });
@@ -110,7 +110,7 @@ async fn retry_internal_id_on_expired_jwt() {
     tokio::spawn(async move {
         // NOTE: this is done in the background because this call awaits for the response.
         proxy
-            .upload_log_binary("test.log", "some log content", "main".into())
+            .upload_log_binary("test.log", "some log content", "device-001".into())
             .await
             .unwrap();
     });
@@ -159,7 +159,8 @@ async fn retry_software_list_once_with_fresh_internal_id() {
 
     // This internal id is then used by the proxy for subsequent requests.
     // Create  the  software list and publish
-    let c8y_software_list = C8yUpdateSoftwareListResponse::default();
+    let mut c8y_software_list = C8yUpdateSoftwareListResponse::default();
+    c8y_software_list.source = device_id.into();
     tokio::spawn(async move {
         // NOTE: this is done in the background because this call awaits for the response.
         proxy.send_software_list_http(c8y_software_list).await
@@ -255,7 +256,7 @@ async fn auto_retry_upload_log_binary_when_internal_id_expires() {
     tokio::spawn(async move {
         // NOTE: this is done in the background because this call awaits for the response.
         proxy
-            .upload_log_binary("test.log", "some log content", "main".into())
+            .upload_log_binary("test.log", "some log content", "device-001".into())
             .await
             .unwrap();
     });

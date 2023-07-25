@@ -50,6 +50,7 @@ impl C8YHttpProxy {
         &mut self,
         c8y_software_list: C8yUpdateSoftwareListResponse,
     ) -> Result<(), C8YRestError> {
+        dbg!(&c8y_software_list);
         let request: C8YRestRequest = c8y_software_list.into();
         match self.c8y.await_response(request).await? {
             Ok(C8YRestResponse::Unit(_)) => Ok(()),

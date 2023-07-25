@@ -100,6 +100,8 @@ impl FakeHttpServerBox {
 
 /// Assert that some request is equal to the expected one.
 pub fn assert_request_eq(actual: Option<HttpRequest>, expected: Option<HttpRequest>) {
+    dbg!(&actual);
+    dbg!(&expected);
     assert_eq!(actual.is_some(), expected.is_some());
     if let (Some(actual), Some(expected)) = (actual, expected) {
         assert_eq!(actual.method(), expected.method());

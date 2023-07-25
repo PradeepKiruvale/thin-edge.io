@@ -175,6 +175,11 @@ impl C8YHttpProxyActor {
     }
 
     async fn try_get_internal_id(&mut self, device_id: String) -> Result<String, C8YRestError> {
+        let device_id = if device_id.eq("main") {
+            self.end_point.device_id.clone()
+        } else {
+            device_id
+        };
         let url_get_id: String = self.end_point.get_url_for_internal_id(device_id);
         if self.end_point.token.is_none() {
             self.get_fresh_token().await?;
@@ -291,6 +296,7 @@ impl C8YHttpProxyActor {
         device_id: String,
         software_list: C8yUpdateSoftwareListResponse,
     ) -> Result<Unit, C8YRestError> {
+        dbg!(&device_id);
         let build_request = |end_point: &C8yEndPoint| -> Result<HttpRequestBuilder, C8YRestError> {
             let internal_id = end_point
                 .get_internal_id(device_id.clone())
@@ -429,7 +435,7 @@ impl C8YHttpProxyActor {
         create_event: impl Fn(String) -> C8yCreateEvent,
     ) -> Result<EventId, C8YRestError> {
         // Get and set child device internal id
-        if !device_id.eq(&self.end_point.device_id) {
+        if device_id.ne(&self.end_point.device_id) {
             self.get_and_set_internal_id(device_id.clone()).await?;
         }
 

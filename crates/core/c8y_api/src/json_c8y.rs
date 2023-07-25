@@ -402,7 +402,7 @@ mod tests {
             source: "main".into(),
         };
 
-        let expected_json = r#"{"c8y_SoftwareList":[{"name":"a","version":"::debian","url":""},{"name":"b","version":"1.0::debian","url":""},{"name":"c","version":"::debian","url":"https://foobar.io/c.deb"},{"name":"d","version":"beta::debian","url":"https://foobar.io/d.deb"},{"name":"m","version":"::apama","url":"https://foobar.io/m.epl"}],"source":null}"#;
+        let expected_json = r#"{"c8y_SoftwareList":[{"name":"a","version":"::debian","url":""},{"name":"b","version":"1.0::debian","url":""},{"name":"c","version":"::debian","url":"https://foobar.io/c.deb"},{"name":"d","version":"beta::debian","url":"https://foobar.io/d.deb"},{"name":"m","version":"::apama","url":"https://foobar.io/m.epl"}],"source":"main"}"#;
 
         assert_eq!(c8y_software_list, expected_struct);
         assert_eq!(c8y_software_list.to_json().unwrap(), expected_json);
@@ -423,7 +423,7 @@ mod tests {
             c8y_software_list: Some(vec![]),
             source: "main".into(),
         };
-        let expected_json = r#"{"c8y_SoftwareList":[],"source":null}"#;
+        let expected_json = r#"{"c8y_SoftwareList":[],"source":"main"}"#;
 
         assert_eq!(c8y_software_list, expected_struct);
         assert_eq!(c8y_software_list.to_json().unwrap(), expected_json);

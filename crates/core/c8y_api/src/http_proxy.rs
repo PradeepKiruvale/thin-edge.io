@@ -47,7 +47,7 @@ impl C8yEndPoint {
     pub fn get_internal_id(&self, device_id: String) -> Result<String, C8yEndPointError> {
         match self.devices_internal_id.get(&device_id) {
             Some(internal_id) => Ok(internal_id.to_string()),
-            None => Err(C8yEndPointError::InternalIdNotFound(self.device_id.clone())),
+            None => Err(C8yEndPointError::InternalIdNotFound(device_id.clone())),
         }
     }
 
@@ -213,7 +213,6 @@ pub enum JwtError {
 
 #[cfg(test)]
 mod tests {
-    use crate::http_proxy;
 
     use super::*;
     use test_case::test_case;
