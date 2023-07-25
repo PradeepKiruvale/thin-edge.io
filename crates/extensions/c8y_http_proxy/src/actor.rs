@@ -212,6 +212,7 @@ impl C8YHttpProxyActor {
         device_id: String,
         build_request: impl Fn(&C8yEndPoint) -> Result<HttpRequestBuilder, C8YRestError>,
     ) -> Result<HttpResult, C8YRestError> {
+        let device_id = self.end_point.get_device_id(device_id);
         let request_builder = build_request(&self.end_point);
         let request = request_builder?
             .bearer_auth(self.end_point.token.clone().unwrap_or_default())

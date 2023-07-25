@@ -118,6 +118,14 @@ impl C8yEndPoint {
         }
         false
     }
+
+    pub fn get_device_id(&self, device_id: String) -> String {
+        if device_id.eq("main") {
+            self.device_id.clone()
+        } else {
+            device_id
+        }
+    }
 }
 
 pub struct C8yMqttJwtTokenRetriever {
