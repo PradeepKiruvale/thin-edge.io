@@ -67,11 +67,7 @@ impl C8yEndPoint {
     }
 
     pub fn get_url_for_internal_id(&self, device_id: String) -> String {
-        let device_id = if device_id.eq("main") {
-            self.device_id.clone()
-        } else {
-            device_id
-        };
+        let device_id = self.get_device_id(device_id);
         let mut url_get_id = self.get_base_url();
         url_get_id.push_str("/identity/externalIds/c8y_Serial/");
         url_get_id.push_str(device_id.as_str());
