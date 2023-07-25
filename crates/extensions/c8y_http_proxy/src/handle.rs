@@ -61,7 +61,7 @@ impl C8YHttpProxy {
         &mut self,
         log_type: &str,
         log_content: &str,
-        source: Option<String>,
+        source: String,
     ) -> Result<String, C8YRestError> {
         let request: C8YRestRequest = UploadLogBinary {
             log_type: log_type.to_string(),
@@ -79,7 +79,7 @@ impl C8YHttpProxy {
         &mut self,
         config_path: &Path,
         config_type: &str,
-        source: Option<String>,
+        source: String,
     ) -> Result<String, C8YRestError> {
         let request: C8YRestRequest = UploadConfigFile {
             config_path: config_path.to_owned(),

@@ -47,7 +47,7 @@ async fn c8y_http_proxy_requests_the_device_internal_id_on_start() {
     tokio::spawn(async move {
         // NOTE: this is done in the background because this call awaits for the response.
         proxy
-            .upload_log_binary("test.log", "some log content", None)
+            .upload_log_binary("test.log", "some log content", "main".into())
             .await
             .unwrap();
     });
@@ -110,7 +110,7 @@ async fn retry_internal_id_on_expired_jwt() {
     tokio::spawn(async move {
         // NOTE: this is done in the background because this call awaits for the response.
         proxy
-            .upload_log_binary("test.log", "some log content", None)
+            .upload_log_binary("test.log", "some log content", "main".into())
             .await
             .unwrap();
     });
@@ -255,7 +255,7 @@ async fn auto_retry_upload_log_binary_when_internal_id_expires() {
     tokio::spawn(async move {
         // NOTE: this is done in the background because this call awaits for the response.
         proxy
-            .upload_log_binary("test.log", "some log content", None)
+            .upload_log_binary("test.log", "some log content", "main".into())
             .await
             .unwrap();
     });

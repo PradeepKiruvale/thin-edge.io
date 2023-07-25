@@ -103,7 +103,7 @@ impl From<SoftwareModule> for C8ySoftwareModuleItem {
 pub struct C8yUpdateSoftwareListResponse {
     #[serde(rename = "c8y_SoftwareList")]
     c8y_software_list: Option<Vec<C8ySoftwareModuleItem>>,
-    pub source: Option<String>,
+    pub source: String,
 }
 
 impl<'a> Jsonify<'a> for C8yUpdateSoftwareListResponse {}
@@ -119,7 +119,7 @@ impl From<&SoftwareListResponse> for C8yUpdateSoftwareListResponse {
         Self {
             c8y_software_list: Some(new_list),
             // Must derive the source from the topic
-            source: None,
+            source: "main".into(),
         }
     }
 }
@@ -399,7 +399,7 @@ mod tests {
                     url: Some("https://foobar.io/m.epl".into()),
                 },
             ]),
-            source: None,
+            source: "main".into(),
         };
 
         let expected_json = r#"{"c8y_SoftwareList":[{"name":"a","version":"::debian","url":""},{"name":"b","version":"1.0::debian","url":""},{"name":"c","version":"::debian","url":"https://foobar.io/c.deb"},{"name":"d","version":"beta::debian","url":"https://foobar.io/d.deb"},{"name":"m","version":"::apama","url":"https://foobar.io/m.epl"}],"source":null}"#;
@@ -421,7 +421,7 @@ mod tests {
 
         let expected_struct = C8yUpdateSoftwareListResponse {
             c8y_software_list: Some(vec![]),
-            source: None,
+            source: "main".into(),
         };
         let expected_json = r#"{"c8y_SoftwareList":[],"source":null}"#;
 

@@ -29,9 +29,9 @@ pub enum C8yEndPointError {
 #[derive(Debug)]
 pub struct C8yEndPoint {
     c8y_host: String,
-    device_id: String,
+    pub device_id: String,
     pub token: Option<String>,
-    devices_internal_id: HashMap<DeviceType, String>,
+    devices_internal_id: HashMap<String, String>,
 }
 
 impl C8yEndPoint {
@@ -44,20 +44,15 @@ impl C8yEndPoint {
         }
     }
 
-    pub fn get_internal_id(&self, device_type: DeviceType) -> Result<String, C8yEndPointError> {
-        match self.devices_internal_id.get(&device_type) {
+    pub fn get_internal_id(&self, device_id: String) -> Result<String, C8yEndPointError> {
+        match self.devices_internal_id.get(&device_id) {
             Some(internal_id) => Ok(internal_id.to_string()),
-            None => match device_type {
-                DeviceType::MainDevice => {
-                    Err(C8yEndPointError::InternalIdNotFound(self.device_id.clone()))
-                }
-                DeviceType::ChildDevice(cid) => Err(C8yEndPointError::InternalIdNotFound(cid)),
-            },
+            None => Err(C8yEndPointError::InternalIdNotFound(self.device_id.clone())),
         }
     }
 
-    pub fn set_internal_id(&mut self, device_type: DeviceType, internal_id: String) {
-        self.devices_internal_id.insert(device_type, internal_id);
+    pub fn set_internal_id(&mut self, device_id: String, internal_id: String) {
+        self.devices_internal_id.insert(device_id, internal_id);
     }
 
     fn get_base_url(&self) -> String {
@@ -238,10 +233,8 @@ mod tests {
     fn get_url_for_sw_list_returns_correct_address() {
         let mut c8y = C8yEndPoint::new("test_host", "test_device");
         c8y.devices_internal_id
-            .insert(http_proxy::DeviceType::MainDevice, "12345".to_string());
-        let internal_id = c8y
-            .get_internal_id(http_proxy::DeviceType::MainDevice)
-            .unwrap();
+            .insert("test_device".to_string(), "12345".to_string());
+        let internal_id = c8y.get_internal_id("test_device".to_string()).unwrap();
         let res = c8y.get_url_for_sw_list(internal_id);
 
         assert_eq!(res, "https://test_host/inventory/managedObjects/12345");
@@ -275,10 +268,8 @@ mod tests {
     fn check_non_cached_internal_id_for_a_device() {
         let mut c8y = C8yEndPoint::new("test_host", "test_device");
         c8y.devices_internal_id
-            .insert(http_proxy::DeviceType::MainDevice, "12345".to_string());
-        let end_pt_err = c8y
-            .get_internal_id(http_proxy::DeviceType::ChildDevice("test_child".into()))
-            .unwrap_err();
+            .insert("test_device".to_string(), "12345".to_string());
+        let end_pt_err = c8y.get_internal_id("test_child".into()).unwrap_err();
 
         assert_eq!(
             end_pt_err.to_string(),

@@ -47,14 +47,14 @@ pub struct GetJwtToken;
 pub struct UploadLogBinary {
     pub log_type: String,
     pub log_content: String,
-    pub source: Option<String>,
+    pub source: String,
 }
 
 #[derive(Debug, PartialEq, Eq)]
 pub struct UploadConfigFile {
     pub config_path: PathBuf,
     pub config_type: String,
-    pub source: Option<String>,
+    pub source: String,
 }
 
 #[derive(Debug, Clone, Eq, PartialEq)]
