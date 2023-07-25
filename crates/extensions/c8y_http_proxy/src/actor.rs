@@ -175,11 +175,6 @@ impl C8YHttpProxyActor {
     }
 
     async fn try_get_internal_id(&mut self, device_id: String) -> Result<String, C8YRestError> {
-        let device_id = if device_id.eq("main") {
-            self.end_point.device_id.clone()
-        } else {
-            device_id
-        };
         let url_get_id: String = self.end_point.get_url_for_internal_id(device_id);
         if self.end_point.token.is_none() {
             self.get_fresh_token().await?;
