@@ -3,8 +3,10 @@ use async_trait::async_trait;
 use tedge_actors::Actor;
 use tedge_actors::MessageReceiver;
 use tedge_actors::RuntimeError;
+use tedge_actors::Sender;
 use tedge_actors::SimpleMessageBox;
 use tedge_mqtt_ext::MqttMessage;
+use tedge_mqtt_ext::Topic;
 
 pub struct TedgetoTeConverterActor {
     daemon_name: String,
@@ -23,15 +25,23 @@ impl TedgetoTeConverterActor {
         &mut self,
         message: MqttMessage,
     ) -> Result<(), TedgetoTeConverterError> {
-        match message.topic {
-            topic if topic.name.starts_with("tedge/measurements") => Self::convert_measurement(),
+        match message.topic.clone() {
+            topic if topic.name.starts_with("tedge/measurements") => {
+                self.convert_measurement(message).await;
+            }
             _ => unreachable!(),
         }
         Ok(())
     }
 
-    fn convert_measurement() {
+    async fn convert_measurement(&mut self, message: MqttMessage) {
         println!("inside the convert measurement");
+
+        let te_topic = Topic::new_unchecked(format!("te/device/main///m/").as_str());
+
+        let msg = MqttMessage::new(&te_topic, message.payload_str().unwrap()).with_qos(message.qos);
+
+        self.messages.send(msg).await;
     }
 }
 
