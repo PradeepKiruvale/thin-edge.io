@@ -21,6 +21,17 @@ impl TedgetoTeConverterActor {
         }
     }
 
+    // Must map tedge/topic-> te/topic
+    // tedge/measurements -> te/device/main///m/
+    // tedge/measurements/child -> te/device/child///m/
+    // tedge/alarms/severity/alarm_type -> te/device/main///a/alarm_type, put severity in payload
+    // tedge/alarms/severity/child/alarm_type ->  te/device/child///a/alarm_type, put severity in payload
+    // tedge/events/event_type -> te/device/main///e/event_type
+    // tedge/events/child/event_type -> te/device/child///e/event_type
+    // tedge/health/service-name -> te/device/main/service/<service-name>/status/health
+    // tedge/health/child/service-name -> te/device/child/service/<service-name>/status/health
+    // tedge/health-check/service-name -> te/device/child/service/<service-name>/status/health/check
+    // tedge/health-check/child/service-name -> te/device/child/service/<service-name>/status/health/check
     async fn process_mqtt_message(
         &mut self,
         message: MqttMessage,
@@ -34,6 +45,7 @@ impl TedgetoTeConverterActor {
         Ok(())
     }
 
+    
     async fn convert_measurement(&mut self, message: MqttMessage) {
         println!("inside the convert measurement");
 
