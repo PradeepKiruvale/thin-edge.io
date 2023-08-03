@@ -79,7 +79,7 @@ impl TedgetoTeConverterActor {
                 self.convert_alarm(message).await?;
             }
             topic if topic.name.starts_with("tedge/health") => {
-                self.convert_measurement(message).await;
+                self.convert_health_status_message(message).await?;
             }
             _ => unreachable!(),
         }
@@ -111,9 +111,7 @@ impl TedgetoTeConverterActor {
         let mut alarm: ThinEdgeAlarmData = serde_json::from_str(message.payload_str()?)?;
         dbg!(&alarm);
         alarm.severity = severity.into();
-        // if alarm.time.is_none() {
-        //     alarm.time = Some(WallClock.now());
-        // }
+
         dbg!(&alarm);
 
         let te_topic = match cid {
@@ -140,14 +138,27 @@ impl TedgetoTeConverterActor {
         Ok(())
     }
 
-    async fn convert_health_status_message(&mut self, message: MqttMessage) {
+    // tedge/health/service-name -> te/device/main/service/<service-name>/status/health
+    // tedge/health/child/service-name -> te/device/child/service/<service-name>/status/health
+    async fn convert_health_status_message(
+        &mut self,
+        message: MqttMessage,
+    ) -> Result<(), TedgetoTeConverterError> {
         println!("inside the convert measurement");
 
-        let te_topic = Topic::new_unchecked(format!("te/device/main///m/").as_str());
+        let (cid, service_name) = get_child_id_and_service_name(&message.topic.name)?;
+        let te_topic = match cid {
+            Some(cid) => Topic::new_unchecked(
+                format!("te/device/{cid}/service/{service_name}/status/health").as_str(),
+            ),
+            None => Topic::new_unchecked(
+                format!("te/device/main/service/{service_name}/status/health").as_str(),
+            ),
+        };
+        let msg = MqttMessage::new(&te_topic, message.payload_str()?).with_qos(message.qos);
 
-        let msg = MqttMessage::new(&te_topic, message.payload_str().unwrap()).with_qos(message.qos);
-
-        self.messages.send(msg).await;
+        self.messages.send(msg).await?;
+        Ok(())
     }
 
     async fn convert_cmd(&mut self, message: MqttMessage) {
@@ -232,6 +243,27 @@ fn get_child_id_from_measurement_topic(
             return Err(TedgetoTeConverterError::UnsupportedTopic(topic.into()));
         } else {
             Ok(Some(ts[2]))
+        }
+    } else {
+        return Err(TedgetoTeConverterError::UnsupportedTopic(topic.into()));
+    }
+}
+
+fn get_child_id_and_service_name(
+    topic: &str,
+) -> Result<(Option<&str>, &str), TedgetoTeConverterError> {
+    let ts = topic.split('/').collect::<Vec<_>>();
+    if ts.len() == 3 {
+        if ts[2].is_empty() {
+            return Err(TedgetoTeConverterError::UnsupportedTopic(topic.into()));
+        } else {
+            Ok((None, ts[2]))
+        }
+    } else if ts.len() == 4 {
+        if ts[3].is_empty() {
+            return Err(TedgetoTeConverterError::UnsupportedTopic(topic.into()));
+        } else {
+            Ok((Some(ts[2]), ts[3]))
         }
     } else {
         return Err(TedgetoTeConverterError::UnsupportedTopic(topic.into()));
