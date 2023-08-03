@@ -66,8 +66,8 @@ impl TedgetoTeConverterActor {
         message: MqttMessage,
     ) -> Result<(), TedgetoTeConverterError> {
         println!("inside the convert measurement");
-        let ts = message.topic.name.split('/').collect::<Vec<_>>();
-        let te_topic = match ts.get(2) {
+        let cid = get_child_id(&message.topic.name)?;
+        let te_topic = match cid {
             Some(cid) => Topic::new_unchecked(format!("te/device/{cid}///m/").as_str()),
             None => Topic::new_unchecked(format!("te/device/main///m/").as_str()),
         };
@@ -88,18 +88,7 @@ impl TedgetoTeConverterActor {
 
     async fn convert_event(&mut self, message: MqttMessage) -> Result<(), TedgetoTeConverterError> {
         println!("inside the convert event");
-        let ts = message.topic.name.split('/').collect::<Vec<_>>();
-
-        let (cid, event_type) = if ts.len() == 3 {
-            (None, ts[2])
-        } else if ts.len() == 4 {
-            (Some(ts[3]), ts[2])
-        } else {
-            return Err(TedgetoTeConverterError::UnsupportedTopic(
-                message.topic.name,
-            ));
-        };
-
+        let (cid, event_type) = get_child_id_and_event_type(&message.topic.name)?;
         let te_topic = match cid {
             Some(cid) => Topic::new_unchecked(format!("te/device/{cid}///e/{event_type}").as_str()),
             None => Topic::new_unchecked(format!("te/device/main///e/{event_type}").as_str()),
@@ -147,5 +136,41 @@ impl Actor for TedgetoTeConverterActor {
             }
         }
         Ok(())
+    }
+}
+
+fn get_child_id_and_event_type(
+    topic: &str,
+) -> Result<(Option<&str>, &str), TedgetoTeConverterError> {
+    let ts = topic.split('/').collect::<Vec<_>>();
+    if ts.len() == 3 {
+        if ts[2].is_empty() {
+            return Err(TedgetoTeConverterError::UnsupportedTopic(topic.into()));
+        } else {
+            Ok((None, ts[2]))
+        }
+    } else if ts.len() == 4 {
+        if ts[2].is_empty() || ts[3].is_empty() {
+            return Err(TedgetoTeConverterError::UnsupportedTopic(topic.into()));
+        } else {
+            Ok((Some(ts[3]), ts[2]))
+        }
+    } else {
+        return Err(TedgetoTeConverterError::UnsupportedTopic(topic.into()));
+    }
+}
+
+fn get_child_id(topic: &str) -> Result<Option<&str>, TedgetoTeConverterError> {
+    let ts = topic.split('/').collect::<Vec<_>>();
+    if ts.len() == 2 {
+        Ok(None)
+    } else if ts.len() == 3 {
+        if ts[2].is_empty() {
+            return Err(TedgetoTeConverterError::UnsupportedTopic(topic.into()));
+        } else {
+            Ok(Some(ts[2]))
+        }
+    } else {
+        return Err(TedgetoTeConverterError::UnsupportedTopic(topic.into()));
     }
 }
