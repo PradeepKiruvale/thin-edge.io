@@ -29,7 +29,8 @@ impl TedgetoTeConverterBuilder {
             "tedge/measurements/+",
             "tedge/events/+",
             "tedge/events/+/+",
-            "tedge/alarams/+",
+            "tedge/alarms/+/+",
+            "tedge/alarms/+/+/+",
         ]
         .try_into()
         .expect("Failed to create the tedge to te topic filter");
