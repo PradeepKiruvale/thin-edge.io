@@ -3,8 +3,8 @@ use tedge_actors::RuntimeError;
 #[derive(Debug, thiserror::Error)]
 #[allow(clippy::enum_variant_names)]
 pub enum TedgetoTeConverterError {
-    #[error(transparent)]
-    FromSerdeJson(#[from] serde_json::Error),
+    #[error("Unsupported topic: {0}")]
+    UnsupportedTopic(String),
 
     #[error(transparent)]
     FromChannelError(#[from] tedge_actors::ChannelError),

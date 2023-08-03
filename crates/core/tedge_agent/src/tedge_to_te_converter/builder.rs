@@ -24,9 +24,15 @@ impl TedgetoTeConverterBuilder {
         mqtt: &mut (impl ServiceProvider<MqttMessage, MqttMessage, TopicFilter> + AsMut<MqttConfig>),
     ) -> Self {
         // Connect this actor to MQTT
-        let subscriptions = vec!["tedge/measurements", "tedge/alarams", "tedge/events"]
-            .try_into()
-            .expect("Failed to create the tedge to te topic filter");
+        let subscriptions = vec![
+            "tedge/measurements",
+            "tedge/measurements/+",
+            "tedge/events/+",
+            "tedge/events/+/+",
+            "tedge/alarams/+",
+        ]
+        .try_into()
+        .expect("Failed to create the tedge to te topic filter");
 
         let mut box_builder = SimpleMessageBoxBuilder::new(service_name, 16);
         box_builder
