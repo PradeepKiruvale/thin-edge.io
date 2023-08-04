@@ -92,14 +92,13 @@ async fn convert_incoming_custom_main_device_alarm_topic() -> Result<(), DynErro
         &Topic::new_unchecked("tedge/alarms/critical/MyCustomAlarm"),
         r#"{
             "text": "I raised it",
-            "time": "2021-04-23T19:00:00+05:00",
             "someOtherCustomFragment": {"nested":{"value": "extra info"}}
         }"#,
     );
 
     let expected_mqtt_message = MqttMessage::new(
         &Topic::new_unchecked("te/device/main///a/MyCustomAlarm"),
-        r#"{"text":"I raised it","time":"2021-04-23T19:00:00+05:00","severity":"critical","someOtherCustomFragment":{"nested":{"value":"extra info"}}}"#,
+        r#"{"text":"I raised it","severity":"critical","someOtherCustomFragment":{"nested":{"value":"extra info"}}}"#,
     );
 
     mqtt_box.send(mqtt_message).await?;
@@ -111,30 +110,29 @@ async fn convert_incoming_custom_main_device_alarm_topic() -> Result<(), DynErro
 
 #[tokio::test]
 async fn convert_incoming_child_device_alarm_topic() -> Result<(), DynError> {
-   // Spawn incoming mqtt message converter
-   let mut mqtt_box = spawn_tedge_to_te_converter().await?;
+    // Spawn incoming mqtt message converter
+    let mut mqtt_box = spawn_tedge_to_te_converter().await?;
 
-   // Simulate SoftwareList MQTT message received.
-   let mqtt_message = MqttMessage::new(
-       &Topic::new_unchecked("tedge/alarms/critical/child/MyCustomAlarm"),
-       r#"{
+    // Simulate SoftwareList MQTT message received.
+    let mqtt_message = MqttMessage::new(
+        &Topic::new_unchecked("tedge/alarms/critical/child/MyCustomAlarm"),
+        r#"{
            "text": "I raised it",
            "time": "2021-04-23T19:00:00+05:00"
        }"#,
-   );
+    );
 
-   let expected_mqtt_message = MqttMessage::new(
-       &Topic::new_unchecked("te/device/child///a/MyCustomAlarm"),
-       r#"{"text":"I raised it","time":"2021-04-23T19:00:00+05:00","severity":"critical"}"#,
-   );
+    let expected_mqtt_message = MqttMessage::new(
+        &Topic::new_unchecked("te/device/child///a/MyCustomAlarm"),
+        r#"{"text":"I raised it","time":"2021-04-23T19:00:00+05:00","severity":"critical"}"#,
+    );
 
-   mqtt_box.send(mqtt_message).await?;
+    mqtt_box.send(mqtt_message).await?;
 
-   // Assert SoftwareListRequest
-   mqtt_box.assert_received([expected_mqtt_message]).await;
-   Ok(())
+    // Assert SoftwareListRequest
+    mqtt_box.assert_received([expected_mqtt_message]).await;
+    Ok(())
 }
-
 
 #[tokio::test]
 async fn convert_incoming_main_device_event_topic() -> Result<(), DynError> {
