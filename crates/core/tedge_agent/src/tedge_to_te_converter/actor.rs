@@ -13,7 +13,6 @@ use tedge_actors::SimpleMessageBox;
 use tedge_mqtt_ext::MqttMessage;
 use tedge_mqtt_ext::Topic;
 
-/// In-memory representation of ThinEdge JSON alarm payload
 #[derive(Debug, Serialize, Deserialize, Eq, PartialEq)]
 pub struct ThinEdgeAlarmData {
     pub text: Option<String>,
@@ -43,7 +42,6 @@ impl Actor for TedgetoTeConverterActor {
     async fn run(&mut self) -> Result<(), RuntimeError> {
         while let Some(message) = self.messages.recv().await {
             {
-                println!("inside process message");
                 self.process_mqtt_message(message).await?;
             }
         }
@@ -56,15 +54,13 @@ impl TedgetoTeConverterActor {
         Self { messages }
     }
 
-    //tedge/health-check/service-name -> te/device/main/service/<service-name>/cmd/health/check
-    //tedge/health-check/child/service-name -> te/device/child/service/<service-name>/cmd/health/check
+    // Todo: Convert command topics
     //tedge/commands/res/software/list	te/<identifier>/cmd/software_list/<cmd_id>
     //tedge/commands/res/software/update	te/<identifier>/cmd/software_update/<cmd_id>
     //tedge/+/commands/res/config_snapshot	te/<identifier>/cmd/config_snapshot/<cmd_id>
     //tedge/+/commands/res/config_update	te/<identifier>/cmd/config_update/<cmd_id>
     //tedge/+/commands/res/firmware_update	te/<identifier>/cmd/firmware_update/<cmd_id>
     //tedge/commands/res/control/restart	te/<identifier>/cmd/restart/<cmd_id>
-
     async fn process_mqtt_message(
         &mut self,
         message: MqttMessage,
@@ -93,7 +89,6 @@ impl TedgetoTeConverterActor {
         &mut self,
         message: MqttMessage,
     ) -> Result<(), TedgetoTeConverterError> {
-        println!("inside the convert measurement");
         let cid = get_child_id_from_measurement_topic(&message.topic.name)?;
         let te_topic = match cid {
             Some(cid) => Topic::new_unchecked(format!("te/device/{cid}///m/").as_str()),
@@ -101,7 +96,6 @@ impl TedgetoTeConverterActor {
         };
 
         let msg = MqttMessage::new(&te_topic, message.payload_str()?).with_qos(message.qos);
-
         self.messages.send(msg).await?;
         Ok(())
     }
@@ -109,7 +103,6 @@ impl TedgetoTeConverterActor {
     // tedge/alarms/severity/alarm_type -> te/device/main///a/alarm_type, put severity in payload
     // tedge/alarms/severity/child/alarm_type ->  te/device/child///a/alarm_type, put severity in payload
     async fn convert_alarm(&mut self, message: MqttMessage) -> Result<(), TedgetoTeConverterError> {
-        println!("inside the convert alarm");
         let (cid, alarm_type, severity) =
             get_child_id_and_alarm_type_and_severity(&message.topic.name)?;
         let mut alarm: ThinEdgeAlarmData = serde_json::from_str(message.payload_str()?)?;
@@ -128,7 +121,6 @@ impl TedgetoTeConverterActor {
     // tedge/events/event_type -> te/device/main///e/event_type
     // tedge/events/child/event_type -> te/device/child///e/event_type
     async fn convert_event(&mut self, message: MqttMessage) -> Result<(), TedgetoTeConverterError> {
-        println!("inside the convert event");
         let (cid, event_type) = get_child_id_and_event_type(&message.topic.name)?;
         let te_topic = match cid {
             Some(cid) => Topic::new_unchecked(format!("te/device/{cid}///e/{event_type}").as_str()),
@@ -136,7 +128,6 @@ impl TedgetoTeConverterActor {
         };
 
         let msg = MqttMessage::new(&te_topic, message.payload_str().unwrap()).with_qos(message.qos);
-
         self.messages.send(msg).await?;
         Ok(())
     }
@@ -147,8 +138,6 @@ impl TedgetoTeConverterActor {
         &mut self,
         message: MqttMessage,
     ) -> Result<(), TedgetoTeConverterError> {
-        println!("inside the convert measurement");
-
         let (cid, service_name) = get_child_id_and_service_name(&message.topic.name)?;
         let te_topic = match cid {
             Some(cid) => Topic::new_unchecked(
@@ -171,7 +160,7 @@ fn get_child_id_and_event_type(
     let ts = topic.split('/').collect::<Vec<_>>();
     if ts.len() == 3 {
         if ts[2].is_empty() {
-            return Err(TedgetoTeConverterError::UnsupportedTopic(topic.into()));
+            Err(TedgetoTeConverterError::UnsupportedTopic(topic.into()))
         } else {
             Ok((None, ts[2]))
         }
@@ -192,13 +181,13 @@ fn get_child_id_and_alarm_type_and_severity(
     let ts = topic.split('/').collect::<Vec<_>>();
     if ts.len() == 4 {
         if ts[3].is_empty() || ts[2].is_empty() {
-            return Err(TedgetoTeConverterError::UnsupportedTopic(topic.into()));
+            Err(TedgetoTeConverterError::UnsupportedTopic(topic.into()))
         } else {
             Ok((None, ts[3], ts[2]))
         }
     } else if ts.len() == 5 {
         if ts[3].is_empty() || ts[4].is_empty() || ts[2].is_empty() {
-            return Err(TedgetoTeConverterError::UnsupportedTopic(topic.into()));
+            Err(TedgetoTeConverterError::UnsupportedTopic(topic.into()))
         } else {
             Ok((Some(ts[3]), ts[4], ts[2]))
         }
@@ -231,17 +220,17 @@ fn get_child_id_and_service_name(
 
     if ts.len() == 3 {
         if ts[2].is_empty() {
-            return Err(TedgetoTeConverterError::UnsupportedTopic(topic.into()));
+            Err(TedgetoTeConverterError::UnsupportedTopic(topic.into()))
         } else {
             Ok((None, ts[2]))
         }
     } else if ts.len() == 4 {
         if ts[3].is_empty() {
-            return Err(TedgetoTeConverterError::UnsupportedTopic(topic.into()));
+            Err(TedgetoTeConverterError::UnsupportedTopic(topic.into()))
         } else {
             Ok((Some(ts[2]), ts[3]))
         }
     } else {
-        return Err(TedgetoTeConverterError::UnsupportedTopic(topic.into()));
+        Err(TedgetoTeConverterError::UnsupportedTopic(topic.into()))
     }
 }

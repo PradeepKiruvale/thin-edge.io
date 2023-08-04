@@ -34,14 +34,14 @@ assets = [
 
 [dependencies]
 anyhow = "1.0"
-clock = { path = "../../common/clock" }
 async-trait = "0.1"
 camino = "1.1.4"
 clap = { version = "3.2", features = ["cargo", "derive"] }
+clock = { path = "../../common/clock" }
 flockfile = { path = "../../common/flockfile" }
 hyper = { version = "0.14", features = ["full"] }
 lazy_static = "1.4"
-mqtt_channel = {path = "../../common/mqtt_channel"}
+mqtt_channel = { path = "../../common/mqtt_channel" }
 path-clean = "0.1"
 plugin_sm = { path = "../plugin_sm" }
 routerify = "3.0"

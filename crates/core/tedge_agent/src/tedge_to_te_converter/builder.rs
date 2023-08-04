@@ -21,7 +21,6 @@ impl TedgetoTeConverterBuilder {
         service_name: &str,
         mqtt: &mut impl ServiceProvider<MqttMessage, MqttMessage, TopicFilter>,
     ) -> Self {
-        // Connect this actor to MQTT
         let subscriptions = vec![
             "tedge/measurements",
             "tedge/measurements/+",
@@ -39,9 +38,7 @@ impl TedgetoTeConverterBuilder {
         box_builder
             .set_request_sender(mqtt.connect_consumer(subscriptions, box_builder.get_sender()));
 
-        let builder = TedgetoTeConverterBuilder { box_builder };
-
-        builder
+        TedgetoTeConverterBuilder { box_builder }
     }
 }
 
@@ -53,11 +50,9 @@ impl RuntimeRequestSink for TedgetoTeConverterBuilder {
 
 impl Builder<TedgetoTeConverterActor> for TedgetoTeConverterBuilder {
     type Error = LinkError;
-
     fn try_build(self) -> Result<TedgetoTeConverterActor, Self::Error> {
         let message_box = self.box_builder.build();
         let actor = TedgetoTeConverterActor::new(message_box);
-
         Ok(actor)
     }
 }
