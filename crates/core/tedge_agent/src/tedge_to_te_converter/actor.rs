@@ -92,7 +92,7 @@ impl TedgetoTeConverterActor {
         let cid = get_child_id_from_measurement_topic(&message.topic.name)?;
         let te_topic = match cid {
             Some(cid) => Topic::new_unchecked(format!("te/device/{cid}///m/").as_str()),
-            None => Topic::new_unchecked(format!("te/device/main///m/").as_str()),
+            None => Topic::new_unchecked("te/device/main///m/"),
         };
 
         let msg = MqttMessage::new(&te_topic, message.payload_str()?).with_qos(message.qos);
