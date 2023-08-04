@@ -1,4 +1,3 @@
-use mqtt_channel::MqttError;
 use tedge_actors::RuntimeError;
 use tedge_api::alarm::ThinEdgeJsonDeserializerError;
 

@@ -1,13 +1,10 @@
-use std::collections::HashMap;
-
 use crate::tedge_to_te_converter::error::TedgetoTeConverterError;
 use async_trait::async_trait;
-use clock::Clock;
 use clock::Timestamp;
-use clock::WallClock;
 use serde::Deserialize;
 use serde::Serialize;
 use serde_json::Value;
+use std::collections::HashMap;
 use tedge_actors::Actor;
 use tedge_actors::MessageReceiver;
 use tedge_actors::RuntimeError;
@@ -34,32 +31,36 @@ pub struct ThinEdgeAlarmData {
 }
 
 pub struct TedgetoTeConverterActor {
-    daemon_name: String,
     messages: SimpleMessageBox<MqttMessage, MqttMessage>,
 }
 
-impl TedgetoTeConverterActor {
-    pub fn new(daemon_name: String, messages: SimpleMessageBox<MqttMessage, MqttMessage>) -> Self {
-        Self {
-            daemon_name,
-            messages,
-        }
+#[async_trait]
+impl Actor for TedgetoTeConverterActor {
+    fn name(&self) -> &str {
+        "TedgetoTeConverterActor"
     }
 
-    // Must map tedge/topic-> te/topic
-    // tedge/measurements -> te/device/main///m/
-    // tedge/measurements/child -> te/device/child///m/
-    // tedge/alarms/severity/alarm_type -> te/device/main///a/alarm_type, put severity in payload
-    // tedge/alarms/severity/child/alarm_type ->  te/device/child///a/alarm_type, put severity in payload
-    // tedge/events/event_type -> te/device/main///e/event_type
-    // tedge/events/child/event_type -> te/device/child///e/event_type
-    // tedge/health/service-name -> te/device/main/service/<service-name>/status/health
-    // tedge/health/child/service-name -> te/device/child/service/<service-name>/status/health
-    // tedge/health-check/service-name -> te/device/main/service/<service-name>/cmd/health/check
-    // tedge/health-check/child/service-name -> te/device/child/service/<service-name>/cmd/health/check
-    // tedge/commands/res/software/list	te/<identifier>/cmd/software_list/<cmd_id>
-    // tedge/commands/res/software/update	te/<identifier>/cmd/software_update/<cmd_id>
-    // tedge/+/commands/res/config_snapshot	te/<identifier>/cmd/config_snapshot/<cmd_id>
+    async fn run(&mut self) -> Result<(), RuntimeError> {
+        while let Some(message) = self.messages.recv().await {
+            {
+                println!("inside process message");
+                self.process_mqtt_message(message).await?;
+            }
+        }
+        Ok(())
+    }
+}
+
+impl TedgetoTeConverterActor {
+    pub fn new(messages: SimpleMessageBox<MqttMessage, MqttMessage>) -> Self {
+        Self { messages }
+    }
+
+    //tedge/health-check/service-name -> te/device/main/service/<service-name>/cmd/health/check
+    //tedge/health-check/child/service-name -> te/device/child/service/<service-name>/cmd/health/check
+    //tedge/commands/res/software/list	te/<identifier>/cmd/software_list/<cmd_id>
+    //tedge/commands/res/software/update	te/<identifier>/cmd/software_update/<cmd_id>
+    //tedge/+/commands/res/config_snapshot	te/<identifier>/cmd/config_snapshot/<cmd_id>
     //tedge/+/commands/res/config_update	te/<identifier>/cmd/config_update/<cmd_id>
     //tedge/+/commands/res/firmware_update	te/<identifier>/cmd/firmware_update/<cmd_id>
     //tedge/commands/res/control/restart	te/<identifier>/cmd/restart/<cmd_id>
@@ -81,14 +82,13 @@ impl TedgetoTeConverterActor {
             topic if topic.name.starts_with("tedge/health") => {
                 self.convert_health_status_message(message).await?;
             }
-            topic if topic.name.contains("/commands/res/") => {
-                self.convert_command_response_message(message).await?;
-            }
-            _ => unreachable!(),
+            _ => {}
         }
         Ok(())
     }
 
+    // tedge/measurements -> te/device/main///m/
+    // tedge/measurements/child -> te/device/child///m/
     async fn convert_measurement(
         &mut self,
         message: MqttMessage,
@@ -106,16 +106,14 @@ impl TedgetoTeConverterActor {
         Ok(())
     }
 
+    // tedge/alarms/severity/alarm_type -> te/device/main///a/alarm_type, put severity in payload
+    // tedge/alarms/severity/child/alarm_type ->  te/device/child///a/alarm_type, put severity in payload
     async fn convert_alarm(&mut self, message: MqttMessage) -> Result<(), TedgetoTeConverterError> {
         println!("inside the convert alarm");
         let (cid, alarm_type, severity) =
             get_child_id_and_alarm_type_and_severity(&message.topic.name)?;
-        dbg!(&message.payload_str());
         let mut alarm: ThinEdgeAlarmData = serde_json::from_str(message.payload_str()?)?;
-        dbg!(&alarm);
         alarm.severity = severity.into();
-
-        dbg!(&alarm);
 
         let te_topic = match cid {
             Some(cid) => Topic::new_unchecked(format!("te/device/{cid}///a/{alarm_type}").as_str()),
@@ -127,6 +125,8 @@ impl TedgetoTeConverterActor {
         Ok(())
     }
 
+    // tedge/events/event_type -> te/device/main///e/event_type
+    // tedge/events/child/event_type -> te/device/child///e/event_type
     async fn convert_event(&mut self, message: MqttMessage) -> Result<(), TedgetoTeConverterError> {
         println!("inside the convert event");
         let (cid, event_type) = get_child_id_and_event_type(&message.topic.name)?;
@@ -163,52 +163,6 @@ impl TedgetoTeConverterActor {
         self.messages.send(msg).await?;
         Ok(())
     }
-
-    // tedge/commands/res/software/list	te/<identifier>/cmd/software_list/<cmd_id>
-    // tedge/commands/res/software/update	te/<identifier>/cmd/software_update/<cmd_id>
-    // tedge/+/commands/res/config_snapshot	te/<identifier>/cmd/config_snapshot/<cmd_id>
-    //tedge/+/commands/res/config_update	te/<identifier>/cmd/config_update/<cmd_id>
-    //tedge/+/commands/res/firmware_update	te/<identifier>/cmd/firmware_update/<cmd_id>
-    //tedge/commands/res/control/restart	te/<identifier>/cmd/restart/<cmd_id>
-    async fn convert_command_response_message(
-        &mut self,
-        message: MqttMessage,
-    ) -> Result<(), TedgetoTeConverterError> {
-        println!("inside the convert command response");
-        map_software_response_command(message.topic.name);
-        map_control_restart_command(message.topic.name);
-        
-        let (cid, cmd_type, service, service_name) = get_child_id_and_cmd_type_service_and_service_name(&message.topic.name)?;
-        let te_topic = match cid {
-            Some(cid) => Topic::new_unchecked(
-                format!("te/device/{cid}/service/{service_name}/status/health").as_str(),
-            ),
-            None => Topic::new_unchecked(
-                format!("te/device/main/service/{service_name}/status/health").as_str(),
-            ),
-        };
-        let msg = MqttMessage::new(&te_topic, message.payload_str()?).with_qos(message.qos);
-
-        self.messages.send(msg).await?;
-        Ok(())
-    }
-}
-
-#[async_trait]
-impl Actor for TedgetoTeConverterActor {
-    fn name(&self) -> &str {
-        "TedgetoTeConverterActor"
-    }
-
-    async fn run(&mut self) -> Result<(), RuntimeError> {
-        while let Some(message) = self.messages.recv().await {
-            {
-                println!("inside process message");
-                self.process_mqtt_message(message).await;
-            }
-        }
-        Ok(())
-    }
 }
 
 fn get_child_id_and_event_type(
@@ -225,7 +179,7 @@ fn get_child_id_and_event_type(
         if ts[2].is_empty() || ts[3].is_empty() {
             return Err(TedgetoTeConverterError::UnsupportedTopic(topic.into()));
         } else {
-            Ok((Some(ts[3]), ts[2]))
+            Ok((Some(ts[2]), ts[3]))
         }
     } else {
         return Err(TedgetoTeConverterError::UnsupportedTopic(topic.into()));
@@ -290,9 +244,4 @@ fn get_child_id_and_service_name(
     } else {
         return Err(TedgetoTeConverterError::UnsupportedTopic(topic.into()));
     }
-}
-
-fn get_child_id_and_cmd_type_service_and_service_name(  topic: &str,
-) -> Result<(Option<&str>, &str), TedgetoTeConverterError> {
-    let ts = topic.split('/').collect::<Vec<_>>();
 }
