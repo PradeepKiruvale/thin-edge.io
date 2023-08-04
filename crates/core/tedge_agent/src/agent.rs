@@ -5,6 +5,7 @@ use crate::restart_manager::config::RestartManagerConfig;
 use crate::software_manager::builder::SoftwareManagerBuilder;
 use crate::software_manager::config::SoftwareManagerConfig;
 use crate::tedge_operation_converter::builder::TedgeOperationConverterBuilder;
+use crate::tedge_to_te_converter::builder::TedgetoTeConverterBuilder;
 use camino::Utf8PathBuf;
 use flockfile::check_another_instance_is_not_running;
 use flockfile::Flockfile;
@@ -163,6 +164,10 @@ impl Agent {
         // Health actor
         let health_actor = HealthMonitorBuilder::new(TEDGE_AGENT, &mut mqtt_actor_builder);
 
+        // Tedge to Te converter
+        let tedge_converter_actor =
+            TedgetoTeConverterBuilder::new(TEDGE_AGENT, &mut mqtt_actor_builder);
+
         // Spawn all
         runtime.spawn(signal_actor_builder).await?;
         runtime.spawn(file_transfer_server_builder).await?;
@@ -171,6 +176,7 @@ impl Agent {
         runtime.spawn(software_update_builder).await?;
         runtime.spawn(converter_actor_builder).await?;
         runtime.spawn(health_actor).await?;
+        runtime.spawn(tedge_converter_actor).await?;
 
         runtime.run_to_completion().await?;
 
