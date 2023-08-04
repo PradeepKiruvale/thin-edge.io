@@ -81,6 +81,9 @@ impl TedgetoTeConverterActor {
             topic if topic.name.starts_with("tedge/health") => {
                 self.convert_health_status_message(message).await?;
             }
+            topic if topic.name.contains("/commands/res/") => {
+                self.convert_command_response_message(message).await?;
+            }
             _ => unreachable!(),
         }
         Ok(())
@@ -161,15 +164,33 @@ impl TedgetoTeConverterActor {
         Ok(())
     }
 
-    async fn convert_cmd(&mut self, message: MqttMessage) {
-        println!("inside the convert measurement");
+    // tedge/commands/res/software/list	te/<identifier>/cmd/software_list/<cmd_id>
+    // tedge/commands/res/software/update	te/<identifier>/cmd/software_update/<cmd_id>
+    // tedge/+/commands/res/config_snapshot	te/<identifier>/cmd/config_snapshot/<cmd_id>
+    //tedge/+/commands/res/config_update	te/<identifier>/cmd/config_update/<cmd_id>
+    //tedge/+/commands/res/firmware_update	te/<identifier>/cmd/firmware_update/<cmd_id>
+    //tedge/commands/res/control/restart	te/<identifier>/cmd/restart/<cmd_id>
+    async fn convert_command_response_message(
+        &mut self,
+        message: MqttMessage,
+    ) -> Result<(), TedgetoTeConverterError> {
+        println!("inside the convert command response");
+        map_software_response_command(message.topic.name);
+        map_control_restart_command(message.topic.name);
+        
+        let (cid, cmd_type, service, service_name) = get_child_id_and_cmd_type_service_and_service_name(&message.topic.name)?;
+        let te_topic = match cid {
+            Some(cid) => Topic::new_unchecked(
+                format!("te/device/{cid}/service/{service_name}/status/health").as_str(),
+            ),
+            None => Topic::new_unchecked(
+                format!("te/device/main/service/{service_name}/status/health").as_str(),
+            ),
+        };
+        let msg = MqttMessage::new(&te_topic, message.payload_str()?).with_qos(message.qos);
 
-        let te_topic =
-            Topic::new_unchecked(format!("te/device/main///cmd/cmd-type/cmd-id/").as_str());
-
-        let msg = MqttMessage::new(&te_topic, message.payload_str().unwrap()).with_qos(message.qos);
-
-        self.messages.send(msg).await;
+        self.messages.send(msg).await?;
+        Ok(())
     }
 }
 
@@ -253,6 +274,7 @@ fn get_child_id_and_service_name(
     topic: &str,
 ) -> Result<(Option<&str>, &str), TedgetoTeConverterError> {
     let ts = topic.split('/').collect::<Vec<_>>();
+
     if ts.len() == 3 {
         if ts[2].is_empty() {
             return Err(TedgetoTeConverterError::UnsupportedTopic(topic.into()));
@@ -268,4 +290,9 @@ fn get_child_id_and_service_name(
     } else {
         return Err(TedgetoTeConverterError::UnsupportedTopic(topic.into()));
     }
+}
+
+fn get_child_id_and_cmd_type_service_and_service_name(  topic: &str,
+) -> Result<(Option<&str>, &str), TedgetoTeConverterError> {
+    let ts = topic.split('/').collect::<Vec<_>>();
 }
