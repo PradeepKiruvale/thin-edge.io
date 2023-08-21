@@ -44,6 +44,7 @@ tracing = { version = "0.1", features = ["attributes", "log"] }
 anyhow = "1.0"
 assert-json-diff = "2.0"
 assert_matches = "1.5"
+chrono = "0.4"
 proptest = "1.0"
 rand = "0.8"
 tedge_actors = { path = "../../core/tedge_actors", features = ["test-helpers"] }
