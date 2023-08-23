@@ -20,5 +20,5 @@ tokio = { workspace = true, features = [
 ] }
 
 [dev-dependencies]
-anyhow = "1.0"
+anyhow.workspace = true
 tedge_test_utils = { path = "../../tests/tedge_test_utils" }

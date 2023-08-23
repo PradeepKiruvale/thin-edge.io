@@ -27,7 +27,7 @@ time = { version = "0.3", features = ["formatting", "serde"] }
 tokio = { workspace = true, features = ["macros"] }
 
 [dev-dependencies]
-anyhow = "1.0"
+anyhow.workspace = true
 assert-json-diff = "2.0"
 filetime = "0.2"
 tedge_actors = { path = "../../core/tedge_actors", features = ["test-helpers"] }

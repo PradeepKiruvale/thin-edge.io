@@ -19,6 +19,6 @@ tedge_config = { path = "../../crates/common/tedge_config" }
 thiserror.workspace = true
 
 [dev-dependencies]
-anyhow = "1.0"
+anyhow.workspace = true
 tedge_utils = { path = "../../crates/common/tedge_utils" }
 test-case = "2.2"

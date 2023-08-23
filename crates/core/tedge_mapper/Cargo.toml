@@ -10,7 +10,7 @@ homepage = { workspace = true }
 repository = { workspace = true }
 
 [dependencies]
-anyhow = "1.0"
+anyhow.workspace = true
 async-trait = "0.1"
 aws_mapper_ext = { path = "../../extensions/aws_mapper_ext" }
 az_mapper_ext = { path = "../../extensions/az_mapper_ext" }

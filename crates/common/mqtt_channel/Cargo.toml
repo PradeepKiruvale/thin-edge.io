@@ -19,6 +19,6 @@ thiserror.workspace = true
 tokio = { workspace = true, features = ["rt", "time"] }
 
 [dev-dependencies]
-anyhow = "1.0"
+anyhow.workspace = true
 mqtt_tests = { path = "../../tests/mqtt_tests" }
 serial_test = "0.8"

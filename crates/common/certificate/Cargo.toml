@@ -19,7 +19,7 @@ x509-parser = "0.14"
 zeroize = "1.5"
 
 [dev-dependencies]
-anyhow = "1.0"
+anyhow.workspace = true
 assert_matches = "1.5"
 base64 = "0.13"
 pem = "1.0"

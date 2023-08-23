@@ -24,7 +24,7 @@ tracing = { version = "0.1", features = ["attributes", "log"] }
 url = "2.2"
 
 [dev-dependencies]
-anyhow = "1.0"
+anyhow.workspace = true
 serial_test = "0.8"
 tempfile = "3.2"
 test-case = "2.2"

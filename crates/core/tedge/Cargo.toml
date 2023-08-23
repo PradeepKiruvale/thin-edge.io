@@ -11,7 +11,7 @@ repository = { workspace = true }
 readme = "README.md"
 
 [dependencies]
-anyhow = "1.0"
+anyhow.workspace = true
 atty = "0.2"
 base64 = "0.13"
 camino = "1.1.4"

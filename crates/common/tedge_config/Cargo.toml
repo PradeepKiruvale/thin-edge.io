@@ -27,7 +27,7 @@ tracing-subscriber = { version = "0.3", features = ["time", "env-filter"] }
 url = "2.2"
 
 [dev-dependencies]
-anyhow = "1.0"
+anyhow.workspace = true
 assert_matches = "1.5"
 figment = { version = "0.10", features = ["test"] }
 tedge_test_utils = { path = "../../tests/tedge_test_utils" }

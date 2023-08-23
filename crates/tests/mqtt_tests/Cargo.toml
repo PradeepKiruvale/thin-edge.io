@@ -9,7 +9,7 @@ homepage = { workspace = true }
 repository = { workspace = true }
 
 [dependencies]
-anyhow = "1.0"
+anyhow.workspace = true
 fastrand = "1.8"
 futures = "0.3"
 once_cell = "1.8"

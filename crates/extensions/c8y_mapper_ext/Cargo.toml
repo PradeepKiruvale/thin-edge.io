@@ -41,7 +41,7 @@ toml = "0.5"
 tracing = { version = "0.1", features = ["attributes", "log"] }
 
 [dev-dependencies]
-anyhow = "1.0"
+anyhow.workspace = true
 assert-json-diff = "2.0"
 assert_matches = "1.5"
 proptest = "1.0"
