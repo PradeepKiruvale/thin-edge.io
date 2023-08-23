@@ -29,6 +29,7 @@ tokio = { version = "1.23", default-features = false }
 serde = "1.0"
 thiserror = "1.0"
 anyhow =  "1.0"
+rumqttc = "0.18"
 
 
 [profile.release]
