@@ -11,7 +11,7 @@ repository = { workspace = true }
 [dependencies]
 anyhow.workspace = true
 fastrand = "1.8"
-futures = "0.3"
+futures.workspace = true
 once_cell = "1.8"
 rumqttc.workspace = true
 rumqttd = "0.11"

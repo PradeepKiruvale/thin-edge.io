@@ -20,7 +20,7 @@ c8y_api = { path = "../../crates/core/c8y_api" }
 camino.workspace = true
 clap.workspace = true
 csv = "1.1.6"
-futures = "0.3.25"
+futures.workspace = true
 futures-util = "0.3.25"
 http = "0.2.8"
 miette = { version = "5.5.0", features = ["fancy"] }
