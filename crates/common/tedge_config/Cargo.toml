@@ -20,7 +20,7 @@ serde_ignored = "0.1"
 strum_macros = { version = "0.24" }
 tedge_config_macros = { path = "../tedge_config_macros" }
 tedge_utils = { path = "../tedge_utils" }
-thiserror = "1.0"
+thiserror.workspace = true
 toml = "0.7"
 tracing = { version = "0.1", features = ["log"] }
 tracing-subscriber = { version = "0.3", features = ["time", "env-filter"] }

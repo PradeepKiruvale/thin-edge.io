@@ -28,7 +28,7 @@ rand = "0.8.5"
 serde.workspace = true
 tedge_config = { path = "../../crates/common/tedge_config" }
 tedge_utils = { path = "../../crates/common/tedge_utils" }
-thiserror = "1.0.38"
+thiserror.workspace = true
 tokio = { workspace = true, features = [
     "macros",
     "rt-multi-thread",

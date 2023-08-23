@@ -11,4 +11,4 @@ repository = { workspace = true }
 
 [dependencies]
 clap = { version = "3", features = ["derive"] }
-thiserror = "1.0"
+thiserror.workspace = true

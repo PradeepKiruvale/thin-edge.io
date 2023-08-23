@@ -15,7 +15,7 @@ fastrand = "1.8"
 futures = "0.3"
 log = "0.4.17"
 rumqttc = "0.18"
-thiserror = "1.0"
+thiserror.workspace = true
 tokio = { workspace = true, features = ["rt", "time"] }
 
 [dev-dependencies]

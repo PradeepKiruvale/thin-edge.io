@@ -25,7 +25,7 @@ tedge_downloader_ext = { path = "../../extensions/tedge_downloader_ext" }
 tedge_mqtt_ext = { path = "../../extensions/tedge_mqtt_ext" }
 tedge_timer_ext = { path = "../../extensions/tedge_timer_ext" }
 tedge_utils = { path = "../../../crates/common/tedge_utils" }
-thiserror = "1.0"
+thiserror.workspace = true
 
 [dev-dependencies]
 assert-json-diff = "2.0"

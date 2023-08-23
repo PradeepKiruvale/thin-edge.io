@@ -22,7 +22,7 @@ tedge_file_system_ext = { path = "../../extensions/tedge_file_system_ext" }
 tedge_http_ext = { path = "../../extensions/tedge_http_ext" }
 tedge_mqtt_ext = { path = "../../extensions/tedge_mqtt_ext" }
 tedge_utils = { path = "../../common/tedge_utils" }
-thiserror = "1.0"
+thiserror.workspace = true
 time = { version = "0.3", features = ["formatting", "serde"] }
 tokio = { workspace = true, features = ["macros"] }
 

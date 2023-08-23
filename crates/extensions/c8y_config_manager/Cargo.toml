@@ -23,7 +23,7 @@ tedge_file_system_ext = { path = "../../extensions/tedge_file_system_ext" }
 tedge_mqtt_ext = { path = "../../extensions/tedge_mqtt_ext" }
 tedge_timer_ext = { path = "../../extensions/tedge_timer_ext" }
 tedge_utils = { path = "../../common/tedge_utils" }
-thiserror = "1.0"
+thiserror.workspace = true
 tokio = { workspace = true, features = ["macros"] }
 toml = "0.5"
 

@@ -23,7 +23,7 @@ nix = "0.24"
 notify = { version = "5.0", optional = true, default-features = false }
 strum_macros = { version = "0.24", optional = true }
 tempfile = "3.2"
-thiserror = "1.0"
+thiserror.workspace = true
 tokio = { workspace = true, default_features = false, features = [
     "fs",
     "io-util",

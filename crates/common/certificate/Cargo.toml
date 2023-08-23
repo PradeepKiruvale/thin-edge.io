@@ -13,7 +13,7 @@ rcgen = { version = "0.9", features = ["pem", "zeroize"] }
 rustls = "0.20.6"
 rustls-pemfile = "1.0.1"
 sha-1 = "0.10"
-thiserror = "1.0"
+thiserror.workspace = true
 time = "0.3"
 x509-parser = "0.14"
 zeroize = "1.5"
