@@ -16,7 +16,7 @@ c8y_api = { path = "../../core/c8y_api" }
 c8y_http_proxy = { path = "../../extensions/c8y_http_proxy" }
 log = "0.4"
 log_manager = { path = "../../common/log_manager" }
-serde = { version = "1.0", features = ["derive"] }
+serde.workspace = true
 tedge_actors = { path = "../../core/tedge_actors" }
 tedge_api = { path = "../../core/tedge_api" }
 tedge_config = { path = "../../common/tedge_config" }
@@ -24,7 +24,7 @@ tedge_file_system_ext = { path = "../../extensions/tedge_file_system_ext" }
 tedge_mqtt_ext = { path = "../../extensions/tedge_mqtt_ext" }
 tedge_utils = { path = "../../common/tedge_utils" }
 thiserror = "1.0"
-tokio = { version = "1.23", features = ["macros"] }
+tokio = { workspace = true, features = ["macros"] }
 
 [dev-dependencies]
 filetime = "0.2"

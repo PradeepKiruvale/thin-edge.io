@@ -12,7 +12,7 @@ repository = { workspace = true }
 async-trait = "0.1"
 tedge_actors = { path = "../../core/tedge_actors" }
 time = "0.3"
-tokio = { version = "1.23", features = ["time"] }
+tokio = { workspace = true, features = ["time"] }
 
 [dev-dependencies]
-tokio = { version = "1.23", features = ["rt", "macros"] }
+tokio = { workspace = true, features = ["rt", "macros"] }

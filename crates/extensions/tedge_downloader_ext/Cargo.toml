@@ -19,4 +19,4 @@ tedge_utils = { path = "../../common/tedge_utils" }
 [dev-dependencies]
 mockito = "0.31"
 tedge_test_utils = { path = "../../tests/tedge_test_utils" }
-tokio = { version = "1.23", default_features = false, features = ["time"] }
+tokio = { workspace = true, default_features = false, features = ["time"] }

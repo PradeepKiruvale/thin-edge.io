@@ -16,7 +16,7 @@ futures = "0.3"
 log = "0.4.17"
 rumqttc = "0.18"
 thiserror = "1.0"
-tokio = { version = "1.23", features = ["rt", "time"] }
+tokio = { workspace = true, features = ["rt", "time"] }
 
 [dev-dependencies]
 anyhow = "1.0"

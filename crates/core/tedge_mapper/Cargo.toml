@@ -33,7 +33,7 @@ tedge_timer_ext = { path = "../../extensions/tedge_timer_ext" }
 tedge_utils = { path = "../../common/tedge_utils", features = [
     "logging",
 ] }
-tokio = { version = "1.23", features = [
+tokio = { workspace = true, features = [
     "process",
     "rt",
     "rt-multi-thread",

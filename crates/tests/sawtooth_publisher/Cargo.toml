@@ -13,4 +13,4 @@ futures-timer = "3.0"
 log = "0.4"
 mqtt_channel = { path = "../../common/mqtt_channel" }
 tedge_config = { path = "../../common/tedge_config" }
-tokio = { version = "1.23", features = ["sync", "macros"] }
+tokio = { workspace = true, features = ["sync", "macros"] }

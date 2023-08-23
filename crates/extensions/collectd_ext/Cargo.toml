@@ -20,7 +20,7 @@ tedge_api = { path = "../../core/tedge_api" }
 tedge_mqtt_ext = { path = "../../extensions/tedge_mqtt_ext" }
 thiserror = "1.0"
 time = "0.3"
-tokio = { version = "1.23", features = [
+tokio = { workspace = true, features = [
     "sync",
     "time",
 ] }

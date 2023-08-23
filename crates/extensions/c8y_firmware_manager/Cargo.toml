@@ -15,7 +15,7 @@ c8y_api = { path = "../../../crates/core/c8y_api" }
 c8y_http_proxy = { path = "../../extensions/c8y_http_proxy" }
 log = "0.4"
 nanoid = "0.4"
-serde = { version = "1.0", features = ["derive"] }
+serde.workspace = true
 serde_json = "1.0"
 sha256 = "1.1"
 tedge_actors = { path = "../../core/tedge_actors" }
@@ -33,7 +33,7 @@ assert_matches = "1.5"
 mockall = "0.11"
 tedge_actors = { path = "../../core/tedge_actors", features = ["test-helpers"] }
 tedge_test_utils = { path = "../../../crates/tests/tedge_test_utils" }
-tokio = { version = "1.23", default_features = false, features = [
+tokio = { workspace = true, default_features = false, features = [
     "test-util",
     "rt-multi-thread",
 ] }

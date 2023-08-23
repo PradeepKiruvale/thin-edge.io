@@ -21,7 +21,7 @@ log = "0.4"
 path-clean = "0.1"
 plugin_sm = { path = "../plugin_sm" }
 routerify = "3.0"
-serde = { version = "1.0", features = ["derive"] }
+serde.workspace = true
 serde_json = "1.0"
 tedge_actors = { path = "../../core/tedge_actors" }
 tedge_api = { path = "../../core/tedge_api" }
@@ -32,7 +32,7 @@ tedge_signal_ext = { path = "../../extensions/tedge_signal_ext" }
 tedge_utils = { path = "../../common/tedge_utils" }
 thiserror = "1.0"
 time = { version = "0.3", features = ["formatting"] }
-tokio = { version = "1.23", features = ["rt-multi-thread"] }
+tokio = { workspace = true, features = ["rt-multi-thread"] }
 toml = "0.5"
 tracing = { version = "0.1", features = ["attributes", "log"] }
 

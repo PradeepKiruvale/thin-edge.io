@@ -24,7 +24,7 @@ serde = "1.0"
 serde_json = "1.0"
 tedge_actors = { path = "../../core/tedge_actors" }
 thiserror = "1.0"
-tokio = { version = "1.23", default_features = false, features = ["macros", "rt"] }
+tokio = { workspace = true, default_features = false, features = ["macros", "rt"] }
 
 [dev-dependencies]
 mockito = "1.0.2"

@@ -27,4 +27,4 @@ tedge_http_ext = { path = "../../extensions/tedge_http_ext" }
 tedge_mqtt_ext = { path = "../../extensions/tedge_mqtt_ext" }
 tedge_signal_ext = { path = "../../extensions/tedge_signal_ext" }
 tedge_timer_ext = { path = "../../extensions/tedge_timer_ext" }
-tokio = { version = "1.23", features = ["rt", "rt-multi-thread"] }
+tokio = { workspace = true, features = ["rt", "rt-multi-thread"] }

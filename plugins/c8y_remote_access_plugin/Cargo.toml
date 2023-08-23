@@ -25,11 +25,11 @@ futures-util = "0.3.25"
 http = "0.2.8"
 miette = { version = "5.5.0", features = ["fancy"] }
 rand = "0.8.5"
-serde = { version = "1.0", features = ["derive"] }
+serde.workspace = true
 tedge_config = { path = "../../crates/common/tedge_config" }
 tedge_utils = { path = "../../crates/common/tedge_utils" }
 thiserror = "1.0.38"
-tokio = { version = "1.0", features = [
+tokio = { workspace = true, features = [
     "macros",
     "rt-multi-thread",
     "io-util",

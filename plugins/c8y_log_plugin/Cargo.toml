@@ -22,5 +22,5 @@ tedge_http_ext = { path = "../../crates/extensions/tedge_http_ext" }
 tedge_mqtt_ext = { path = "../../crates/extensions/tedge_mqtt_ext" }
 tedge_signal_ext = { path = "../../crates/extensions/tedge_signal_ext" }
 tedge_utils = { path = "../../crates/common/tedge_utils" }
-tokio = { version = "1.23", features = ["rt", "rt-multi-thread"] }
+tokio = { workspace = true, features = ["rt", "rt-multi-thread"] }
 tracing = { version = "0.1", features = ["attributes", "log"] }
