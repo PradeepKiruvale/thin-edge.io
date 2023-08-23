@@ -10,7 +10,7 @@ homepage = { workspace = true }
 repository = { workspace = true }
 
 [dependencies]
-clap = { version = "3", features = ["derive"] }
+clap.workspace = true
 csv = "1.1"
 log.workspace = true
 regex = "1"

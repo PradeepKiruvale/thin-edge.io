@@ -12,7 +12,7 @@ repository = { workspace = true }
 
 [dependencies]
 anyhow.workspace = true
-clap = { version = "3.2", features = ["cargo", "derive"] }
+clap.workspace = true
 tedge_actors = { path = "../../crates/core/tedge_actors" }
 tedge_config = { path = "../../crates/common/tedge_config" }
 tedge_file_system_ext = { path = "../../crates/extensions/tedge_file_system_ext" }
