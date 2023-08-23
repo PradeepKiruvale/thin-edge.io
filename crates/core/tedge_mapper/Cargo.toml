@@ -40,7 +40,7 @@ tokio = { workspace = true, features = [
     "sync",
     "time",
 ] }
-tracing = { version = "0.1", features = ["attributes", "log"] }
+tracing.workspace = true
 
 [features]
 integration-test = []

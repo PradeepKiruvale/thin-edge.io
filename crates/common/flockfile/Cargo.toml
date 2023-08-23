@@ -13,7 +13,7 @@ thiserror.workspace = true
 
 [target.'cfg(unix)'.dependencies]
 nix = "0.24"
-tracing = { version = "0.1", features = ["log"] }
+tracing.workspace = true
 
 [dev-dependencies]
 assert_matches = "1.5"

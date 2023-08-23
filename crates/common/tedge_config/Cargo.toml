@@ -22,7 +22,7 @@ tedge_config_macros = { path = "../tedge_config_macros" }
 tedge_utils = { path = "../tedge_utils" }
 thiserror.workspace = true
 toml = "0.7"
-tracing = { version = "0.1", features = ["log"] }
+tracing.workspace = true
 tracing-subscriber = { version = "0.3", features = ["time", "env-filter"] }
 url = "2.2"
 

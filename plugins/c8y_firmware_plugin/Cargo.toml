@@ -22,4 +22,4 @@ tedge_mqtt_ext = { path = "../../crates/extensions/tedge_mqtt_ext" }
 tedge_signal_ext = { path = "../../crates/extensions/tedge_signal_ext" }
 tedge_timer_ext = { path = "../../crates/extensions/tedge_timer_ext" }
 tokio = { workspace = true, features = ["rt", "rt-multi-thread"] }
-tracing = { version = "0.1", features = ["attributes", "log"] }
+tracing.workspace = true

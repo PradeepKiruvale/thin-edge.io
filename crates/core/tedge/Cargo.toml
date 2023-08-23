@@ -35,7 +35,7 @@ tedge_config = { path = "../../common/tedge_config" }
 tedge_utils = { path = "../../common/tedge_utils" }
 thiserror.workspace = true
 toml = "0.5"
-tracing = { version = "0.1", features = ["attributes", "log"] }
+tracing.workspace = true
 url = "2.2"
 which = "4.2"
 yansi = "0.5"

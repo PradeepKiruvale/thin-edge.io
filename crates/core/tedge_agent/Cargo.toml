@@ -34,7 +34,7 @@ thiserror.workspace = true
 time = { version = "0.3", features = ["formatting"] }
 tokio = { workspace = true, features = ["rt-multi-thread"] }
 toml = "0.5"
-tracing = { version = "0.1", features = ["attributes", "log"] }
+tracing.workspace = true
 
 [dev-dependencies]
 serial_test = "0.8"

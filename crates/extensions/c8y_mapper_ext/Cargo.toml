@@ -38,7 +38,7 @@ tokio = { workspace = true, features = [
     "time",
 ] }
 toml = "0.5"
-tracing = { version = "0.1", features = ["attributes", "log"] }
+tracing.workspace = true
 
 [dev-dependencies]
 anyhow.workspace = true

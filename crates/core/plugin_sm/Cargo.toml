@@ -20,7 +20,7 @@ tedge_config = { path = "../../common/tedge_config" }
 thiserror.workspace = true
 time = { version = "0.3", features = ["formatting"] }
 tokio = { workspace = true, features = ["process", "rt"] }
-tracing = { version = "0.1", features = ["attributes", "log"] }
+tracing.workspace = true
 url = "2.2"
 
 [dev-dependencies]

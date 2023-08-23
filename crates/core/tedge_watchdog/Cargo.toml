@@ -24,4 +24,4 @@ tedge_utils = { path = "../../common/tedge_utils", features = ["logging"] }
 thiserror.workspace = true
 time = { version = "0.3", features = ["formatting", "serde-well-known"] }
 tokio = { workspace = true, features = ["sync", "time", "rt-multi-thread"] }
-tracing = { version = "0.1", features = ["attributes", "log"] }
+tracing.workspace = true
