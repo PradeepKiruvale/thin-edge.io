@@ -11,7 +11,7 @@ repository = { workspace = true }
 [dependencies]
 async-trait = "0.1"
 tedge_actors = { path = "../../core/tedge_actors" }
-time = "0.3"
+time.workspace = true
 tokio = { workspace = true, features = ["time"] }
 
 [dev-dependencies]

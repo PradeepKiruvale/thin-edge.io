@@ -14,7 +14,7 @@ rustls = "0.20.6"
 rustls-pemfile = "1.0.1"
 sha-1 = "0.10"
 thiserror.workspace = true
-time = "0.3"
+time.workspace = true
 x509-parser = "0.14"
 zeroize = "1.5"
 

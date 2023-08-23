@@ -10,7 +10,7 @@ repository = { workspace = true }
 
 [dependencies]
 mockall = "0.11"
-time = "0.3.7"
+time.workspace = true
 
 [features]
 default = []

@@ -19,7 +19,7 @@ tedge_actors = { path = "../../core/tedge_actors" }
 tedge_api = { path = "../../core/tedge_api" }
 tedge_mqtt_ext = { path = "../../extensions/tedge_mqtt_ext" }
 thiserror.workspace = true
-time = "0.3"
+time.workspace = true
 tokio = { workspace = true, features = [
     "sync",
     "time",
