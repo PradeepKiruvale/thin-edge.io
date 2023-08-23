@@ -7,7 +7,7 @@ edition = "2018"
 
 [dependencies]
 async-log = "2.0"
-env_logger = "0.9"
+env_logger.workspace = true
 futures.workspace = true
 futures-timer = "3.0"
 log.workspace = true

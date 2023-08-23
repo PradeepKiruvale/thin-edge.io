@@ -41,6 +41,7 @@ http = "0.2"
 url = "2.3"
 base64 = "0.13"
 csv = "1.1"
+env_logger = "0.10"
 
 [profile.release]
 codegen-units = 1

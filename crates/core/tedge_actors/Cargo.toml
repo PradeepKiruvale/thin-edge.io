@@ -27,7 +27,7 @@ tokio = { workspace = true, default_features = false, features = [
 ] }
 
 [dev-dependencies]
-env_logger = "0.10" # TODO: remove me
+env_logger.workspace = true # TODO: remove me
 tokio = { workspace = true, default_features = false, features = [
     "rt-multi-thread",
 ] }
