@@ -14,7 +14,7 @@ repository = { workspace = true }
 async-trait = "0.1"
 batcher = { path = "../../common/batcher" }
 clock = { path = "../../common/clock" }
-log = "0.4"
+log.workspace = true
 tedge_actors = { path = "../../core/tedge_actors" }
 tedge_api = { path = "../../core/tedge_api" }
 tedge_mqtt_ext = { path = "../../extensions/tedge_mqtt_ext" }

@@ -17,7 +17,7 @@ test-helpers = []
 [dependencies]
 async-trait = "0.1"
 futures = { version = "0.3" }
-log = "0.4"
+log.workspace = true
 thiserror.workspace = true
 tokio = { workspace = true, default_features = false, features = [
     "sync",

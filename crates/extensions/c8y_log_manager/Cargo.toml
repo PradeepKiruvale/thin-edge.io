@@ -14,7 +14,7 @@ anyhow.workspace = true
 async-trait = "0.1"
 c8y_api = { path = "../../core/c8y_api" }
 c8y_http_proxy = { path = "../../extensions/c8y_http_proxy" }
-log = "0.4"
+log.workspace = true
 log_manager = { path = "../../common/log_manager" }
 serde.workspace = true
 tedge_actors = { path = "../../core/tedge_actors" }

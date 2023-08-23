@@ -10,7 +10,7 @@ async-log = "2.0"
 env_logger = "0.9"
 futures = "0.3"
 futures-timer = "3.0"
-log = "0.4"
+log.workspace = true
 mqtt_channel = { path = "../../common/mqtt_channel" }
 tedge_config = { path = "../../common/tedge_config" }
 tokio = { workspace = true, features = ["sync", "macros"] }

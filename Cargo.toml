@@ -30,6 +30,7 @@ serde = "1.0"
 thiserror = "1.0"
 anyhow =  "1.0"
 rumqttc = "0.18"
+log = "0.4"
 
 
 [profile.release]

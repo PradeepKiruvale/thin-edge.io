@@ -9,7 +9,7 @@ homepage = { workspace = true }
 repository = { workspace = true }
 
 [dependencies]
-log = "0.4"
+log.workspace = true
 nix = "0.26"
 tokio = { workspace = true, features = [
     "fs",
