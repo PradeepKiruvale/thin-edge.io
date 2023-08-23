@@ -13,7 +13,7 @@ readme = "README.md"
 [dependencies]
 anyhow.workspace = true
 atty = "0.2"
-base64 = "0.13"
+base64.workspace = true
 camino.workspace = true
 certificate = { path = "../../common/certificate" }
 clap = { version = "3", features = ["cargo", "derive"] }
