@@ -21,7 +21,7 @@ thiserror.workspace = true
 time = { version = "0.3", features = ["formatting"] }
 tokio = { workspace = true, features = ["process", "rt"] }
 tracing.workspace = true
-url = "2.2"
+url.workspace = true
 
 [dev-dependencies]
 anyhow.workspace = true

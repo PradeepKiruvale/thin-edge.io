@@ -38,7 +38,7 @@ tokio = { workspace = true, features = [
     "process",
 ] }
 tungstenite = "0.17.3"
-url = "2.3.1"
+url.workspace = true
 ws_stream_tungstenite = "0.9.0"
 
 [dev-dependencies]
