@@ -34,6 +34,7 @@ log = "0.4"
 time = "0.3"
 clap = { version = "4.1", features = ["cargo", "derive"] }
 tracing = { version = "0.1", features = ["attributes", "log"] }
+camino = "1.1"
 
 [profile.release]
 codegen-units = 1

@@ -14,7 +14,7 @@ readme = "README.md"
 anyhow.workspace = true
 atty = "0.2"
 base64 = "0.13"
-camino = "1.1.4"
+camino.workspace = true
 certificate = { path = "../../common/certificate" }
 clap = { version = "3", features = ["cargo", "derive"] }
 doku = "0.21"

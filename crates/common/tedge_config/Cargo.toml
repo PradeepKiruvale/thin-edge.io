@@ -9,7 +9,7 @@ homepage = { workspace = true }
 repository = { workspace = true }
 
 [dependencies]
-camino = { version = "1.1.4", features = ["serde", "serde1"] }
+camino = { workspace = true, features = ["serde", "serde1"] }
 certificate = { path = "../certificate" }
 doku = "0.21"
 figment = { version = "0.10", features = ["env", "toml"] }

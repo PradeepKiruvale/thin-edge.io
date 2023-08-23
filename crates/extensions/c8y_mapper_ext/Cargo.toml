@@ -13,7 +13,7 @@ repository = { workspace = true }
 async-trait = "0.1"
 c8y_api = { path = "../../core/c8y_api" }
 c8y_http_proxy = { path = "../c8y_http_proxy" }
-camino = "1.1"
+camino.workspace = true
 clock = { path = "../../common/clock" }
 json-writer = { path = "../../common/json_writer" }
 logged_command = { path = "../../common/logged_command" }
