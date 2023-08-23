@@ -10,7 +10,7 @@ repository = { workspace = true }
 
 [dependencies]
 clock = { path = "../../common/clock" }
-csv = "1.1"
+csv.workspace = true
 download = { path = "../../common/download" }
 json-writer = { path = "../../common/json_writer" }
 mqtt_channel = { path = "../../common/mqtt_channel" }

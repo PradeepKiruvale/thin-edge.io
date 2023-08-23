@@ -19,7 +19,7 @@ base64.workspace = true
 c8y_api = { path = "../../crates/core/c8y_api" }
 camino.workspace = true
 clap.workspace = true
-csv = "1.1.6"
+csv.workspace = true
 futures.workspace = true
 futures-util = "0.3.25"
 http.workspace = true

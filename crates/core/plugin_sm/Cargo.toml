@@ -10,7 +10,7 @@ repository = { workspace = true }
 
 [dependencies]
 async-trait = "0.1"
-csv = "1.1"
+csv.workspace = true
 download = { path = "../../common/download" }
 logged_command = { path = "../../common/logged_command" }
 serde.workspace = true

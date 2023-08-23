@@ -11,7 +11,7 @@ repository = { workspace = true }
 
 [dependencies]
 clap.workspace = true
-csv = "1.1"
+csv.workspace = true
 log.workspace = true
 regex = "1"
 serde = { version = "1", features = ["derive"] }

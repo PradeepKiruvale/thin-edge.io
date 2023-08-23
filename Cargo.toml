@@ -40,6 +40,7 @@ futures = "0.3"
 http = "0.2"
 url = "2.3"
 base64 = "0.13"
+csv = "1.1"
 
 [profile.release]
 codegen-units = 1
