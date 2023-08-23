@@ -22,7 +22,7 @@ clap.workspace = true
 csv = "1.1.6"
 futures.workspace = true
 futures-util = "0.3.25"
-http = "0.2.8"
+http.workspace = true
 miette = { version = "5.5.0", features = ["fancy"] }
 rand = "0.8.5"
 serde.workspace = true

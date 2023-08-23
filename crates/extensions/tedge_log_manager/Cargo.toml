@@ -11,7 +11,7 @@ repository = { workspace = true }
 
 [dependencies]
 async-trait = "0.1"
-http = "0.2"
+http.workspace = true
 log.workspace = true
 log_manager = { path = "../../common/log_manager" }
 serde.workspace = true
