@@ -10,7 +10,7 @@ homepage = { workspace = true }
 repository = { workspace = true }
 
 [dependencies]
-async-trait = "0.1"
+async-trait.workspace = true
 c8y_api = { path = "../../core/c8y_api" }
 download = { path = "../../common/download" }
 http.workspace = true

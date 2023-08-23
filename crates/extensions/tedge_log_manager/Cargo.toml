@@ -10,7 +10,7 @@ homepage = { workspace = true }
 repository = { workspace = true }
 
 [dependencies]
-async-trait = "0.1"
+async-trait.workspace = true
 http.workspace = true
 log.workspace = true
 log_manager = { path = "../../common/log_manager" }

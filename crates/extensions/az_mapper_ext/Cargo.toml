@@ -10,7 +10,7 @@ homepage = { workspace = true }
 repository = { workspace = true }
 
 [dependencies]
-async-trait = "0.1"
+async-trait.workspace = true
 clock = { path = "../../common/clock" }
 log.workspace = true
 serde.workspace = true

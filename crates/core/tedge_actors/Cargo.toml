@@ -15,7 +15,7 @@ default = []
 test-helpers = []
 
 [dependencies]
-async-trait = "0.1"
+async-trait.workspace = true
 futures.workspace = true
 log.workspace = true
 thiserror.workspace = true

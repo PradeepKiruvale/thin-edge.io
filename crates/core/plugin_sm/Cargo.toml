@@ -9,7 +9,7 @@ homepage = { workspace = true }
 repository = { workspace = true }
 
 [dependencies]
-async-trait = "0.1"
+async-trait.workspace = true
 csv.workspace = true
 download = { path = "../../common/download" }
 logged_command = { path = "../../common/logged_command" }

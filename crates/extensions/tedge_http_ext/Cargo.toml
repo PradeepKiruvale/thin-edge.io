@@ -15,7 +15,7 @@ default = []
 test_helpers = []
 
 [dependencies]
-async-trait = "0.1"
+async-trait.workspace = true
 futures.workspace = true
 http.workspace = true
 hyper = { version = "0.14", default_features = false, features = ["client", "http1", "http2", "tcp"] }

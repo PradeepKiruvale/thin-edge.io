@@ -9,7 +9,7 @@ homepage = { workspace = true }
 repository = { workspace = true }
 
 [dependencies]
-async-trait = "0.1"
+async-trait.workspace = true
 tedge_actors = { path = "../../core/tedge_actors" }
 time.workspace = true
 tokio = { workspace = true, features = ["time"] }
