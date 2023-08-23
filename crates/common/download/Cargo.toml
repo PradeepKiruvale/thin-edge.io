@@ -13,7 +13,7 @@ repository = { workspace = true }
 anyhow = { version = "1.0", features = ["backtrace"] }
 backoff = { version = "0.4", features = ["tokio"] }
 log.workspace = true
-nix = "0.24"
+nix.workspace = true
 reqwest = { version = "0.11", default-features = false, features = [
     "rustls-tls-native-roots",
 ] }

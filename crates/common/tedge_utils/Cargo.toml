@@ -19,7 +19,7 @@ fs-notify = ["strum_macros", "notify"]
 anyhow = "1.0.71"
 futures.workspace = true
 mqtt_channel = { path = "../mqtt_channel" }
-nix = "0.24"
+nix.workspace = true
 notify = { version = "5.0", optional = true, default-features = false }
 strum_macros = { version = "0.24", optional = true }
 tempfile = "3.2"

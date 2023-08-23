@@ -12,7 +12,7 @@ repository = { workspace = true }
 thiserror.workspace = true
 
 [target.'cfg(unix)'.dependencies]
-nix = "0.24"
+nix.workspace = true
 tracing.workspace = true
 
 [dev-dependencies]

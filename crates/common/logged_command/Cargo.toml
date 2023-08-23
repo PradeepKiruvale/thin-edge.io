@@ -10,7 +10,7 @@ repository = { workspace = true }
 
 [dependencies]
 log.workspace = true
-nix = "0.26"
+nix.workspace = true
 tokio = { workspace = true, features = [
     "fs",
     "io-util",

@@ -1151,7 +1151,7 @@ dependencies = [
  "backoff",
  "log",
  "mockito 0.31.1",
- "nix 0.24.3",
+ "nix",
  "regex",
  "reqwest",
  "serde",
@@ -1293,7 +1293,7 @@ name = "flockfile"
 version = "0.12.0"
 dependencies = [
  "assert_matches",
- "nix 0.24.3",
+ "nix",
  "tempfile",
  "thiserror",
  "tracing",
@@ -1913,7 +1913,7 @@ version = "0.12.0"
 dependencies = [
  "anyhow",
  "log",
- "nix 0.26.2",
+ "nix",
  "tedge_test_utils",
  "tokio",
 ]
@@ -1947,15 +1947,6 @@ checksum = "6585fd95e7bb50d6cc31e20d4cf9afb4e2ba16c5846fc76793f11218da9c475b"
 dependencies = [
  "libc",
  "winapi",
-]
-
-[[package]]
-name = "memoffset"
-version = "0.6.5"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "5aa361d4faea93603064a027415f07bd8e1d5c88c9fbf68bf56a285428fd79ce"
-dependencies = [
- "autocfg",
 ]
 
 [[package]]
@@ -2175,18 +2166,6 @@ dependencies = [
 
 [[package]]
 name = "nix"
-version = "0.24.3"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "fa52e972a9a719cecb6864fb88568781eb706bac2cd1d4f04a648542dbf78069"
-dependencies = [
- "bitflags",
- "cfg-if 1.0.0",
- "libc",
- "memoffset 0.6.5",
-]
-
-[[package]]
-name = "nix"
 version = "0.26.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "bfdda3d196821d6af13126e40375cdf7da646a96114af134d5f417a9a1dc8e1a"
@@ -2194,7 +2173,7 @@ dependencies = [
  "bitflags",
  "cfg-if 1.0.0",
  "libc",
- "memoffset 0.7.1",
+ "memoffset",
  "pin-utils",
  "static_assertions",
 ]
@@ -3857,7 +3836,7 @@ dependencies = [
  "futures",
  "maplit",
  "mqtt_channel",
- "nix 0.24.3",
+ "nix",
  "notify",
  "strum_macros",
  "tedge_test_utils",
