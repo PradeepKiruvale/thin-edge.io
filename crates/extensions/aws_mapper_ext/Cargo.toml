@@ -23,7 +23,7 @@ time = { workspace = true }
 tokio = { workspace = true, features = ["macros"] }
 
 [dev-dependencies]
-assert-json-diff = "2.0"
+assert-json-diff = { workspace = true }
 assert_matches = { workspace = true }
 rand = "0.8"
 serde = "1.0"

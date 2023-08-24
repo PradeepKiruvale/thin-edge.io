@@ -42,7 +42,7 @@ tracing = { workspace = true }
 
 [dev-dependencies]
 anyhow = { workspace = true }
-assert-json-diff = "2.0"
+assert-json-diff = { workspace = true }
 assert_matches = { workspace = true }
 proptest = "1.0"
 rand = "0.8"
