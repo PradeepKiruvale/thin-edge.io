@@ -37,7 +37,7 @@ toml = "0.5"
 tracing = { workspace = true }
 
 [dev-dependencies]
-serial_test = "0.8"
+serial_test = { workspace = true }
 tedge_actors = { path = "../../core/tedge_actors", features = ["test-helpers"] }
 tedge_test_utils = { path = "../../tests/tedge_test_utils" }
 test-case = { workspace = true }
