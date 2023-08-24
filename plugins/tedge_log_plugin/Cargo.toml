@@ -11,8 +11,8 @@ repository = { workspace = true }
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-anyhow.workspace = true
-clap.workspace = true
+anyhow = { workspace = true }
+clap = { workspace = true }
 tedge_actors = { path = "../../crates/core/tedge_actors" }
 tedge_config = { path = "../../crates/common/tedge_config" }
 tedge_file_system_ext = { path = "../../crates/extensions/tedge_file_system_ext" }
@@ -22,4 +22,4 @@ tedge_log_manager = { path = "../../crates/extensions/tedge_log_manager" }
 tedge_mqtt_ext = { path = "../../crates/extensions/tedge_mqtt_ext" }
 tedge_signal_ext = { path = "../../crates/extensions/tedge_signal_ext" }
 tokio = { workspace = true, features = ["rt", "rt-multi-thread"] }
-tracing.workspace = true
+tracing = { workspace = true }

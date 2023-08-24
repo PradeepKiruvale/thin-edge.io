@@ -10,5 +10,5 @@ homepage = { workspace = true }
 repository = { workspace = true }
 
 [dependencies]
-clap.workspace = true
-thiserror.workspace = true
+clap = { workspace = true }
+thiserror = { workspace = true }

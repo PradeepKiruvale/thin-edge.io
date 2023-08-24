@@ -10,8 +10,8 @@ homepage = { workspace = true }
 repository = { workspace = true }
 
 [dependencies]
-async-trait.workspace = true
-log.workspace = true
+async-trait = { workspace = true }
+log = { workspace = true }
 tedge_actors = { path = "../../core/tedge_actors" }
 tedge_utils = { path = "../../common/tedge_utils", features = ["fs-notify"] }
 tokio = { workspace = true, features = ["macros"] }

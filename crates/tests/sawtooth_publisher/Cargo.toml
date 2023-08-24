@@ -7,10 +7,10 @@ edition = "2018"
 
 [dependencies]
 async-log = "2.0"
-env_logger.workspace = true
-futures.workspace = true
+env_logger = { workspace = true }
+futures = { workspace = true }
 futures-timer = "3.0"
-log.workspace = true
+log = { workspace = true }
 mqtt_channel = { path = "../../common/mqtt_channel" }
 tedge_config = { path = "../../common/tedge_config" }
 tokio = { workspace = true, features = ["sync", "macros"] }

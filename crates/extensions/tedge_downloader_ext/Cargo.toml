@@ -10,13 +10,13 @@ homepage = { workspace = true }
 repository = { workspace = true }
 
 [dependencies]
-async-trait.workspace = true
+async-trait = { workspace = true }
 download = { path = "../../common/download" }
-log.workspace = true
+log = { workspace = true }
 tedge_actors = { path = "../../core/tedge_actors" }
 tedge_utils = { path = "../../common/tedge_utils" }
 
 [dev-dependencies]
-mockito.workspace = true
+mockito = { workspace = true }
 tedge_test_utils = { path = "../../tests/tedge_test_utils" }
 tokio = { workspace = true, default_features = false, features = ["time"] }

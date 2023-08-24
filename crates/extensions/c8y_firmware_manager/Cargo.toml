@@ -10,13 +10,13 @@ homepage = { workspace = true }
 repository = { workspace = true }
 
 [dependencies]
-async-trait.workspace = true
+async-trait = { workspace = true }
 c8y_api = { path = "../../../crates/core/c8y_api" }
 c8y_http_proxy = { path = "../../extensions/c8y_http_proxy" }
-log.workspace = true
+log = { workspace = true }
 nanoid = "0.4"
-serde.workspace = true
-serde_json.workspace = true
+serde = { workspace = true }
+serde_json = { workspace = true }
 sha256 = "1.1"
 tedge_actors = { path = "../../core/tedge_actors" }
 tedge_api = { path = "../../../crates/core/tedge_api" }
@@ -25,7 +25,7 @@ tedge_downloader_ext = { path = "../../extensions/tedge_downloader_ext" }
 tedge_mqtt_ext = { path = "../../extensions/tedge_mqtt_ext" }
 tedge_timer_ext = { path = "../../extensions/tedge_timer_ext" }
 tedge_utils = { path = "../../../crates/common/tedge_utils" }
-thiserror.workspace = true
+thiserror = { workspace = true }
 
 [dev-dependencies]
 assert-json-diff = "2.0"

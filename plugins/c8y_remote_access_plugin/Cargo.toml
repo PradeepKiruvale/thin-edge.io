@@ -15,20 +15,20 @@ async-tungstenite = { version = "0.18.0", features = [
     "tokio-runtime",
     "tokio-rustls-native-certs",
 ] }
-base64.workspace = true
+base64 = { workspace = true }
 c8y_api = { path = "../../crates/core/c8y_api" }
-camino.workspace = true
-clap.workspace = true
-csv.workspace = true
-futures.workspace = true
+camino = { workspace = true }
+clap = { workspace = true }
+csv = { workspace = true }
+futures = { workspace = true }
 futures-util = "0.3.25"
-http.workspace = true
+http = { workspace = true }
 miette = { version = "5.5.0", features = ["fancy"] }
 rand = "0.8.5"
-serde.workspace = true
+serde = { workspace = true }
 tedge_config = { path = "../../crates/common/tedge_config" }
 tedge_utils = { path = "../../crates/common/tedge_utils" }
-thiserror.workspace = true
+thiserror = { workspace = true }
 tokio = { workspace = true, features = [
     "macros",
     "rt-multi-thread",
@@ -38,9 +38,9 @@ tokio = { workspace = true, features = [
     "process",
 ] }
 tungstenite = "0.17.3"
-url.workspace = true
+url = { workspace = true }
 ws_stream_tungstenite = "0.9.0"
 
 [dev-dependencies]
 rstest = "0.16.0"
-tempfile.workspace = true
+tempfile = { workspace = true }

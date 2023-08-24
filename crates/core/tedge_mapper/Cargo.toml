@@ -10,14 +10,14 @@ homepage = { workspace = true }
 repository = { workspace = true }
 
 [dependencies]
-anyhow.workspace = true
-async-trait.workspace = true
+anyhow = { workspace = true }
+async-trait = { workspace = true }
 aws_mapper_ext = { path = "../../extensions/aws_mapper_ext" }
 az_mapper_ext = { path = "../../extensions/az_mapper_ext" }
 batcher = { path = "../../common/batcher" }
 c8y_http_proxy = { path = "../../extensions/c8y_http_proxy" }
 c8y_mapper_ext = { path = "../../extensions/c8y_mapper_ext" }
-clap.workspace = true
+clap = { workspace = true }
 clock = { path = "../../common/clock" }
 collectd_ext = { path = "../../extensions/collectd_ext" }
 flockfile = { path = "../../common/flockfile" }
@@ -40,7 +40,7 @@ tokio = { workspace = true, features = [
     "sync",
     "time",
 ] }
-tracing.workspace = true
+tracing = { workspace = true }
 
 [features]
 integration-test = []

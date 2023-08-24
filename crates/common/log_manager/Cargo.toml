@@ -11,9 +11,9 @@ repository = { workspace = true }
 [dependencies]
 easy_reader = "0.5"
 glob = "0.3"
-log.workspace = true
-serde.workspace = true
-thiserror.workspace = true
+log = { workspace = true }
+serde = { workspace = true }
+thiserror = { workspace = true }
 time = { version = "0.3", features = ["formatting"] }
 toml = "0.5"
 

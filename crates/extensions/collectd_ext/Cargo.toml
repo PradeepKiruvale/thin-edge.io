@@ -11,21 +11,21 @@ repository = { workspace = true }
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-async-trait.workspace = true
+async-trait = { workspace = true }
 batcher = { path = "../../common/batcher" }
 clock = { path = "../../common/clock" }
-log.workspace = true
+log = { workspace = true }
 tedge_actors = { path = "../../core/tedge_actors" }
 tedge_api = { path = "../../core/tedge_api" }
 tedge_mqtt_ext = { path = "../../extensions/tedge_mqtt_ext" }
-thiserror.workspace = true
-time.workspace = true
+thiserror = { workspace = true }
+time = { workspace = true }
 tokio = { workspace = true, features = [
     "sync",
     "time",
 ] }
 
 [dev-dependencies]
-anyhow.workspace = true
+anyhow = { workspace = true }
 assert_matches = "1.5"
 time = { version = "0.3", features = ["macros"] }

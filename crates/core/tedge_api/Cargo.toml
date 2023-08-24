@@ -10,14 +10,14 @@ repository = { workspace = true }
 
 [dependencies]
 clock = { path = "../../common/clock" }
-csv.workspace = true
+csv = { workspace = true }
 download = { path = "../../common/download" }
 json-writer = { path = "../../common/json_writer" }
 mqtt_channel = { path = "../../common/mqtt_channel" }
 nanoid = "0.4"
-serde.workspace = true
-serde_json.workspace = true
-thiserror.workspace = true
+serde = { workspace = true }
+serde_json = { workspace = true }
+thiserror = { workspace = true }
 time = { version = "0.3", features = [
     "formatting",
     "local-offset",
@@ -27,12 +27,12 @@ time = { version = "0.3", features = [
 ] }
 
 [dev-dependencies]
-anyhow.workspace = true
+anyhow = { workspace = true }
 assert_matches = "1.5"
 clock = { path = "../../common/clock" }
 maplit = "1.0.2"
 mockall = "0.11"
-regex.workspace = true
-test-case.workspace = true
+regex = { workspace = true }
+test-case = { workspace = true }
 time = { version = "0.3", features = ["macros"] }
 walkdir = "2"

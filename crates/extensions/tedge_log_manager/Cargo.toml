@@ -10,24 +10,24 @@ homepage = { workspace = true }
 repository = { workspace = true }
 
 [dependencies]
-async-trait.workspace = true
-http.workspace = true
-log.workspace = true
+async-trait = { workspace = true }
+http = { workspace = true }
+log = { workspace = true }
 log_manager = { path = "../../common/log_manager" }
-serde.workspace = true
-serde_json.workspace = true
+serde = { workspace = true }
+serde_json = { workspace = true }
 tedge_actors = { path = "../../core/tedge_actors" }
 tedge_config = { path = "../../common/tedge_config" }
 tedge_file_system_ext = { path = "../../extensions/tedge_file_system_ext" }
 tedge_http_ext = { path = "../../extensions/tedge_http_ext" }
 tedge_mqtt_ext = { path = "../../extensions/tedge_mqtt_ext" }
 tedge_utils = { path = "../../common/tedge_utils" }
-thiserror.workspace = true
+thiserror = { workspace = true }
 time = { version = "0.3", features = ["formatting", "serde"] }
 tokio = { workspace = true, features = ["macros"] }
 
 [dev-dependencies]
-anyhow.workspace = true
+anyhow = { workspace = true }
 assert-json-diff = "2.0"
 filetime = "0.2"
 tedge_actors = { path = "../../core/tedge_actors", features = ["test-helpers"] }

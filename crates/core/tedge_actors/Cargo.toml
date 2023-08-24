@@ -15,10 +15,10 @@ default = []
 test-helpers = []
 
 [dependencies]
-async-trait.workspace = true
-futures.workspace = true
-log.workspace = true
-thiserror.workspace = true
+async-trait = { workspace = true }
+futures = { workspace = true }
+log = { workspace = true }
+thiserror = { workspace = true }
 tokio = { workspace = true, default_features = false, features = [
     "sync",
     "rt",
@@ -27,7 +27,7 @@ tokio = { workspace = true, default_features = false, features = [
 ] }
 
 [dev-dependencies]
-env_logger.workspace = true # TODO: remove me
+env_logger = { workspace = true } # TODO: remove me
 tokio = { workspace = true, default_features = false, features = [
     "rt-multi-thread",
 ] }

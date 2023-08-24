@@ -9,22 +9,22 @@ homepage = { workspace = true }
 repository = { workspace = true }
 
 [dependencies]
-async-trait.workspace = true
-csv.workspace = true
+async-trait = { workspace = true }
+csv = { workspace = true }
 download = { path = "../../common/download" }
 logged_command = { path = "../../common/logged_command" }
-serde.workspace = true
-serde_json.workspace = true
+serde = { workspace = true }
+serde_json = { workspace = true }
 tedge_api = { path = "../tedge_api" }
 tedge_config = { path = "../../common/tedge_config" }
-thiserror.workspace = true
+thiserror = { workspace = true }
 time = { version = "0.3", features = ["formatting"] }
 tokio = { workspace = true, features = ["process", "rt"] }
-tracing.workspace = true
-url.workspace = true
+tracing = { workspace = true }
+url = { workspace = true }
 
 [dev-dependencies]
-anyhow.workspace = true
+anyhow = { workspace = true }
 serial_test = "0.8"
-tempfile.workspace = true
-test-case.workspace = true
+tempfile = { workspace = true }
+test-case = { workspace = true }

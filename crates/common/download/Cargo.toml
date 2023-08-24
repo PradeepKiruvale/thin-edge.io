@@ -12,21 +12,21 @@ repository = { workspace = true }
 [dependencies]
 anyhow = { version = "1.0", features = ["backtrace"] }
 backoff = { version = "0.4", features = ["tokio"] }
-log.workspace = true
-nix.workspace = true
+log = { workspace = true }
+nix = { workspace = true }
 reqwest = { workspace = true, features = [
     "rustls-tls-native-roots",
 ] }
-serde.workspace = true
-serde_json.workspace = true
+serde = { workspace = true }
+serde_json = { workspace = true }
 tedge_utils = { path = "../tedge_utils" }
-thiserror.workspace = true
+thiserror = { workspace = true }
 tokio = { workspace = true, features = ["fs"] }
-url.workspace = true
+url = { workspace = true }
 
 [dev-dependencies]
-mockito.workspace = true
-regex.workspace = true
-tempfile.workspace = true
-test-case.workspace = true
+mockito = { workspace = true }
+regex = { workspace = true }
+tempfile = { workspace = true }
+test-case = { workspace = true }
 tokio = { workspace = true, features = ["macros", "rt-multi-thread"] }

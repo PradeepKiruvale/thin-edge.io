@@ -10,19 +10,19 @@ homepage = { workspace = true }
 repository = { workspace = true }
 
 [dependencies]
-anyhow.workspace = true
-async-trait.workspace = true
-camino.workspace = true
-clap.workspace = true
+anyhow = { workspace = true }
+async-trait = { workspace = true }
+camino = { workspace = true }
+clap = { workspace = true }
 flockfile = { path = "../../common/flockfile" }
 hyper = { version = "0.14", features = ["full"] }
 lazy_static = "1.4"
-log.workspace = true
+log = { workspace = true }
 path-clean = "0.1"
 plugin_sm = { path = "../plugin_sm" }
 routerify = "3.0"
-serde.workspace = true
-serde_json.workspace = true
+serde = { workspace = true }
+serde_json = { workspace = true }
 tedge_actors = { path = "../../core/tedge_actors" }
 tedge_api = { path = "../../core/tedge_api" }
 tedge_config = { path = "../../common/tedge_config" }
@@ -30,14 +30,14 @@ tedge_health_ext = { path = "../../extensions/tedge_health_ext" }
 tedge_mqtt_ext = { path = "../../extensions/tedge_mqtt_ext" }
 tedge_signal_ext = { path = "../../extensions/tedge_signal_ext" }
 tedge_utils = { path = "../../common/tedge_utils" }
-thiserror.workspace = true
+thiserror = { workspace = true }
 time = { version = "0.3", features = ["formatting"] }
 tokio = { workspace = true, features = ["rt-multi-thread"] }
 toml = "0.5"
-tracing.workspace = true
+tracing = { workspace = true }
 
 [dev-dependencies]
 serial_test = "0.8"
 tedge_actors = { path = "../../core/tedge_actors", features = ["test-helpers"] }
 tedge_test_utils = { path = "../../tests/tedge_test_utils" }
-test-case.workspace = true
+test-case = { workspace = true }

@@ -9,8 +9,8 @@ homepage = { workspace = true }
 repository = { workspace = true }
 
 [dependencies]
-log.workspace = true
-nix.workspace = true
+log = { workspace = true }
+nix = { workspace = true }
 tokio = { workspace = true, features = [
     "fs",
     "io-util",
@@ -20,5 +20,5 @@ tokio = { workspace = true, features = [
 ] }
 
 [dev-dependencies]
-anyhow.workspace = true
+anyhow = { workspace = true }
 tedge_test_utils = { path = "../../tests/tedge_test_utils" }
