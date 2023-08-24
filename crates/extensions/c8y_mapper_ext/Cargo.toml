@@ -37,7 +37,7 @@ tokio = { workspace = true, features = [
     "sync",
     "time",
 ] }
-toml = "0.5"
+toml = { workspace = true }
 tracing = { workspace = true }
 
 [dev-dependencies]

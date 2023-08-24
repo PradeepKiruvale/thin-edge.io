@@ -53,6 +53,7 @@ fastrand = "1.8"
 serial_test = "0.8"
 assert_matches = "1.5"
 maplit = "1.0"
+toml = "0.5"
 
 [profile.release]
 codegen-units = 1

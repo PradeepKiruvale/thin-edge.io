@@ -33,7 +33,7 @@ tedge_utils = { path = "../../common/tedge_utils" }
 thiserror = { workspace = true }
 time = { version = "0.3", features = ["formatting"] }
 tokio = { workspace = true, features = ["rt-multi-thread"] }
-toml = "0.5"
+toml = { workspace = true }
 tracing = { workspace = true }
 
 [dev-dependencies]

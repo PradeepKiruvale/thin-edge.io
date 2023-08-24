@@ -25,7 +25,7 @@ tedge_timer_ext = { path = "../../extensions/tedge_timer_ext" }
 tedge_utils = { path = "../../common/tedge_utils" }
 thiserror = { workspace = true }
 tokio = { workspace = true, features = ["macros"] }
-toml = "0.5"
+toml = { workspace = true }
 
 [dev-dependencies]
 tedge_actors = { path = "../../core/tedge_actors", features = ["test-helpers"] }

@@ -15,7 +15,7 @@ log = { workspace = true }
 serde = { workspace = true }
 thiserror = { workspace = true }
 time = { version = "0.3", features = ["formatting"] }
-toml = "0.5"
+toml = { workspace = true }
 
 [dev-dependencies]
 filetime = "0.2"
