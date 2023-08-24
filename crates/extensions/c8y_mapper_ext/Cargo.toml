@@ -45,7 +45,7 @@ anyhow = { workspace = true }
 assert-json-diff = { workspace = true }
 assert_matches = { workspace = true }
 proptest = "1.0"
-rand = "0.8"
+rand = { workspace = true }
 tedge_actors = { path = "../../core/tedge_actors", features = ["test-helpers"] }
 tedge_mqtt_ext = { path = "../../extensions/tedge_mqtt_ext", features = ["test-helpers"] }
 tedge_test_utils = { path = "../../tests/tedge_test_utils" }
