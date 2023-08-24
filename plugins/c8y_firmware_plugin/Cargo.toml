@@ -10,10 +10,10 @@ homepage = { workspace = true }
 repository = { workspace = true }
 
 [dependencies]
-anyhow = "1.0"
+anyhow = { workspace = true }
 c8y_firmware_manager = { path = "../../crates/extensions/c8y_firmware_manager" }
 c8y_http_proxy = { path = "../../crates/extensions/c8y_http_proxy" }
-clap = { version = "3.2", features = ["cargo", "derive"] }
+clap = { workspace = true }
 tedge_actors = { path = "../../crates/core/tedge_actors" }
 tedge_config = { path = "../../crates/common/tedge_config" }
 tedge_downloader_ext = { path = "../../crates/extensions/tedge_downloader_ext" }
@@ -21,5 +21,5 @@ tedge_health_ext = { path = "../../crates/extensions/tedge_health_ext" }
 tedge_mqtt_ext = { path = "../../crates/extensions/tedge_mqtt_ext" }
 tedge_signal_ext = { path = "../../crates/extensions/tedge_signal_ext" }
 tedge_timer_ext = { path = "../../crates/extensions/tedge_timer_ext" }
-tokio = { version = "1.23", features = ["rt", "rt-multi-thread"] }
-tracing = { version = "0.1", features = ["attributes", "log"] }
+tokio = { workspace = true, features = ["rt", "rt-multi-thread"] }
+tracing = { workspace = true }

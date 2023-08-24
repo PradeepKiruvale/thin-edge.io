@@ -24,6 +24,48 @@ license = "Apache-2.0"
 homepage = "https://thin-edge.io"
 repository = "https://github.com/thin-edge/thin-edge.io"
 
+[workspace.dependencies]
+anyhow =  "1.0"
+assert-json-diff = "2.0"
+assert_matches = "1.5"
+async-trait = "0.1"
+base64 = "0.13"
+camino = "1.1"
+clap = { version = "4.1", features = ["cargo", "derive"] }
+csv = "1.1"
+doku = "0.21"
+env_logger = "0.10"
+fastrand = "1.8"
+figment = { version = "0.10" }
+filetime = "0.2"
+futures = "0.3"
+http = "0.2"
+hyper = { version = "0.14", default-features = false }
+log = "0.4"
+maplit = "1.0"
+mockall = "0.11"
+mockito = "0.31"
+nanoid = "0.4"
+nix = "0.26"
+once_cell = "1.8"
+pem = "1.0"
+rand = "0.8"
+regex = "1.4"
+reqwest = { version = "0.11", default-features = false }
+rumqttc = "0.18"
+serde  = "1.0"
+serde_json = "1.0"
+serial_test = "0.8"
+strum_macros = "0.24"
+tempfile = "3.5"
+test-case = "2.2"
+thiserror = "1.0"
+time = "0.3"
+tokio = { version = "1.23", default-features = false }
+toml = "0.5"
+tracing = { version = "0.1", features = ["attributes", "log"] }
+url = "2.3"
+
 [profile.release]
 codegen-units = 1
 lto = true

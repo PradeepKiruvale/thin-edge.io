@@ -10,14 +10,14 @@ homepage = { workspace = true }
 repository = { workspace = true }
 
 [dependencies]
-anyhow = "1.0"
-async-trait = "0.1"
+anyhow = { workspace = true }
+async-trait = { workspace = true }
 aws_mapper_ext = { path = "../../extensions/aws_mapper_ext" }
 az_mapper_ext = { path = "../../extensions/az_mapper_ext" }
 batcher = { path = "../../common/batcher" }
 c8y_http_proxy = { path = "../../extensions/c8y_http_proxy" }
 c8y_mapper_ext = { path = "../../extensions/c8y_mapper_ext" }
-clap = { version = "3.2", features = ["cargo", "derive"] }
+clap = { workspace = true }
 clock = { path = "../../common/clock" }
 collectd_ext = { path = "../../extensions/collectd_ext" }
 flockfile = { path = "../../common/flockfile" }
@@ -33,14 +33,14 @@ tedge_timer_ext = { path = "../../extensions/tedge_timer_ext" }
 tedge_utils = { path = "../../common/tedge_utils", features = [
     "logging",
 ] }
-tokio = { version = "1.23", features = [
+tokio = { workspace = true, features = [
     "process",
     "rt",
     "rt-multi-thread",
     "sync",
     "time",
 ] }
-tracing = { version = "0.1", features = ["attributes", "log"] }
+tracing = { workspace = true }
 
 [features]
 integration-test = []
