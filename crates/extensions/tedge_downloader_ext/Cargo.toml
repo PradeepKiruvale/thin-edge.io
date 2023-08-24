@@ -17,6 +17,6 @@ tedge_actors = { path = "../../core/tedge_actors" }
 tedge_utils = { path = "../../common/tedge_utils" }
 
 [dev-dependencies]
-mockito = "0.31"
+mockito.workspace = true
 tedge_test_utils = { path = "../../tests/tedge_test_utils" }
 tokio = { workspace = true, default_features = false, features = ["time"] }
