@@ -11,7 +11,7 @@ repository = { workspace = true }
 [dependencies]
 camino = { workspace = true, features = ["serde1"] }
 doku = { workspace = true }
-once_cell = "1.17"
+once_cell = { workspace = true }
 serde = "1.0"
 tedge_config_macros-macro = { path = "macro" }
 thiserror = { workspace = true }
