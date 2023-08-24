@@ -30,7 +30,7 @@ time = { version = "0.3", features = [
 anyhow = { workspace = true }
 assert_matches = { workspace = true }
 clock = { path = "../../common/clock" }
-maplit = {  workspace = true }
+maplit = { workspace = true }
 mockall = "0.11"
 regex = { workspace = true }
 test-case = { workspace = true }

@@ -37,7 +37,7 @@ users = "0.11.0"
 
 [dev-dependencies]
 assert_matches = { workspace = true }
-maplit = {  workspace = true }
+maplit = { workspace = true }
 tedge_test_utils = { path = "../../tests/tedge_test_utils" }
 tokio = { workspace = true, features = ["rt-multi-thread"] }
 whoami = "1.2.1"

@@ -17,7 +17,7 @@ base64 = { workspace = true }
 camino = { workspace = true }
 certificate = { path = "../../common/certificate" }
 clap = { version = "3", features = ["cargo", "derive"] }
-doku = "0.21"
+doku = { workspace = true }
 hyper = { workspace = true, default-features = false }
 pad = "0.1"
 reqwest = { workspace = true, features = [
