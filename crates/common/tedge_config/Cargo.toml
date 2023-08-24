@@ -12,7 +12,7 @@ repository = { workspace = true }
 camino = { workspace = true, features = ["serde", "serde1"] }
 certificate = { path = "../certificate" }
 doku = { workspace = true }
-figment = { version = "0.10", features = ["env", "toml"] }
+figment = { workspace = true, features = ["env", "toml"] }
 mqtt_channel = { path = "../mqtt_channel" }
 once_cell = { workspace = true }
 serde = { workspace = true }
@@ -29,7 +29,7 @@ url = { workspace = true }
 [dev-dependencies]
 anyhow = { workspace = true }
 assert_matches = { workspace = true }
-figment = { version = "0.10", features = ["test"] }
+figment = { workspace = true, features = ["test"] }
 tedge_test_utils = { path = "../../tests/tedge_test_utils" }
 tempfile = { workspace = true }
 test-case = { workspace = true }

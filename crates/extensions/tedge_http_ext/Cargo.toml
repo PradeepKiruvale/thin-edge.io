@@ -20,7 +20,7 @@ futures = { workspace = true }
 http = { workspace = true }
 hyper = { workspace = true, default_features = false, features = ["client", "http1", "http2", "tcp"] }
 hyper-rustls = { version = "0.23", default_features = false, features = ["tokio-runtime", "tls12", "rustls-native-certs", "http1", "http2"] }
-serde = "1.0"
+serde  = { workspace = true }
 serde_json = { workspace = true }
 tedge_actors = { path = "../../core/tedge_actors" }
 thiserror = { workspace = true }
