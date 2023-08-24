@@ -27,6 +27,6 @@ url.workspace = true
 [dev-dependencies]
 mockito.workspace = true
 regex.workspace = true
-tempfile = "3.2"
+tempfile.workspace = true
 test-case = "2.2"
 tokio = { workspace = true, features = ["macros", "rt-multi-thread"] }

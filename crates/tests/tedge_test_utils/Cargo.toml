@@ -14,5 +14,5 @@ normal = ["anyhow"]
 [dependencies]
 anyhow.workspace = true
 camino.workspace = true
-tempfile = "3.3"
+tempfile.workspace = true
 toml = "0.5"

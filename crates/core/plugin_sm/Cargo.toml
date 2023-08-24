@@ -26,5 +26,5 @@ url.workspace = true
 [dev-dependencies]
 anyhow.workspace = true
 serial_test = "0.8"
-tempfile = "3.2"
+tempfile.workspace = true
 test-case = "2.2"

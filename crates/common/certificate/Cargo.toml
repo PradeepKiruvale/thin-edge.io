@@ -23,5 +23,5 @@ anyhow.workspace = true
 assert_matches = "1.5"
 base64.workspace = true
 pem = "1.0"
-tempfile = "3.2"
+tempfile.workspace = true
 time = { version = "0.3", features = ["macros"] }

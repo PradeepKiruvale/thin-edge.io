@@ -47,7 +47,7 @@ mockito.workspace = true
 mqtt_tests = { path = "../../tests/mqtt_tests" }
 pem = "1.0"
 predicates = "2.1"
-tempfile = "3.2"
+tempfile.workspace = true
 test-case = "2.2"
 tokio = { workspace = true }
 
