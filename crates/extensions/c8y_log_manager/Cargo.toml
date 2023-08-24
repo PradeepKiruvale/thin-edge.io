@@ -27,6 +27,6 @@ thiserror = { workspace = true }
 tokio = { workspace = true, features = ["macros"] }
 
 [dev-dependencies]
-filetime = "0.2"
+filetime = { workspace = true }
 tedge_test_utils = { path = "../../tests/tedge_test_utils" }
 time = { version = "0.3" }
