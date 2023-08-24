@@ -14,7 +14,7 @@ clap = { workspace = true }
 csv = { workspace = true }
 log = { workspace = true }
 regex = { workspace = true }
-serde = { version = "1", features = ["derive"] }
+serde = { workspace = true, features = ["derive"] }
 tedge_config = { path = "../../crates/common/tedge_config" }
 thiserror = { workspace = true }
 
