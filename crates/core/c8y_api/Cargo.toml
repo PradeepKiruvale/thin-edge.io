@@ -33,7 +33,7 @@ tracing = { workspace = true }
 anyhow = { workspace = true }
 assert-json-diff = "2.0"
 assert_matches = { workspace = true }
-maplit = "1.0.2"
+maplit = {  workspace = true }
 regex = { workspace = true }
 tempfile = { workspace = true }
 test-case = { workspace = true }
