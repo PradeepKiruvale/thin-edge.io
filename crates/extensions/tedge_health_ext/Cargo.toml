@@ -21,4 +21,4 @@ thiserror = { workspace = true }
 tokio = { workspace = true, features = ["macros"] }
 
 [dev-dependencies]
-anyhow = "1.0.69"
+anyhow = { workspace = true }

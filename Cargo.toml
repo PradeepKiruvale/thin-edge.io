@@ -36,7 +36,7 @@ csv = "1.1"
 doku = "0.21"
 env_logger = "0.10"
 fastrand = "1.8"
-figment = { version = "0.10"}
+figment = { version = "0.10" }
 filetime = "0.2"
 futures = "0.3"
 http = "0.2"
