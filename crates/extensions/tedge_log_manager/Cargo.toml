@@ -23,7 +23,7 @@ tedge_http_ext = { path = "../../extensions/tedge_http_ext" }
 tedge_mqtt_ext = { path = "../../extensions/tedge_mqtt_ext" }
 tedge_utils = { path = "../../common/tedge_utils" }
 thiserror = { workspace = true }
-time = { version = "0.3", features = ["formatting", "serde"] }
+time = { workspace = true, features = ["formatting", "serde"] }
 tokio = { workspace = true, features = ["macros"] }
 
 [dev-dependencies]
@@ -35,4 +35,4 @@ tedge_http_ext = { path = "../../extensions/tedge_http_ext", features = [
     "test_helpers",
 ] }
 tedge_test_utils = { path = "../../tests/tedge_test_utils" }
-time = { version = "0.3", features = ["macros"] }
+time = { workspace = true, features = ["macros"] }

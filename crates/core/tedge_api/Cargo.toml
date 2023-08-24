@@ -18,7 +18,7 @@ nanoid = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
 thiserror = { workspace = true }
-time = { version = "0.3", features = [
+time = { workspace = true, features = [
     "formatting",
     "local-offset",
     "parsing",
@@ -34,5 +34,5 @@ maplit = { workspace = true }
 mockall = { workspace = true }
 regex = { workspace = true }
 test-case = { workspace = true }
-time = { version = "0.3", features = ["macros"] }
+time = { workspace = true, features = ["macros"] }
 walkdir = "2"

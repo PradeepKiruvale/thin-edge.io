@@ -22,6 +22,6 @@ tedge_api = { path = "../../core/tedge_api" }
 tedge_config = { path = "../../common/tedge_config" }
 tedge_utils = { path = "../../common/tedge_utils", features = ["logging"] }
 thiserror = { workspace = true }
-time = { version = "0.3", features = ["formatting", "serde-well-known"] }
+time = { workspace = true, features = ["formatting", "serde-well-known"] }
 tokio = { workspace = true, features = ["sync", "time", "rt-multi-thread"] }
 tracing = { workspace = true }

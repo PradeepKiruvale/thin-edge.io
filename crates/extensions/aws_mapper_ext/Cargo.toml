@@ -28,5 +28,5 @@ assert_matches = { workspace = true }
 rand = { workspace = true }
 serde = "1.0"
 serde_json = { workspace = true }
-time = { version = "0.3", features = ["macros"] }
+time = { workspace = true, features = ["macros"] }
 tokio = { workspace = true, features = ["time"] }

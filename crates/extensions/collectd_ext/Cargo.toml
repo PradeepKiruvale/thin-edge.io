@@ -28,4 +28,4 @@ tokio = { workspace = true, features = [
 [dev-dependencies]
 anyhow = { workspace = true }
 assert_matches = { workspace = true }
-time = { version = "0.3", features = ["macros"] }
+time = { workspace = true, features = ["macros"] }
