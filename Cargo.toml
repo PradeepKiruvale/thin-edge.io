@@ -59,6 +59,7 @@ pem = "1.0"
 strum_macros = "0.24"
 hyper = { version = "0.14", default-features = false }
 doku = "0.21"
+nanoid = "0.4"
 
 [profile.release]
 codegen-units = 1
