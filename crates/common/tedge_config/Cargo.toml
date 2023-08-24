@@ -32,4 +32,4 @@ assert_matches = "1.5"
 figment = { version = "0.10", features = ["test"] }
 tedge_test_utils = { path = "../../tests/tedge_test_utils" }
 tempfile.workspace = true
-test-case = "2.2"
+test-case.workspace = true

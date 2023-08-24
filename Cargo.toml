@@ -48,6 +48,7 @@ reqwest = { version = "0.11", default-features = false }
 mockito = "0.31"
 regex = "1.4"
 tempfile = "3.5"
+test-case = "2.2"
 
 [profile.release]
 codegen-units = 1

@@ -48,7 +48,7 @@ mqtt_tests = { path = "../../tests/mqtt_tests" }
 pem = "1.0"
 predicates = "2.1"
 tempfile.workspace = true
-test-case = "2.2"
+test-case.workspace = true
 tokio = { workspace = true }
 
 [features]

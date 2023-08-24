@@ -21,4 +21,4 @@ thiserror.workspace = true
 [dev-dependencies]
 anyhow.workspace = true
 tedge_utils = { path = "../../crates/common/tedge_utils" }
-test-case = "2.2"
+test-case.workspace = true

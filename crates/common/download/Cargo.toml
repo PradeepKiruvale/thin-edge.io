@@ -28,5 +28,5 @@ url.workspace = true
 mockito.workspace = true
 regex.workspace = true
 tempfile.workspace = true
-test-case = "2.2"
+test-case.workspace = true
 tokio = { workspace = true, features = ["macros", "rt-multi-thread"] }
