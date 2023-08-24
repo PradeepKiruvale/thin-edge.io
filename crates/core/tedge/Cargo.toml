@@ -45,7 +45,7 @@ assert_cmd = "2.0"
 assert_matches = { workspace = true }
 mockito = { workspace = true }
 mqtt_tests = { path = "../../tests/mqtt_tests" }
-pem = "1.0"
+pem = { workspace = true }
 predicates = "2.1"
 tempfile = { workspace = true }
 test-case = { workspace = true }
