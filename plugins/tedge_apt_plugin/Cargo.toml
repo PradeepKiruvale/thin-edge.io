@@ -13,7 +13,7 @@ repository = { workspace = true }
 clap.workspace = true
 csv.workspace = true
 log.workspace = true
-regex = "1"
+regex.workspace = true
 serde = { version = "1", features = ["derive"] }
 tedge_config = { path = "../../crates/common/tedge_config" }
 thiserror.workspace = true
