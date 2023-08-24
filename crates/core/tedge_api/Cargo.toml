@@ -28,7 +28,7 @@ time = { version = "0.3", features = [
 
 [dev-dependencies]
 anyhow = { workspace = true }
-assert_matches = "1.5"
+assert_matches = { workspace = true }
 clock = { path = "../../common/clock" }
 maplit = "1.0.2"
 mockall = "0.11"

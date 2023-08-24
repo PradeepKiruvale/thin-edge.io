@@ -43,7 +43,7 @@ tracing = { workspace = true }
 [dev-dependencies]
 anyhow = { workspace = true }
 assert-json-diff = "2.0"
-assert_matches = "1.5"
+assert_matches = { workspace = true }
 proptest = "1.0"
 rand = "0.8"
 tedge_actors = { path = "../../core/tedge_actors", features = ["test-helpers"] }

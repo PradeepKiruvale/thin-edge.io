@@ -51,6 +51,7 @@ tempfile = "3.5"
 test-case = "2.2"
 fastrand = "1.8"
 serial_test = "0.8"
+assert_matches = "1.5"
 
 [profile.release]
 codegen-units = 1

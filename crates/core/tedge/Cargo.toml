@@ -42,7 +42,7 @@ yansi = "0.5"
 
 [dev-dependencies]
 assert_cmd = "2.0"
-assert_matches = "1.5"
+assert_matches = { workspace = true }
 mockito = { workspace = true }
 mqtt_tests = { path = "../../tests/mqtt_tests" }
 pem = "1.0"

@@ -29,7 +29,7 @@ thiserror = { workspace = true }
 
 [dev-dependencies]
 assert-json-diff = "2.0"
-assert_matches = "1.5"
+assert_matches = { workspace = true }
 mockall = "0.11"
 tedge_actors = { path = "../../core/tedge_actors", features = ["test-helpers"] }
 tedge_test_utils = { path = "../../../crates/tests/tedge_test_utils" }
