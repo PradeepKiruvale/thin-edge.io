@@ -57,6 +57,7 @@ toml = "0.5"
 assert-json-diff = "2.0"
 pem = "1.0"
 strum_macros = "0.24"
+hyper = { version = "0.14", default-features = false }
 
 [profile.release]
 codegen-units = 1

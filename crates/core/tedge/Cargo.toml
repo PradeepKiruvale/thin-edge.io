@@ -18,7 +18,7 @@ camino = { workspace = true }
 certificate = { path = "../../common/certificate" }
 clap = { version = "3", features = ["cargo", "derive"] }
 doku = "0.21"
-hyper = { version = "0.14", default-features = false }
+hyper = { workspace = true, default-features = false }
 pad = "0.1"
 reqwest = { workspace = true, features = [
     "blocking",
