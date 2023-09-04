@@ -110,6 +110,17 @@ impl C8yJsonSerializer {
         self.end()?;
         Ok(self.json.clone().into_string()?)
     }
+
+    pub fn with_type(self, m_type: Option<&str>) -> Self {
+        let default_type = match m_type {
+            Some(m_type) if !m_type.is_empty() => m_type.into(),
+            Some(_) | None => "ThinEdgeMeasurement".to_owned(),
+        };
+        Self {
+            default_type,
+            ..self
+        }
+    }
 }
 
 impl MeasurementVisitor for C8yJsonSerializer {

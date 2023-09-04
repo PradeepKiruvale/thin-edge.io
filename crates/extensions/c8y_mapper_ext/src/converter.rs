@@ -233,10 +233,11 @@ impl CumulocityConverter {
         input: &Message,
     ) -> Result<Vec<Message>, ConversionError> {
         let mut mqtt_messages: Vec<Message> = Vec::new();
-
         if let Some(entity) = self.entity_store.get(source) {
+            let fragments = input.topic.name.split('/').collect::<Vec<_>>();
             // Need to check if the input Thin Edge JSON is valid before adding a child ID to list
-            let c8y_json_payload = json::from_thin_edge_json(input.payload_str()?, entity)?;
+            let c8y_json_payload =
+                json::from_thin_edge_json(input.payload_str()?, entity, fragments.last().cloned())?;
 
             if c8y_json_payload.len() < self.size_threshold.0 {
                 mqtt_messages.push(Message::new(
@@ -1558,7 +1559,6 @@ mod tests {
         );
 
         let result = converter.convert(&big_measurement_message).await;
-        dbg!(&result);
 
         assert!(result[0]
             .payload_str()

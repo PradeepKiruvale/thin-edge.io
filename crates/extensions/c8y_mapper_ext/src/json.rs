@@ -36,9 +36,10 @@ pub enum CumulocityJsonError {
 pub fn from_thin_edge_json(
     input: &str,
     entity: &EntityMetadata,
+    m_type: Option<&str>,
 ) -> Result<String, CumulocityJsonError> {
     let timestamp = WallClock.now();
-    let c8y_vec = from_thin_edge_json_with_timestamp(input, timestamp, entity)?;
+    let c8y_vec = from_thin_edge_json_with_timestamp(input, timestamp, entity, m_type)?;
     Ok(c8y_vec)
 }
 
@@ -46,8 +47,9 @@ fn from_thin_edge_json_with_timestamp(
     input: &str,
     timestamp: OffsetDateTime,
     entity: &EntityMetadata,
+    m_type: Option<&str>,
 ) -> Result<String, CumulocityJsonError> {
-    let mut serializer = serializer::C8yJsonSerializer::new(timestamp, entity);
+    let mut serializer = serializer::C8yJsonSerializer::new(timestamp, entity).with_type(m_type);
     parse_str(input, &mut serializer)?;
     Ok(serializer.into_string()?)
 }
@@ -73,8 +75,12 @@ mod tests {
         let timestamp = datetime!(2021-04-08 0:00:0 +05:00);
 
         let entity = EntityMetadata::main_device("foo".to_string());
-        let output =
-            from_thin_edge_json_with_timestamp(single_value_thin_edge_json, timestamp, &entity);
+        let output = from_thin_edge_json_with_timestamp(
+            single_value_thin_edge_json,
+            timestamp,
+            &entity,
+            None,
+        );
 
         let expected_output = json!({
             "time": timestamp
@@ -110,8 +116,12 @@ mod tests {
         let timestamp = datetime!(2021-04-08 0:00:0 +05:00);
 
         let entity = EntityMetadata::main_device("foo".to_string());
-        let output =
-            from_thin_edge_json_with_timestamp(single_value_thin_edge_json, timestamp, &entity);
+        let output = from_thin_edge_json_with_timestamp(
+            single_value_thin_edge_json,
+            timestamp,
+            &entity,
+            None,
+        );
 
         let expected_output = json!({
             "time": timestamp
@@ -156,7 +166,7 @@ mod tests {
                   }"#;
 
         let entity = EntityMetadata::main_device("foo".to_string());
-        let output = from_thin_edge_json(single_value_thin_edge_json, &entity);
+        let output = from_thin_edge_json(single_value_thin_edge_json, &entity, None);
 
         assert_eq!(
             expected_output.split_whitespace().collect::<String>(),
@@ -179,8 +189,12 @@ mod tests {
         let timestamp = datetime!(2021-04-08 0:00:0 +05:00);
 
         let entity = EntityMetadata::main_device("foo".to_string());
-        let output =
-            from_thin_edge_json_with_timestamp(multi_value_thin_edge_json, timestamp, &entity);
+        let output = from_thin_edge_json_with_timestamp(
+            multi_value_thin_edge_json,
+            timestamp,
+            &entity,
+            None,
+        );
 
         let expected_output = json!({
             "time": timestamp
@@ -235,7 +249,7 @@ mod tests {
         }"#;
 
         let entity = EntityMetadata::main_device("foo".to_string());
-        let output = from_thin_edge_json(input, &entity);
+        let output = from_thin_edge_json(input, &entity, None);
 
         let actual_output = output.unwrap().split_whitespace().collect::<String>();
 
@@ -268,7 +282,7 @@ mod tests {
                 }}"#, time, measurement, measurement);
 
         let entity = EntityMetadata::main_device("foo".to_string());
-        let output = from_thin_edge_json(input.as_str(), &entity).unwrap();
+        let output = from_thin_edge_json(input.as_str(), &entity, None).unwrap();
         assert_eq!(
             expected_output.split_whitespace().collect::<String>(),
             output
@@ -316,7 +330,7 @@ mod tests {
     ) {
         let timestamp = datetime!(2021-04-08 0:00:0 +05:00);
         let entity = EntityMetadata::child_device(child_id.to_string()).unwrap();
-        let output = from_thin_edge_json_with_timestamp(thin_edge_json, timestamp, &entity);
+        let output = from_thin_edge_json_with_timestamp(thin_edge_json, timestamp, &entity, None);
         assert_json_eq!(
             serde_json::from_str::<serde_json::Value>(output.unwrap().as_str()).unwrap(),
             expected_output
