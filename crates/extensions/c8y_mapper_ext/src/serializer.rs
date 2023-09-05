@@ -111,10 +111,11 @@ impl C8yJsonSerializer {
         Ok(self.json.clone().into_string()?)
     }
 
-    pub fn with_type(self, m_type: Option<&str>) -> Self {
-        let default_type = match m_type {
-            Some(m_type) if !m_type.is_empty() => m_type.into(),
-            Some(_) | None => "ThinEdgeMeasurement".to_owned(),
+    pub fn with_type(self, m_type: &str) -> Self {
+        let default_type = if m_type.is_empty() {
+            "ThinEdgeMeasurement".to_owned()
+        } else {
+            m_type.into()
         };
         Self {
             default_type,
