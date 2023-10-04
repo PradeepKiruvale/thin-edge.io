@@ -1,11 +1,13 @@
 use std::process;
 
+use clock::Clock;
+use clock::WallClock;
+use log::error;
 use mqtt_channel::Message;
 use mqtt_channel::PubChannel;
 use mqtt_channel::Topic;
 use mqtt_channel::TopicFilter;
 use serde_json::json;
-use time::OffsetDateTime;
 
 pub fn health_check_topics(daemon_name: &str) -> TopicFilter {
     vec![
@@ -17,17 +19,7 @@ pub fn health_check_topics(daemon_name: &str) -> TopicFilter {
 }
 
 pub async fn send_health_status(responses: &mut impl PubChannel, daemon_name: &str) {
-    let response_topic_health =
-        Topic::new_unchecked(format!("tedge/health/{daemon_name}").as_str());
-
-    let health_status = json!({
-        "status": "up",
-        "pid": process::id(),
-        "time": OffsetDateTime::now_utc().unix_timestamp(),
-    })
-    .to_string();
-
-    let health_message = Message::new(&response_topic_health, health_status).with_retain();
+    let health_message = health_status_up_message(daemon_name);
     let _ = responses.send(health_message).await;
 }
 
@@ -51,7 +43,7 @@ pub fn health_status_up_message(daemon_name: &str) -> Message {
     let health_status = json!({
         "status": "up",
         "pid": process::id(),
-        "time": OffsetDateTime::now_utc().unix_timestamp(),
+        "time": get_timestamp(),
     })
     .to_string();
 
@@ -71,5 +63,22 @@ pub fn is_bridge_health(topic: &str) -> bool {
         }
     } else {
         false
+    }
+}
+
+fn get_timestamp() -> String {
+    let clock = Box::new(WallClock);
+    let timestamp = clock
+        .now()
+        .format(&time::format_description::well_known::Rfc3339);
+    match timestamp {
+        Ok(time_stamp) => time_stamp,
+        Err(e) => {
+            error!(
+                "Failed to convert timestamp to Rfc3339 format due to: {}",
+                e
+            );
+            "".into()
+        }
     }
 }

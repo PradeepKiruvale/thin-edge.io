@@ -130,7 +130,7 @@ impl zeroize::Zeroize for PrivateKey {
 
 #[derive(Clone)]
 pub struct InitMessageFn {
-    initfn: Arc<Box<dyn Fn() -> Message + Send + Sync>>,
+    initfn: Arc<Box<dyn Fn() -> Message + Sync + Send>>,
 }
 
 impl InitMessageFn {
