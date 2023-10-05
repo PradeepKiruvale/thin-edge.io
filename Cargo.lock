@@ -3695,6 +3695,7 @@ dependencies = [
  "env_logger",
  "futures",
  "log",
+ "tedge_api",
  "thiserror",
  "tokio",
 ]
@@ -3710,6 +3711,7 @@ dependencies = [
  "csv",
  "download",
  "json-writer",
+ "log",
  "maplit",
  "mockall",
  "mqtt_channel",

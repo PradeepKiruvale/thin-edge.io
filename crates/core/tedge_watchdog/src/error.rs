@@ -1,5 +1,4 @@
 use mqtt_channel::MqttError;
-
 use tedge_config::CertificateError;
 use tedge_config::ConfigSettingError;
 use tedge_config::TEdgeConfigError;
