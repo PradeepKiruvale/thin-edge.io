@@ -1625,6 +1625,87 @@ pub(crate) mod tests {
     }
 
     #[tokio::test]
+    async fn convert_measurement_for_child_device_service() {
+        let tmp_dir = TempTedgeDir::new();
+        let (mut converter, _http_proxy) = create_c8y_converter(&tmp_dir).await;
+
+        let in_topic = "te/device/child1/service/app1/m/m_type";
+        let in_payload = r#"{"temp": 1, "time": "2021-11-16T17:45:40.571760714+01:00"}"#;
+        let in_message = Message::new(&Topic::new_unchecked(in_topic), in_payload);
+
+        let expected_smart_rest_message_child = Message::new(
+            &Topic::new_unchecked("c8y/s/us"),
+            "101,test-device:device:child1,child1,thin-edge.io-child",
+        );
+        let expected_smart_rest_message_service = Message::new(
+            &Topic::new_unchecked("c8y/s/us/test-device:device:child1"),
+            "102,test-device:device:child1:service:app1,systemd,app1,up",
+        );
+        let expected_c8y_json_message = Message::new(
+            &Topic::new_unchecked("c8y/measurement/measurements/create"),
+            r#"{"externalSource":{"externalId":"test-device:device:child1:service:app1","type":"c8y_Serial"},"temp":{"temp":{"value":1.0}},"time":"2021-11-16T17:45:40.571760714+01:00","type":"m_type"}"#,
+        );
+
+        // Test the first output messages contains SmartREST and C8Y JSON.
+        let out_first_messages: Vec<_> = converter
+            .convert(&in_message)
+            .await
+            .into_iter()
+            .filter(|m| m.topic.name.starts_with("c8y"))
+            .collect();
+        assert_eq!(
+            out_first_messages,
+            vec![
+                expected_smart_rest_message_child,
+                expected_smart_rest_message_service,
+                expected_c8y_json_message.clone()
+            ]
+        );
+
+        // Test the second output messages doesn't contain SmartREST child device creation.
+        let out_second_messages = converter.convert(&in_message).await;
+        assert_eq!(out_second_messages, vec![expected_c8y_json_message]);
+    }
+
+    #[tokio::test]
+    async fn convert_measurement_for_main_device_service() {
+        let tmp_dir = TempTedgeDir::new();
+        let (mut converter, _http_proxy) = create_c8y_converter(&tmp_dir).await;
+
+        let in_topic = "te/device/main/service/appm/m/m_type";
+        let in_payload = r#"{"temp": 1, "time": "2021-11-16T17:45:40.571760714+01:00"}"#;
+        let in_message = Message::new(&Topic::new_unchecked(in_topic), in_payload);
+
+        let expected_c8y_json_message = Message::new(
+            &Topic::new_unchecked("c8y/measurement/measurements/create"),
+            r#"{"externalSource":{"externalId":"test-device:device:main:service:appm","type":"c8y_Serial"},"temp":{"temp":{"value":1.0}},"time":"2021-11-16T17:45:40.571760714+01:00","type":"m_type"}"#,
+        );
+
+        let expected_smart_rest_message_service = Message::new(
+            &Topic::new_unchecked("c8y/s/us"),
+            "102,test-device:device:main:service:appm,systemd,appm,up",
+        );
+
+        // Test the first output messages contains SmartREST and C8Y JSON.
+        let out_first_messages: Vec<_> = converter
+            .convert(&in_message)
+            .await
+            .into_iter()
+            .filter(|m| m.topic.name.starts_with("c8y"))
+            .collect();
+        assert_eq!(
+            out_first_messages,
+            vec![
+                expected_smart_rest_message_service,
+                expected_c8y_json_message.clone()
+            ]
+        );
+
+        let out_second_messages = converter.convert(&in_message).await;
+        assert_eq!(out_second_messages, vec![expected_c8y_json_message]);
+    }
+
+    #[tokio::test]
     #[ignore = "FIXME: the registration is currently done even if the message is ill-formed"]
     async fn convert_first_measurement_invalid_then_valid_with_child_id() {
         let tmp_dir = TempTedgeDir::new();
