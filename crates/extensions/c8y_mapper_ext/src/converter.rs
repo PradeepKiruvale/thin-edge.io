@@ -1643,7 +1643,15 @@ pub(crate) mod tests {
         );
         let expected_c8y_json_message = Message::new(
             &Topic::new_unchecked("c8y/measurement/measurements/create"),
-            r#"{"externalSource":{"externalId":"test-device:device:child1:service:app1","type":"c8y_Serial"},"temp":{"temp":{"value":1.0}},"time":"2021-11-16T17:45:40.571760714+01:00","type":"m_type"}"#,
+            json!({
+                "externalSource":{
+                    "externalId":"test-device:device:child1:service:app1",
+                    "type":"c8y_Serial"
+                },
+                "temp":{"temp":{"value":1.0}},
+                "time":"2021-11-16T17:45:40.571760714+01:00",
+                "type":"m_type"})
+            .to_string(),
         );
 
         // Test the first output messages contains SmartREST and C8Y JSON.
@@ -1678,7 +1686,15 @@ pub(crate) mod tests {
 
         let expected_c8y_json_message = Message::new(
             &Topic::new_unchecked("c8y/measurement/measurements/create"),
-            r#"{"externalSource":{"externalId":"test-device:device:main:service:appm","type":"c8y_Serial"},"temp":{"temp":{"value":1.0}},"time":"2021-11-16T17:45:40.571760714+01:00","type":"m_type"}"#,
+            json!({
+                "externalSource":{
+                    "externalId":"test-device:device:main:service:appm",
+                    "type":"c8y_Serial"
+                },
+                "temp":{"temp":{"value":1.0}},
+                "time":"2021-11-16T17:45:40.571760714+01:00",
+                "type":"m_type"})
+            .to_string(),
         );
 
         let expected_smart_rest_message_service = Message::new(
