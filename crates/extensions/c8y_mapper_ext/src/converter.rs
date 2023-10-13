@@ -1625,6 +1625,127 @@ pub(crate) mod tests {
     }
 
     #[tokio::test]
+    async fn convert_measurement_with_nested_child_id() {
+        let tmp_dir = TempTedgeDir::new();
+        let (mut converter, _http_proxy) = create_c8y_converter(&tmp_dir).await;
+        let reg_message = Message::new(
+            &Topic::new_unchecked("te/device/immediate_child//"),
+            json!({
+                "@type":"child-device",
+                "@parent":"device/main//",
+                "@id":"immediate_child"
+            })
+            .to_string(),
+        );
+        let _ = converter.convert(&reg_message).await;
+
+        let reg_message = Message::new(
+            &Topic::new_unchecked("te/device/nested_child//"),
+            json!({
+                "@type":"child-device",
+                "@parent":"device/immediate_child//",
+                "@id":"nested_child"
+            })
+            .to_string(),
+        );
+        let _ = converter.convert(&reg_message).await;
+
+        let in_topic = "te/device/nested_child///m/";
+        let in_payload = r#"{"temp": 1, "time": "2021-11-16T17:45:40.571760714+01:00"}"#;
+        let in_message = Message::new(&Topic::new_unchecked(in_topic), in_payload);
+
+        let expected_c8y_json_message = Message::new(
+            &Topic::new_unchecked("c8y/measurement/measurements/create"),
+            json!({
+                "externalSource":{"externalId":"nested_child","type":"c8y_Serial"},
+                "temp":{"temp":{"value":1.0}},
+                "time":"2021-11-16T17:45:40.571760714+01:00",
+                "type":"ThinEdgeMeasurement"
+            })
+            .to_string(),
+        );
+
+        // Test the first output messages contains SmartREST and C8Y JSON.
+        let out_first_messages: Vec<_> = converter
+            .convert(&in_message)
+            .await
+            .into_iter()
+            .filter(|m| m.topic.name.starts_with("c8y"))
+            .collect();
+        assert_eq!(out_first_messages, vec![expected_c8y_json_message.clone()]);
+
+        // Test the second output messages doesn't contain SmartREST child device creation.
+        let out_second_messages = converter.convert(&in_message).await;
+        assert_eq!(out_second_messages, vec![expected_c8y_json_message]);
+    }
+
+    #[tokio::test]
+    async fn convert_measurement_with_nested_child_service() {
+        let tmp_dir = TempTedgeDir::new();
+        let (mut converter, _http_proxy) = create_c8y_converter(&tmp_dir).await;
+        let reg_message = Message::new(
+            &Topic::new_unchecked("te/device/immediate_child//"),
+            json!({
+                "@type":"child-device",
+                "@parent":"device/main//",
+                "@id":"immediate_child"
+            })
+            .to_string(),
+        );
+        let _ = converter.convert(&reg_message).await;
+
+        let reg_message = Message::new(
+            &Topic::new_unchecked("te/device/nested_child//"),
+            json!({
+                "@type":"child-device",
+                "@parent":"device/immediate_child//",
+                "@id":"nested_child"
+            })
+            .to_string(),
+        );
+        let _ = converter.convert(&reg_message).await;
+
+        let reg_message = Message::new(
+            &Topic::new_unchecked("te/device/nested_child/service/nested_service"),
+            json!({
+                "@type":"service",
+                "@parent":"device/nested_child//",
+                "@id":"nested_service"
+            })
+            .to_string(),
+        );
+        let _ = converter.convert(&reg_message).await;
+
+        let in_topic = "te/device/nested_child/service/nested_service/m/";
+        let in_payload = r#"{"temp": 1, "time": "2021-11-16T17:45:40.571760714+01:00"}"#;
+        let in_message = Message::new(&Topic::new_unchecked(in_topic), in_payload);
+
+        let expected_c8y_json_message = Message::new(
+            &Topic::new_unchecked("c8y/measurement/measurements/create"),
+            json!({
+                "externalSource":{"externalId":"nested_service","type":"c8y_Serial"},
+                "temp":{"temp":{"value":1.0}},
+                "time":"2021-11-16T17:45:40.571760714+01:00",
+                "type":"ThinEdgeMeasurement"
+            })
+            .to_string(),
+        );
+
+        // Test the first output messages contains SmartREST and C8Y JSON.
+        let out_first_messages: Vec<_> = converter
+            .convert(&in_message)
+            .await
+            .into_iter()
+            .filter(|m| m.topic.name.starts_with("c8y"))
+            .collect();
+        assert_eq!(out_first_messages, vec![expected_c8y_json_message.clone()]);
+
+        // Test the second output messages doesn't contain SmartREST child device creation.
+        let out_second_messages = converter.convert(&in_message).await;
+        assert_eq!(out_second_messages, vec![expected_c8y_json_message]);
+    }
+
+    #[tokio::test]
     async fn convert_measurement_for_child_device_service() {
         let tmp_dir = TempTedgeDir::new();
         let (mut converter, _http_proxy) = create_c8y_converter(&tmp_dir).await;

@@ -13,8 +13,6 @@ Child devices support sending simple measurements
     ${measurements}=    Device Should Have Measurements    minimum=1    maximum=1    type=ThinEdgeMeasurement    value=temperature    series=temperature
     Log    ${measurements}
 
-
-
 Child devices support sending simple measurements with custom type in topic
     Execute Command    tedge mqtt pub te/device/${CHILD_SN}///m/CustomType_topic '{ "temperature": 25 }'
     ${measurements}=    Device Should Have Measurements    minimum=1    maximum=1    type=CustomType_topic    value=temperature    series=temperature
@@ -144,7 +142,7 @@ Send measurements to a registered child service
     Cumulocity.Device Should Exist    ${DEVICE_SN}:device:${CHILD_SN}:service:app2
     ${measurements}=    Device Should Have Measurements    minimum=1    maximum=1    type=service_type002
     Should Be Equal    ${measurements[0]["type"]}    service_type002
-    Should Be Equal As Numbers    ${measurements[0]["temperature"]["temperature"]["value"]}    30.1
+    Should Be Equal As Numbers    ${measurements[0]["temperature"]["temperature"]["value"]}    30.1    
 
 # alarms
 Send alarms to an unregistered child service
@@ -184,6 +182,37 @@ Send events to a registered child service
     Cumulocity.Device Should Exist    ${DEVICE_SN}:device:${CHILD_SN}:service:app6
     Execute Command    tedge mqtt pub te/device/${CHILD_SN}/service/app6/e/event_002 '{"text": "test event"}'
     Device Should Have Event/s    expected_text=test event    type=event_002    minimum=1    maximum=1
+
+    Cumulocity.Device Should Exist    ${DEVICE_SN}:device:${CHILD_SN}:service:app1
+    ${measurements}=    Device Should Have Measurements    minimum=1    maximum=1    type=service_type001
+    Should Be Equal    ${measurements[0]["type"]}    service_type001
+    Should Be Equal As Numbers    ${measurements[0]["temperature"]["temperature"]["value"]}    30.1
+
+
+Nested child devices support sending simple measurements
+    ${nested_child}=    Get Random Name
+    Execute Command    tedge mqtt pub --retain 'te/device/${nested_child}//' '{"@type":"child-device","@parent":"device/${CHILD_SN}//","@id":"${nested_child}"}'
+    Execute Command    tedge mqtt pub te/device/${nested_child}///m/ '{ "temperature": 25 }'
+    Cumulocity.Device Should Exist    ${nested_child}
+    ${measurements}=    Device Should Have Measurements    minimum=1    maximum=1    type=ThinEdgeMeasurement    value=temperature    series=temperature
+    Log    ${measurements}
+
+
+Nested child devices support sending alarm
+    ${nested_child}=    Get Random Name
+    Execute Command    tedge mqtt pub --retain 'te/device/${nested_child}//' '{"@type":"child-device","@parent":"device/${CHILD_SN}//","@id":"${nested_child}"}'
+    Execute Command    tedge mqtt pub te/device/${nested_child}//a/ '{ "severity":"critical","text":"temperature alarm" }'
+    Cumulocity.Device Should Exist    ${nested_child}
+    ${measurements}=    Device Should Have Alarm/s    minimum=1    maximum=1    type=ThiEdgeAlarm    expected_text=temperature alarm    severity=critical
+    Log    ${measurements}
+
+Nested child devices support sending event
+    ${nested_child}=    Get Random Name
+    Execute Command    tedge mqtt pub --retain 'te/device/${nested_child}//' '{"@type":"child-device","@parent":"device/${CHILD_SN}//","@id":"${nested_child}"}'
+    Execute Command    tedge mqtt pub te/device/${nested_child}//e/event_nested '{ "text":"nested child event" }'
+    Cumulocity.Device Should Exist    ${nested_child}
+    ${measurements}=    Device Should Have Event/s  expected_text=nested child event    type=event_nested    minimum=1    maximum=1
+    Log    ${measurements}
 
 *** Keywords ***
 

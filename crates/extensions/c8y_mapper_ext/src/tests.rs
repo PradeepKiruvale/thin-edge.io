@@ -1143,7 +1143,8 @@ async fn c8y_mapper_main_service_event() {
 #[tokio::test]
 async fn c8y_mapper_child_service_alarm() {
     let cfg_dir = TempTedgeDir::new();
-    let (mqtt, _http, _fs, mut timer, _dl) = spawn_c8y_mapper_actor(&cfg_dir, true).await;    timer.send(Timeout::new(())).await.unwrap(); //Complete sync phase so that alarm mapping starts
+    let (mqtt, _http, _fs, mut timer, _dl) = spawn_c8y_mapper_actor(&cfg_dir, true).await;
+    timer.send(Timeout::new(())).await.unwrap(); //Complete sync phase so that alarm mapping starts
     let mut mqtt = mqtt.with_timeout(TEST_TIMEOUT_MS);
     skip_init_messages(&mut mqtt).await;
 
@@ -1218,7 +1219,8 @@ async fn c8y_mapper_child_service_alarm() {
 #[tokio::test]
 async fn c8y_mapper_main_service_alarm() {
     let cfg_dir = TempTedgeDir::new();
-    let (mqtt, _http, _fs, mut timer, _dl) = spawn_c8y_mapper_actor(&cfg_dir, true).await;    timer.send(Timeout::new(())).await.unwrap(); //Complete sync phase so that alarm mapping starts
+    let (mqtt, _http, _fs, mut timer, _dl) = spawn_c8y_mapper_actor(&cfg_dir, true).await;
+    timer.send(Timeout::new(())).await.unwrap(); //Complete sync phase so that alarm mapping starts
     let mut mqtt = mqtt.with_timeout(TEST_TIMEOUT_MS);
     skip_init_messages(&mut mqtt).await;
 
@@ -2623,6 +2625,244 @@ async fn handle_log_upload_successful_cmd_for_child_device() {
         [(
             "c8y/s/us/test-device:device:child1",
             "503,c8y_LogfileRequest,http://c8y-binary.url",
+        )],
+    )
+    .await;
+}
+
+#[tokio::test]
+async fn c8y_mapper_nested_child_alarm_mapping_to_smartrest() {
+    let cfg_dir = TempTedgeDir::new();
+    let (mqtt, _http, _fs, mut timer, _dl) = spawn_c8y_mapper_actor(&cfg_dir, true).await;
+
+    timer.send(Timeout::new(())).await.unwrap(); //Complete sync phase so that alarm mapping starts
+    let mut mqtt = mqtt.with_timeout(TEST_TIMEOUT_MS);
+    skip_init_messages(&mut mqtt).await;
+
+    let reg_message = MqttMessage::new(
+        &Topic::new_unchecked("te/device/immediate_child//"),
+        json!({
+            "@type":"child-device",
+            "@parent":"device/main//",
+            "@id":"immediate_child"
+        })
+        .to_string(),
+    );
+    mqtt.send(reg_message).await.unwrap();
+
+    let reg_message = MqttMessage::new(
+        &Topic::new_unchecked("te/device/nested_child//"),
+        json!({
+            "@type":"child-device",
+            "@parent":"device/immediate_child//",
+            "@id":"nested_child"
+        })
+        .to_string(),
+    );
+    mqtt.send(reg_message).await.unwrap();
+
+    mqtt.send(MqttMessage::new(
+        &Topic::new_unchecked("te/device/nested_child///a/"),
+        json!({ "severity": "minor", "text": "Temperature high","time":"2023-10-13T15:00:07.172674353Z" }).to_string(),
+    ))
+    .await
+    .unwrap();
+
+    mqtt.skip(2).await;
+
+    // Expect nested child device creating an minor alarm
+    assert_received_contains_str(
+        &mut mqtt,
+        [(
+            "c8y/s/us/nested_child",
+            "303,ThinEdgeAlarm,\"Temperature high\",2023-10-13T15:00:07.172674353Z",
+        )],
+    )
+    .await;
+}
+
+#[tokio::test]
+async fn c8y_mapper_nested_child_event_mapping_to_smartrest() {
+    let cfg_dir = TempTedgeDir::new();
+    let (mqtt, _http, _fs, mut timer, _dl) = spawn_c8y_mapper_actor(&cfg_dir, true).await;
+
+    timer.send(Timeout::new(())).await.unwrap(); //Complete sync phase so that alarm mapping starts
+    let mut mqtt = mqtt.with_timeout(TEST_TIMEOUT_MS);
+    skip_init_messages(&mut mqtt).await;
+
+    let reg_message = MqttMessage::new(
+        &Topic::new_unchecked("te/device/immediate_child//"),
+        json!({
+            "@type":"child-device",
+            "@parent":"device/main//",
+            "@id":"immediate_child"
+        })
+        .to_string(),
+    );
+    mqtt.send(reg_message).await.unwrap();
+
+    let reg_message = MqttMessage::new(
+        &Topic::new_unchecked("te/device/nested_child//"),
+        json!({
+            "@type":"child-device",
+            "@parent":"device/immediate_child//",
+            "@id":"nested_child"
+        })
+        .to_string(),
+    );
+    mqtt.send(reg_message).await.unwrap();
+
+    mqtt.send(MqttMessage::new(
+        &Topic::new_unchecked("te/device/nested_child///e/"),
+        json!({ "text": "Temperature high","time":"2023-10-13T15:00:07.172674353Z" }).to_string(),
+    ))
+    .await
+    .unwrap();
+
+    mqtt.skip(2).await;
+
+    // Expect nested child device creating an event
+    assert_received_includes_json(
+        &mut mqtt,
+        [(
+            "c8y/event/events/create",
+            json!({
+                "type":"ThinEdgeEvent",
+                "time":"2023-10-13T15:00:07.172674353Z",
+                "text":"Temperature high",
+                "externalSource":{"externalId":"nested_child","type":"c8y_Serial"}
+            }),
+        )],
+    )
+    .await;
+}
+
+#[tokio::test]
+async fn c8y_mapper_nested_child_service_alarm_mapping_to_smartrest() {
+    let cfg_dir = TempTedgeDir::new();
+    let (mqtt, _http, _fs, mut timer, _dl) = spawn_c8y_mapper_actor(&cfg_dir, true).await;
+
+    timer.send(Timeout::new(())).await.unwrap(); //Complete sync phase so that alarm mapping starts
+    let mut mqtt = mqtt.with_timeout(TEST_TIMEOUT_MS);
+    skip_init_messages(&mut mqtt).await;
+
+    let reg_message = MqttMessage::new(
+        &Topic::new_unchecked("te/device/immediate_child//"),
+        json!({
+            "@type":"child-device",
+            "@parent":"device/main//",
+            "@id":"immediate_child"
+        })
+        .to_string(),
+    );
+    mqtt.send(reg_message).await.unwrap();
+
+    let reg_message = MqttMessage::new(
+        &Topic::new_unchecked("te/device/nested_child//"),
+        json!({
+            "@type":"child-device",
+            "@parent":"device/immediate_child//",
+            "@id":"nested_child"
+        })
+        .to_string(),
+    );
+    mqtt.send(reg_message).await.unwrap();
+
+    let reg_message = MqttMessage::new(
+        &Topic::new_unchecked("te/device/nested_child/service/nested_service"),
+        json!({
+            "@type":"service",
+            "@parent":"device/nested_child//",
+            "@id":"nested_service"
+        })
+        .to_string(),
+    );
+
+    mqtt.send(reg_message).await.unwrap();
+
+    mqtt.send(MqttMessage::new(
+        &Topic::new_unchecked("te/device/nested_child/service/nested_service/a/"),
+        json!({ "severity": "minor", "text": "Temperature high","time":"2023-10-13T15:00:07.172674353Z" }).to_string(),
+    ))
+    .await
+    .unwrap();
+
+    mqtt.skip(3).await;
+
+    // Expect child device service creating minor temperature alarm messages
+    assert_received_contains_str(
+        &mut mqtt,
+        [(
+            "c8y/s/us/nested_service",
+            "303,ThinEdgeAlarm,\"Temperature high\",2023-10-13T15:00:07.172674353Z",
+        )],
+    )
+    .await;
+}
+
+#[tokio::test]
+async fn c8y_mapper_nested_child_service_event_mapping_to_smartrest() {
+    let cfg_dir = TempTedgeDir::new();
+    let (mqtt, _http, _fs, mut timer, _dl) = spawn_c8y_mapper_actor(&cfg_dir, true).await;
+
+    timer.send(Timeout::new(())).await.unwrap(); //Complete sync phase so that alarm mapping starts
+    let mut mqtt = mqtt.with_timeout(TEST_TIMEOUT_MS);
+    skip_init_messages(&mut mqtt).await;
+
+    let reg_message = MqttMessage::new(
+        &Topic::new_unchecked("te/device/immediate_child//"),
+        json!({
+            "@type":"child-device",
+            "@parent":"device/main//",
+            "@id":"immediate_child"
+        })
+        .to_string(),
+    );
+    mqtt.send(reg_message).await.unwrap();
+
+    let reg_message = MqttMessage::new(
+        &Topic::new_unchecked("te/device/nested_child//"),
+        json!({
+            "@type":"child-device",
+            "@parent":"device/immediate_child//",
+            "@id":"nested_child"
+        })
+        .to_string(),
+    );
+    mqtt.send(reg_message).await.unwrap();
+
+    let reg_message = MqttMessage::new(
+        &Topic::new_unchecked("te/device/nested_child/service/nested_service"),
+        json!({
+            "@type":"service",
+            "@parent":"device/nested_child//",
+            "@id":"nested_service"
+        })
+        .to_string(),
+    );
+
+    mqtt.send(reg_message).await.unwrap();
+
+    mqtt.send(MqttMessage::new(
+        &Topic::new_unchecked("te/device/nested_child/service/nested_service/e/"),
+        json!({ "text": "Temperature high","time":"2023-10-13T15:00:07.172674353Z" }).to_string(),
+    ))
+    .await
+    .unwrap();
+
+    mqtt.skip(3).await;
+
+    // Expect nested child device service creating the event messages
+    assert_received_includes_json(
+        &mut mqtt,
+        [(
+            "c8y/event/events/create",
+            json!({
+                "type":"ThinEdgeEvent",
+                "time":"2023-10-13T15:00:07.172674353Z",
+                "text":"Temperature high",
+                "externalSource":{"externalId":"nested_service","type":"c8y_Serial"}
+            }),
         )],
     )
     .await;
