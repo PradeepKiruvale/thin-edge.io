@@ -1625,7 +1625,7 @@ pub(crate) mod tests {
     }
 
     #[tokio::test]
-    async fn convert_measurement_with_nested_child_id() {
+    async fn convert_measurement_with_nested_child_device() {
         let tmp_dir = TempTedgeDir::new();
         let (mut converter, _http_proxy) = create_c8y_converter(&tmp_dir).await;
         let reg_message = Message::new(

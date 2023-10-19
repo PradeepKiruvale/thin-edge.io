@@ -183,7 +183,7 @@ Send events to a registered child service
     Device Should Have Event/s    expected_text=test event    type=event_002    minimum=1    maximum=1
   
 # Nested child devices
-Nested child devices support sending simple measurements
+Nested child devices support sending measurement
     ${nested_child}=    Get Random Name
     Execute Command    tedge mqtt pub --retain 'te/device/${nested_child}//' '{"@type":"child-device","@parent":"device/${CHILD_SN}//","@id":"${nested_child}"}'
     Execute Command    tedge mqtt pub te/device/${nested_child}///m/ '{ "temperature": 25 }'
