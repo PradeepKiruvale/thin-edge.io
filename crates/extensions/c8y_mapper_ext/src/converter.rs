@@ -1741,7 +1741,8 @@ pub(crate) mod tests {
             json!({
                 "@id":"test-device:device:child1",
                 "@type":"child-device",
-                "name":"child1"})
+                "name":"child1",
+            })
             .to_string(),
         )
         .with_retain();
@@ -1757,7 +1758,7 @@ pub(crate) mod tests {
                 "@parent":"device/child1//",
                 "@type":"service",
                 "name":"app1",
-                "type":"systemd",
+                "type":"service"
             })
             .to_string(),
         )
@@ -1765,7 +1766,7 @@ pub(crate) mod tests {
 
         let expected_smart_rest_message_service = Message::new(
             &Topic::new_unchecked("c8y/s/us/test-device:device:child1"),
-            "102,test-device:device:child1:service:app1,systemd,app1,up",
+            "102,test-device:device:child1:service:app1,service,app1,up",
         );
         let expected_c8y_json_message = Message::new(
             &Topic::new_unchecked("c8y/measurement/measurements/create"),
@@ -1814,7 +1815,7 @@ pub(crate) mod tests {
                 "@parent":"device/main//",
                 "@type":"service",
                 "name":"appm",
-                "type":"systemd"})
+                "type":"service"})
             .to_string(),
         )
         .with_retain();
@@ -1834,7 +1835,7 @@ pub(crate) mod tests {
 
         let expected_smart_rest_message_service = Message::new(
             &Topic::new_unchecked("c8y/s/us"),
-            "102,test-device:device:main:service:appm,systemd,appm,up",
+            "102,test-device:device:main:service:appm,service,appm,up",
         );
 
         // Test the first output messages contains SmartREST and C8Y JSON.

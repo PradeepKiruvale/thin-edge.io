@@ -1040,7 +1040,7 @@ async fn c8y_mapper_child_service_event() {
                "@parent":"device/external_sensor//",
                "@type":"service",
                "name":"service_child",
-               "type":"systemd"
+               "type":"service"
             }),
         )],
     )
@@ -1051,7 +1051,7 @@ async fn c8y_mapper_child_service_event() {
         &mut mqtt,
         [(
             "c8y/s/us/test-device:device:external_sensor",
-            "102,test-device:device:external_sensor:service:service_child,systemd,service_child,up",
+            "102,test-device:device:external_sensor:service:service_child,service,service_child,up",
         )],
     )
     .await;
@@ -1105,7 +1105,7 @@ async fn c8y_mapper_main_service_event() {
                 "@type":"service",
                 "@parent":"device/main//",
                 "@id":"test-device:device:main:service:service_main",
-                "type":"systemd"
+                "type":"service"
             }),
         )],
     )
@@ -1116,7 +1116,7 @@ async fn c8y_mapper_main_service_event() {
         &mut mqtt,
         [(
             "c8y/s/us",
-            "102,test-device:device:main:service:service_main,systemd,service_main,up",
+            "102,test-device:device:main:service:service_main,service,service_main,up",
         )],
     )
     .await;
@@ -1189,7 +1189,7 @@ async fn c8y_mapper_child_service_alarm() {
                "@parent":"device/external_sensor//",
                "@type":"service",
                "name":"service_child",
-               "type":"systemd"
+               "type":"service"
             }),
         )],
     )
@@ -1200,7 +1200,7 @@ async fn c8y_mapper_child_service_alarm() {
         &mut mqtt,
         [(
             "c8y/s/us/test-device:device:external_sensor",
-            "102,test-device:device:external_sensor:service:service_child,systemd,service_child,up",
+            "102,test-device:device:external_sensor:service:service_child,service,service_child,up",
         )],
     )
     .await;
@@ -1247,7 +1247,7 @@ async fn c8y_mapper_main_service_alarm() {
                 "@type":"service",
                 "@parent":"device/main//",
                 "@id":"test-device:device:main:service:service_main",
-                "type":"systemd"
+                "type":"service"
             }),
         )],
     )
@@ -1258,7 +1258,7 @@ async fn c8y_mapper_main_service_alarm() {
         &mut mqtt,
         [(
             "c8y/s/us",
-            "102,test-device:device:main:service:service_main,systemd,service_main,up",
+            "102,test-device:device:main:service:service_main,service,service_main,up",
         )],
     )
     .await;
