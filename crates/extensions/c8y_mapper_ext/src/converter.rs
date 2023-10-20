@@ -1666,12 +1666,8 @@ pub(crate) mod tests {
         );
 
         // Test the first output messages contains SmartREST and C8Y JSON.
-        let out_first_messages: Vec<_> = converter.convert(&in_message).await.into_iter().collect();
+        let out_first_messages = converter.convert(&in_message).await;
         assert_eq!(out_first_messages, vec![expected_c8y_json_message.clone()]);
-
-        // Test the second output messages doesn't contain SmartREST child device creation.
-        let out_second_messages = converter.convert(&in_message).await;
-        assert_eq!(out_second_messages, vec![expected_c8y_json_message]);
     }
 
     #[tokio::test]
@@ -1727,12 +1723,8 @@ pub(crate) mod tests {
         );
 
         // Test the first output messages contains SmartREST and C8Y JSON.
-        let out_first_messages: Vec<_> = converter.convert(&in_message).await.into_iter().collect();
+        let out_first_messages = converter.convert(&in_message).await;
         assert_eq!(out_first_messages, vec![expected_c8y_json_message.clone()]);
-
-        // Test the second output messages doesn't contain SmartREST child device creation.
-        let out_second_messages = converter.convert(&in_message).await;
-        assert_eq!(out_second_messages, vec![expected_c8y_json_message]);
     }
 
     #[tokio::test]
@@ -1789,7 +1781,7 @@ pub(crate) mod tests {
         );
 
         // Test the first output messages contains SmartREST and C8Y JSON.
-        let out_first_messages: Vec<_> = converter.convert(&in_message).await.into_iter().collect();
+        let out_first_messages = converter.convert(&in_message).await;
         assert_eq!(
             out_first_messages,
             vec![
@@ -1846,7 +1838,7 @@ pub(crate) mod tests {
         );
 
         // Test the first output messages contains SmartREST and C8Y JSON.
-        let out_first_messages: Vec<_> = converter.convert(&in_message).await.into_iter().collect();
+        let out_first_messages = converter.convert(&in_message).await;
         assert_eq!(
             out_first_messages,
             vec![
