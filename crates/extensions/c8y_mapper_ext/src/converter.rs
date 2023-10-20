@@ -1666,12 +1666,7 @@ pub(crate) mod tests {
         );
 
         // Test the first output messages contains SmartREST and C8Y JSON.
-        let out_first_messages: Vec<_> = converter
-            .convert(&in_message)
-            .await
-            .into_iter()
-            .filter(|m| m.topic.name.starts_with("c8y"))
-            .collect();
+        let out_first_messages: Vec<_> = converter.convert(&in_message).await.into_iter().collect();
         assert_eq!(out_first_messages, vec![expected_c8y_json_message.clone()]);
 
         // Test the second output messages doesn't contain SmartREST child device creation.
@@ -1732,12 +1727,7 @@ pub(crate) mod tests {
         );
 
         // Test the first output messages contains SmartREST and C8Y JSON.
-        let out_first_messages: Vec<_> = converter
-            .convert(&in_message)
-            .await
-            .into_iter()
-            .filter(|m| m.topic.name.starts_with("c8y"))
-            .collect();
+        let out_first_messages: Vec<_> = converter.convert(&in_message).await.into_iter().collect();
         assert_eq!(out_first_messages, vec![expected_c8y_json_message.clone()]);
 
         // Test the second output messages doesn't contain SmartREST child device creation.
@@ -1754,10 +1744,33 @@ pub(crate) mod tests {
         let in_payload = r#"{"temp": 1, "time": "2021-11-16T17:45:40.571760714+01:00"}"#;
         let in_message = Message::new(&Topic::new_unchecked(in_topic), in_payload);
 
+        let expected_child_create_msg = Message::new(
+            &Topic::new_unchecked("te/device/child1//"),
+            json!({
+                "@id":"test-device:device:child1",
+                "@type":"child-device",
+                "name":"child1"})
+            .to_string(),
+        )
+        .with_retain();
+
         let expected_smart_rest_message_child = Message::new(
             &Topic::new_unchecked("c8y/s/us"),
             "101,test-device:device:child1,child1,thin-edge.io-child",
         );
+        let expected_service_create_msg = Message::new(
+            &Topic::new_unchecked("te/device/child1/service/app1"),
+            json!({
+                "@id":"test-device:device:child1:service:app1",
+                "@parent":"device/child1//",
+                "@type":"service",
+                "name":"app1",
+                "type":"systemd",
+            })
+            .to_string(),
+        )
+        .with_retain();
+
         let expected_smart_rest_message_service = Message::new(
             &Topic::new_unchecked("c8y/s/us/test-device:device:child1"),
             "102,test-device:device:child1:service:app1,systemd,app1,up",
@@ -1776,16 +1789,13 @@ pub(crate) mod tests {
         );
 
         // Test the first output messages contains SmartREST and C8Y JSON.
-        let out_first_messages: Vec<_> = converter
-            .convert(&in_message)
-            .await
-            .into_iter()
-            .filter(|m| m.topic.name.starts_with("c8y"))
-            .collect();
+        let out_first_messages: Vec<_> = converter.convert(&in_message).await.into_iter().collect();
         assert_eq!(
             out_first_messages,
             vec![
+                expected_child_create_msg,
                 expected_smart_rest_message_child,
+                expected_service_create_msg,
                 expected_smart_rest_message_service,
                 expected_c8y_json_message.clone()
             ]
@@ -1804,6 +1814,18 @@ pub(crate) mod tests {
         let in_topic = "te/device/main/service/appm/m/m_type";
         let in_payload = r#"{"temp": 1, "time": "2021-11-16T17:45:40.571760714+01:00"}"#;
         let in_message = Message::new(&Topic::new_unchecked(in_topic), in_payload);
+
+        let expected_create_service_msg = Message::new(
+            &Topic::new_unchecked("te/device/main/service/appm"),
+            json!({
+                "@id":"test-device:device:main:service:appm",
+                "@parent":"device/main//",
+                "@type":"service",
+                "name":"appm",
+                "type":"systemd"})
+            .to_string(),
+        )
+        .with_retain();
 
         let expected_c8y_json_message = Message::new(
             &Topic::new_unchecked("c8y/measurement/measurements/create"),
@@ -1824,15 +1846,11 @@ pub(crate) mod tests {
         );
 
         // Test the first output messages contains SmartREST and C8Y JSON.
-        let out_first_messages: Vec<_> = converter
-            .convert(&in_message)
-            .await
-            .into_iter()
-            .filter(|m| m.topic.name.starts_with("c8y"))
-            .collect();
+        let out_first_messages: Vec<_> = converter.convert(&in_message).await.into_iter().collect();
         assert_eq!(
             out_first_messages,
             vec![
+                expected_create_service_msg,
                 expected_smart_rest_message_service,
                 expected_c8y_json_message.clone()
             ]

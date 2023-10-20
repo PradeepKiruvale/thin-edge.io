@@ -2668,15 +2668,23 @@ async fn c8y_mapper_nested_child_alarm_mapping_to_smartrest() {
     .await
     .unwrap();
 
-    mqtt.skip(2).await;
-
     // Expect nested child device creating an minor alarm
     assert_received_contains_str(
         &mut mqtt,
-        [(
-            "c8y/s/us/nested_child",
-            "303,ThinEdgeAlarm,\"Temperature high\",2023-10-13T15:00:07.172674353Z",
-        )],
+        [
+            (
+                "c8y/s/us",
+                "101,immediate_child,immediate_child,thin-edge.io-child",
+            ),
+            (
+                "c8y/s/us/immediate_child",
+                "101,nested_child,nested_child,thin-edge.io-child",
+            ),
+            (
+                "c8y/s/us/nested_child",
+                "303,ThinEdgeAlarm,\"Temperature high\",2023-10-13T15:00:07.172674353Z",
+            ),
+        ],
     )
     .await;
 }
@@ -2719,8 +2727,20 @@ async fn c8y_mapper_nested_child_event_mapping_to_smartrest() {
     .await
     .unwrap();
 
-    mqtt.skip(2).await;
-
+    assert_received_contains_str(
+        &mut mqtt,
+        [
+            (
+                "c8y/s/us",
+                "101,immediate_child,immediate_child,thin-edge.io-child",
+            ),
+            (
+                "c8y/s/us/immediate_child",
+                "101,nested_child,nested_child,thin-edge.io-child",
+            ),
+        ],
+    )
+    .await;
     // Expect nested child device creating an event
     assert_received_includes_json(
         &mut mqtt,
