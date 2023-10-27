@@ -244,7 +244,7 @@ mod tests {
             "unquoted value",
         );
         let messages = converter.convert(&twin_message).await;
-        assert_messages_matching(&messages, [("tedge/errors", "expected value".into())])
+        assert_messages_matching(&messages, [("te/errors", "expected value".into())])
     }
 
     #[tokio::test]

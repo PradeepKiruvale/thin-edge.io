@@ -81,6 +81,8 @@ use tedge_api::SoftwareListRequest;
 use tedge_api::SoftwareListResponse;
 use tedge_api::SoftwareUpdateResponse;
 use tedge_config::TEdgeConfigError;
+use tedge_config::TEdgeConfigLocation;
+use tedge_config::TEdgeConfigRepository;
 use tedge_mqtt_ext::Message;
 use tedge_mqtt_ext::MqttMessage;
 use tedge_mqtt_ext::Topic;
@@ -198,6 +200,10 @@ impl CumulocityConverter {
         let service_type = config.service_type.clone();
         let c8y_host = config.c8y_host.clone();
         let cfg_dir = config.config_dir.clone();
+        let tedge_config_location = TEdgeConfigLocation::from_custom_root(&cfg_dir);
+        let config_repository = TEdgeConfigRepository::new(tedge_config_location);
+        let tedge_config = config_repository.load()?;
+        let topic_root = tedge_config.mqtt.topic_root.to_string();
 
         let size_threshold = SizeThreshold(MQTT_MESSAGE_SIZE_THRESHOLD);
 
@@ -214,7 +220,7 @@ impl CumulocityConverter {
 
         let mapper_config = MapperConfig {
             out_topic: Topic::new_unchecked("c8y/measurement/measurements/create"),
-            errors_topic: Topic::new_unchecked("tedge/errors"),
+            errors_topic: Topic::new_unchecked(&format!("{topic_root}/errors")),
         };
 
         let main_device = entity_store::EntityRegistrationMessage::main_device(device_id.clone());
@@ -1868,7 +1874,7 @@ pub(crate) mod tests {
         // First convert invalid Thin Edge JSON message.
         let out_first_messages = converter.convert(&in_first_message).await;
         let expected_error_message = Message::new(
-            &Topic::new_unchecked("tedge/errors"),
+            &Topic::new_unchecked("te/errors"),
             "Invalid JSON: expected value at line 1 column 10: `invalid}\n`",
         );
         assert_eq!(out_first_messages, vec![expected_error_message]);

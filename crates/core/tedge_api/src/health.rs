@@ -64,7 +64,7 @@ impl ServiceHealthTopic {
                     .with_retain()
             }
             Err(e) => {
-                let error_topic = Topic::new_unchecked("tedge/errors");
+                let error_topic = Topic::new_unchecked("te/errors");
                 let error_msg = format!(
                     "Health message: Failed to convert timestamp to Rfc3339 format due to: {e}"
                 );
