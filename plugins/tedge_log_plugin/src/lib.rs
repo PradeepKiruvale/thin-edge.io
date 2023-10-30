@@ -117,6 +117,7 @@ async fn run_with(
         &mut mqtt_actor,
         &mqtt_schema,
         tedge_config.service.ty.clone(),
+        tedge_config.mqtt.topic_root.clone(),
     );
 
     let mut uploader_actor = UploaderActor::new().builder();

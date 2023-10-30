@@ -126,6 +126,7 @@ async fn run(config_dir: impl AsRef<Path>, tedge_config: TEdgeConfig) -> Result<
         &mut mqtt_actor,
         &mqtt_schema,
         tedge_config.service.ty.clone(),
+        tedge_config.mqtt.topic_root.clone(),
     );
 
     let mut jwt_actor = C8YJwtRetriever::builder(base_mqtt_config);

@@ -93,6 +93,7 @@ async fn spawn_a_health_check_actor(
         &mut health_mqtt_builder,
         &mqtt_schema,
         "service".to_string(),
+        "te".into(),
     );
 
     let actor = health_actor.build();

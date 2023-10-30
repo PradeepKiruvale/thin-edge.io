@@ -202,6 +202,7 @@ impl Agent {
             &mut mqtt_actor_builder,
             &mqtt_schema,
             self.config.service_type.clone(),
+            self.config.mqtt_topic_root.to_string(),
         );
 
         // Tedge to Te topic converter
