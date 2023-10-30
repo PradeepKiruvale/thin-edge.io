@@ -44,7 +44,7 @@ impl ServiceHealthTopic {
         }
     }
 
-    pub fn up_message(&self) -> Message {
+    pub fn up_message(&self, topic_root: &str) -> Message {
         let timestamp = WallClock
             .now()
             .format(&time::format_description::well_known::Rfc3339);
@@ -64,7 +64,7 @@ impl ServiceHealthTopic {
                     .with_retain()
             }
             Err(e) => {
-                let error_topic = Topic::new_unchecked("te/errors");
+                let error_topic = Topic::new_unchecked(&format!("{topic_root}/errors"));
                 let error_msg = format!(
                     "Health message: Failed to convert timestamp to Rfc3339 format due to: {e}"
                 );
@@ -87,7 +87,7 @@ mod tests {
         let health_topic = ServiceHealthTopic(Arc::from(
             "te/device/main/service/test_daemon/status/health",
         ));
-        let msg = health_topic.up_message();
+        let msg = health_topic.up_message("te".into());
 
         let health_msg_str = msg.payload_str().unwrap();
         let deserialized_value: Value =

@@ -121,6 +121,7 @@ async fn main() -> anyhow::Result<()> {
         &mut mqtt_actor,
         &mqtt_schema,
         tedge_config.service.ty.clone(),
+        tedge_config.mqtt.topic_root.clone(),
     );
 
     // Shutdown on SIGINT

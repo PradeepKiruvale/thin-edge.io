@@ -13,6 +13,7 @@ pub struct HealthMonitorActor {
     service_registration_message: Option<Message>,
     health_topic: ServiceHealthTopic,
     messages: SimpleMessageBox<MqttMessage, MqttMessage>,
+    topic_root: String,
 }
 
 impl HealthMonitorActor {
@@ -20,16 +21,18 @@ impl HealthMonitorActor {
         service_registration_message: Option<Message>,
         health_topic: ServiceHealthTopic,
         messages: SimpleMessageBox<MqttMessage, MqttMessage>,
+        topic_root: String,
     ) -> Self {
         Self {
             service_registration_message,
             health_topic,
             messages,
+            topic_root,
         }
     }
 
     pub fn up_health_status(&self) -> MqttMessage {
-        self.health_topic.up_message()
+        self.health_topic.up_message(&self.topic_root)
     }
 
     pub fn down_health_status(&self) -> MqttMessage {

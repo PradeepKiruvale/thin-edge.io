@@ -113,6 +113,7 @@ async fn run_with(tedge_config: TEdgeConfig) -> Result<(), anyhow::Error> {
         &mut mqtt_actor,
         &mqtt_schema,
         tedge_config.service.ty.clone(),
+        tedge_config.mqtt.topic_root.clone(),
     );
 
     // Instantiate firmware manager actor
