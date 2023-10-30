@@ -87,7 +87,7 @@ mod tests {
         let health_topic = ServiceHealthTopic(Arc::from(
             "te/device/main/service/test_daemon/status/health",
         ));
-        let msg = health_topic.up_message("te".into());
+        let msg = health_topic.up_message("te");
 
         let health_msg_str = msg.payload_str().unwrap();
         let deserialized_value: Value =
