@@ -100,6 +100,71 @@ tedge mqtt pub te/device/child1///m/environment '{"temperature": 25}'
 Then, you will see a child device with the name `child1` is created in your Cumulocity IoT tenant,
 and the measurement is recorded in `Measurements` of the `child1` device.
 
+## Sending measurements to nested-child devices
+
+If valid Thin Edge JSON measurements are published to the `te/device/<nested-child-device>///m/<measurement-type>` topic,
+the measurements are recorded under a child device of your thin-edge.io device.
+
+Given your desired child device ID is `nested-child-device`, publish a Thin Edge JSON message to the `te/device/nested-child-device///m/` topic:
+
+```sh te2mqtt
+tedge mqtt pub te/device/nested-child-device///m/ '{"temperature": 25}'
+```
+
+Then, you will see a child device with the name `nested-child-device` is created in your Cumulocity IoT tenant,
+and the measurement is recorded in `Measurements` of the `nested-child-device` device.
+
+> Note: Before sending the measurement to the nested-child-device has to be registered/created under a child device if not registered already.
+
+## Sending measurements to thin-edge device service
+
+If valid Thin Edge JSON measurements are published to the `te/device/main/service/main-device-service/m/<measurement-type>` topic,
+the measurements are recorded under a child device of your thin-edge.io device.
+
+Given your desired child device ID is `main`, publish a Thin Edge JSON message to the `te/device/main/service/main-device-service/m/` topic:
+
+```sh te2mqtt
+tedge mqtt pub te/device/main///m/ '{"temperature": 25}'
+```
+
+Then, you will see a thin-edge device with the name `device name`(SN) is created in your Cumulocity IoT tenant,
+and the measurement is recorded in `Measurements` of the `thin-edge` device.
+
+## Sending measurements to child device service
+
+If valid Thin Edge JSON measurements are published to the `te/device/<child-device>/service/<child-device-service>/m/<measurement-type>` topic,
+the measurements are recorded under a child device's service of your thin-edge.io device.
+
+Given your desired child device ID is `child-device`, publish a Thin Edge JSON message to the `te/device/<child-device>/service/<child-device-service>/m/` topic:
+
+```sh te2mqtt
+tedge mqtt pub te/device/<child-device>/service/<child-device-service>/m/ '{"temperature": 25}'
+```
+
+Then, you will see a service created with the name `child-device-service` under the child device with the name `child-device` in your Cumulocity IoT tenant,
+and the measurement is recorded in `Measurements` of the `child-device-service` service.
+
+> Note: Before sending the measurement to the nested-child-device's service, the service has to be registered/created under a child device if not registered already.
+
+
+## Sending measurements to nested child device service
+
+If valid Thin Edge JSON measurements are published to the `te/device/<nested-child-device>/service/<nested-child-device-service>/m/<measurement-type>` topic,
+the measurements are recorded under a nested child device's service of your thin-edge.io device.
+
+Given your desired nested child device ID is `nested-child-device`, publish a Thin Edge JSON message to the `te/device/<nested-child-device>/service/<nested-child-device-service>/m/` topic:
+
+```sh te2mqtt
+tedge mqtt pub te/device/<nested-child-device>/service/<nested-child-device-service>/m/ '{"temperature": 25}'
+```
+
+Then, you will see a service created with the name `nested-child-device-service` under the child device with the name `nested-child-device` in your Cumulocity IoT tenant,
+and the measurement is recorded in `Measurements` of the `nested-child-device-service` service.
+
+> Note: Before sending the measurement to the nested-child-device's service, the child device has to be created and then the nested child device has to be created
+ and then the service has to be registered/created under a nested child device if not registered already.
+
+
 ## Error detection
 
 If the data published to the measurements topic are not valid Thin Edge JSON measurements, those won't be

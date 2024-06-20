@@ -59,6 +59,61 @@ Events for child devices can be sent by publishing the event payload to `te/devi
 where the `child-device-id` is the unique device id of the child device.
 The event payload structure is the same, as described in the previous section.
 
+### Sending events from nested child devices
+
+Events for the nested child devices can be sent by publishing the event payload to `te/device/<nested-child-device-id>///e/<event-type>` topic,
+where the `nested-child-device-id` is the unique device id of the nested child device.
+The event payload structure is the same, as described in the previous section.
+
+Here is a sample event triggered for a `login_event` event type:
+
+```sh te2mqtt
+tedge mqtt pub te/device/nested-child-device-1///e/login_event '
+{
+  "text": "A user just logged in",
+  "time": "2021-01-01T05:30:45+00:00"
+}'
+```
+:::
+note: The nested child device has to be pre-registered before sending an event.
+:::
+
+### Sending events from child device's service
+
+Events for the child device's service can be sent by publishing the event payload to `te/device/<child-device-id>/service/<service-id>/e/<event-type>` topic,
+where the `nested-child-device-id` is the unique device id of the nested child device.
+The event payload structure is the same, as described in the previous section.
+
+Here is a sample event triggered for a `login_event` event type:
+
+```sh te2mqtt
+tedge mqtt pub te/device/<child-device-id>/service/<service-id>/e/login_event'
+{
+  "text": "A user just logged in",
+  "time": "2021-01-01T05:30:45+00:00"
+}'
+```
+
+### Sending events from nested child device's service
+
+Events for the nested child device's service can be sent by publishing the event payload to `te/device/<nested-child-device-id>/service/<service-id>/e/<event-type>` topic,
+where the `nested-child-device-id` is the unique device id of the nested child device.
+The event payload structure is the same, as described in the previous section.
+
+Here is a sample event triggered for a `login_event` event type:
+
+```sh te2mqtt
+tedge mqtt pub te/device/nested-child-device-id-1/service/nested-child-service/e/login_event'
+{
+  "text": "A user just logged in",
+  "time": "2021-01-01T05:30:45+00:00"
+}'
+```
+
+:::
+note: The nested child device and its service has to be pre-registered before sending an event.
+:::
+
 ## Cloud data mapping
 
 If the device is connected to some supported IoT cloud platform, an event that is triggered locally on thin-edge.io will be forwarded to the connected cloud platform as well.
